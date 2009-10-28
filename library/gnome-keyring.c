@@ -31,6 +31,8 @@
 
 #include "egg/egg-unix-credentials.h"
 
+#include <dbus/dbus.h>
+
 #include <time.h>
 #include <unistd.h>
 #include <errno.h>
@@ -42,7 +44,11 @@
 #include <sys/uio.h>
 #include <stdarg.h>
 
-#if 0
+#define BROKEN                         GNOME_KEYRING_RESULT_IO_ERROR
+#define SECRETS_SERVICE                "org.freedesktop.secrets"
+#define SECRETS_SERVICE_PATH           "/org/freedesktop/secrets"
+#define SECRETS_SERVICE_INTERFACE      "org.freedesktop.Secrets.Service"
+
 /**
  * SECTION:gnome-keyring-generic-callbacks
  * @title: Callbacks
@@ -60,34 +66,22 @@ typedef enum {
 	CALLBACK_GET_ACL
 } KeyringCallbackType;
 
-typedef enum {
-	STATE_FAILED,
-	STATE_WRITING_CREDS,
-	STATE_WRITING_PACKET,
-	STATE_READING_REPLY
-} KeyringState;
-
-typedef struct GnomeKeyringOperation GnomeKeyringOperation;
-#endif
 #define NORMAL_ALLOCATOR  ((EggBufferAllocator)g_realloc)
 #define SECURE_ALLOCATOR  ((EggBufferAllocator)gnome_keyring_memory_realloc)
-#if 0
-typedef gboolean (*KeyringHandleReply) (GnomeKeyringOperation *op);
 
-struct GnomeKeyringOperation {
-	int socket;
+typedef struct _Operation Operation;
+typedef gboolean (*KeyringHandleReply) (Operation *op);
 
-	KeyringState state;
+struct _Operation {
 	GnomeKeyringResult result;
 
-	guint io_watch;
+	gboolean failed;
 	guint idle_watch;
 
-	EggBuffer send_buffer;
-	gsize send_pos;
-
-	EggBuffer receive_buffer;
-	gsize receive_pos;
+	DBusConnection *conn;
+	DBusMessage *request;
+	DBusPendingCall *pending;
+	DBusMessage *reply;
 
 	KeyringCallbackType user_callback_type;
 	gpointer user_callback;
@@ -100,32 +94,31 @@ struct GnomeKeyringOperation {
 };
 
 static void
-operation_free (GnomeKeyringOperation *op)
+operation_free (gpointer data)
 {
-	if (op->idle_watch != 0) {
+	Operation *op = data;
+	if (!op)
+		return;
+	if (op->request)
+		dbus_message_unref (op->request);
+	op->request = NULL;
+	if (op->reply)
+		dbus_message_unref (op->reply);
+	op->reply = NULL;
+	if (op->idle_watch != 0)
 		g_source_remove (op->idle_watch);
-		op->idle_watch = 0;
-	}
-	if (op->io_watch != 0) {
-		g_source_remove (op->io_watch);
-		op->io_watch = 0;
-	}
+	op->idle_watch = 0;
 	if (op->destroy_user_data != NULL && op->user_data != NULL)
 		(*op->destroy_user_data) (op->user_data);
 	if (op->destroy_reply_data != NULL && op->reply_data != NULL)
 		(*op->destroy_reply_data) (op->reply_data);
-	egg_buffer_uninit (&op->send_buffer);
-	egg_buffer_uninit (&op->receive_buffer);
-
-	shutdown (op->socket, SHUT_RDWR);
-	close (op->socket);
 	g_free (op);
 }
 
 static gboolean
-op_failed (gpointer data)
+on_scheduled_fail (gpointer data)
 {
-	GnomeKeyringOperation *op;
+	Operation *op;
 
 	op = data;
 	op->idle_watch = 0;
@@ -163,233 +156,179 @@ op_failed (gpointer data)
 	return FALSE;
 }
 
-
 static void
-schedule_op_failed (GnomeKeyringOperation *op,
-                    GnomeKeyringResult result)
+schedule_op_failed (Operation *op, GnomeKeyringResult result)
 {
-	if (op->io_watch != 0) {
-		g_source_remove (op->io_watch);
-		op->io_watch = 0;
+	if (op->pending) {
+		dbus_pending_call_cancel (op->pending);
+		dbus_pending_call_unref (op->pending);
+		op->pending = NULL;
 	}
-	op->state = STATE_FAILED;
+	op->failed = TRUE;
 	op->result = result;
 
 	if (op->idle_watch == 0)
-		op->idle_watch = g_idle_add (op_failed, op);
+		op->idle_watch = g_idle_add (on_scheduled_fail, op);
 }
 
-static GnomeKeyringResult
-write_credentials_byte_sync (int socket)
+static Operation*
+create_operation (gpointer callback, KeyringCallbackType callback_type,
+                  gpointer user_data, GDestroyNotify destroy_user_data)
 {
-	if (egg_unix_credentials_write (socket) < 0)
-		return GNOME_KEYRING_RESULT_IO_ERROR;
-	return GNOME_KEYRING_RESULT_OK;
-}
+	Operation *op;
 
-static void
-write_credentials_byte (GnomeKeyringOperation *op)
-{
-	if (egg_unix_credentials_write (op->socket) < 0) {
-		if (errno == EAGAIN)
-			return;
-		schedule_op_failed (op, GNOME_KEYRING_RESULT_IO_ERROR);
-		return;
-	}
-
-	op->state = STATE_WRITING_PACKET;
-}
-
-static gboolean
-operation_io (GIOChannel  *io_channel,
-              GIOCondition cond,
-              gpointer     callback_data)
-{
-	GIOChannel *channel;
-	GnomeKeyringOperation *op;
-	int res;
-	guint32 packet_size;
-
-	op = callback_data;
-
-	if (cond & G_IO_HUP && !(cond & G_IO_IN)) {
-		schedule_op_failed (op, GNOME_KEYRING_RESULT_IO_ERROR);
-	}
-
-	if (op->state == STATE_WRITING_CREDS && (cond & G_IO_OUT)) {
-		write_credentials_byte (op);
-	}
-	if (op->state == STATE_WRITING_PACKET && (cond & G_IO_OUT)) {
-		res = write (op->socket,
-			     op->send_buffer.buf + op->send_pos,
-			     op->send_buffer.len - op->send_pos);
-		if (res <= 0) {
-			if (errno != EAGAIN &&
-			    errno != EINTR) {
-				schedule_op_failed (op, GNOME_KEYRING_RESULT_IO_ERROR);
-			}
-		} else {
-			op->send_pos += res;
-
-			if (op->send_pos == op->send_buffer.len) {
-				op->state = STATE_READING_REPLY;
-				egg_buffer_reset (&op->receive_buffer);
-				op->receive_pos = 0;
-
-				g_source_remove (op->io_watch);
-				channel = g_io_channel_unix_new (op->socket);
-				op->io_watch = g_io_add_watch (channel,
-							       G_IO_IN | G_IO_HUP,
-							       operation_io, op);
-				g_io_channel_unref (channel);
-			}
-		}
-	}
-
-	if (op->state == STATE_READING_REPLY && (cond & G_IO_IN)) {
-		if (op->receive_pos < 4) {
-			egg_buffer_resize (&op->receive_buffer, 4);
-			res = read (op->socket,
-				    op->receive_buffer.buf + op->receive_pos,
-				    4 - op->receive_pos);
-			if (res <= 0) {
-				if (errno != EAGAIN &&
-				    errno != EINTR) {
-					schedule_op_failed (op, GNOME_KEYRING_RESULT_IO_ERROR);
-				}
-			} else {
-				op->receive_pos += res;
-			}
-		}
-
-		if (op->receive_pos >= 4) {
-			if (!gkr_proto_decode_packet_size (&op->receive_buffer, &packet_size) ||
-			    packet_size < 4) {
-				schedule_op_failed (op, GNOME_KEYRING_RESULT_IO_ERROR);
-			}
-
-			g_assert (op->receive_pos <= packet_size);
-			egg_buffer_resize (&op->receive_buffer, packet_size);
-
-			res = read (op->socket, op->receive_buffer.buf + op->receive_pos,
-				    packet_size - op->receive_pos);
-			if (res <= 0) {
-				if (errno != EAGAIN &&
-				    errno != EINTR) {
-					schedule_op_failed (op, GNOME_KEYRING_RESULT_IO_ERROR);
-				}
-			} else {
-				op->receive_pos += res;
-
-				if (op->receive_pos == packet_size) {
-					op->result = GNOME_KEYRING_RESULT_OK;
-
-					/* Only cleanup if the handler says we're done */
-					if ((*op->reply_handler) (op)) {
-						g_source_remove (op->io_watch);
-						op->io_watch = 0;
-						operation_free (op);
-					}
-				}
-			}
-		}
-	}
-
-	return TRUE;
-}
-
-
-static GnomeKeyringOperation*
-create_operation (gboolean receive_secure, gpointer callback,
-                  KeyringCallbackType callback_type, gpointer user_data,
-                  GDestroyNotify destroy_user_data)
-{
-	GnomeKeyringOperation *op;
-
-	op = g_new0 (GnomeKeyringOperation, 1);
+	op = g_new0 (Operation, 1);
 
 	/* Start in failed mode */
-	op->state = STATE_FAILED;
+	op->failed = FALSE;
 	op->result = GNOME_KEYRING_RESULT_OK;
 
 	op->user_callback_type = callback_type;
 	op->user_callback = callback;
 	op->user_data = user_data;
 	op->destroy_user_data = destroy_user_data;
-	op->socket = -1;
-
-	egg_buffer_init_full (&op->send_buffer, 128, NORMAL_ALLOCATOR);
-	egg_buffer_init_full (&op->receive_buffer, 128,
-		receive_secure ? SECURE_ALLOCATOR : NORMAL_ALLOCATOR);
 
 	return op;
 }
 
-static void
-start_operation (GnomeKeyringOperation *op)
+static DBusConnection*
+connect_to_bus (void)
 {
-	GIOChannel *channel;
+	DBusError derr = DBUS_ERROR_INIT;
+	DBusConnection *conn;
 
-	/* Start in failed mode */
-	op->state = STATE_FAILED;
-	op->result = GNOME_KEYRING_RESULT_OK;
+	if (!g_getenv ("DBUS_SESSION_BUS_ADDRESS"))
+		return NULL;
 
-	if (op->io_watch != 0) {
-		g_source_remove (op->io_watch);
-		op->io_watch = 0;
-	}
-	if (op->socket >= 0) {
-		shutdown (op->socket, SHUT_RDWR);
-		close (op->socket);
+	conn = dbus_bus_get (DBUS_BUS_SESSION, &derr);
+	if (conn == NULL) {
+		g_message ("couldn't connect to dbus session bus: %s", derr.message);
+		dbus_error_free (&derr);
 	}
 
-	op->socket = gnome_keyring_socket_connect_daemon (TRUE, FALSE);
-	if (op->socket < 0) {
-		schedule_op_failed (op, GNOME_KEYRING_RESULT_NO_KEYRING_DAEMON);
-	} else {
-		op->state = STATE_WRITING_CREDS;
-
-		egg_buffer_reset (&op->receive_buffer);
-		op->send_pos = 0;
-
-		channel = g_io_channel_unix_new (op->socket);
-		op->io_watch = g_io_add_watch (channel,
-		                               G_IO_OUT | G_IO_HUP,
-		                               operation_io, op);
-		g_io_channel_unref (channel);
-	}
+	return conn;
 }
 
 static GnomeKeyringResult
-run_sync_operation (EggBuffer *buffer,
-                    EggBuffer *receive_buffer)
+handle_error_to_result (DBusError *derr, const gchar *desc)
 {
-	GnomeKeyringResult res;
-	int socket;
+	g_assert (derr);
+	g_assert (dbus_error_is_set (derr));
 
-	g_assert (buffer != NULL);
-	g_assert (receive_buffer != NULL);
+	if (!desc)
+		desc = "secrets service operation failed";
 
-	socket = gnome_keyring_socket_connect_daemon (FALSE, FALSE);
-	if (socket < 0)
-		return GNOME_KEYRING_RESULT_NO_KEYRING_DAEMON;
+	g_message ("%s: %s", desc, derr->message);
+	dbus_error_free (derr);
 
-	res = write_credentials_byte_sync (socket);
-	if (res != GNOME_KEYRING_RESULT_OK) {
-		close (socket);
-		return res;
+	/* TODO: Need to be more specific about errors */
+	return GNOME_KEYRING_RESULT_IO_ERROR;
+}
+
+static void
+on_pending_call_notify (DBusPendingCall *pending, void *user_data)
+{
+	DBusError derr = DBUS_ERROR_INIT;
+	Operation *op = user_data;
+
+	g_assert (pending == op->pending);
+	g_assert (!op->reply);
+
+	op->reply = dbus_pending_call_steal_reply (pending);
+	g_return_if_fail (op->reply);
+
+	dbus_pending_call_unref (op->pending);
+	op->pending = NULL;
+
+	if (dbus_set_error_from_message (&derr, op->reply))
+		op->result = handle_error_to_result (&derr, NULL);
+	else
+		op->result = GNOME_KEYRING_RESULT_OK;
+
+	if (op->reply_handler)
+		(op->reply_handler) (op);
+}
+
+static void
+start_operation (Operation *op)
+{
+	g_assert (op);
+	g_assert (op->request);
+	g_assert (!op->pending);
+
+	if (op->reply)
+		dbus_message_unref (op->reply);
+	op->reply = NULL;
+
+	if (!op->conn) {
+		op->conn = connect_to_bus ();
+		if (op->conn == NULL) {
+			schedule_op_failed (op, GNOME_KEYRING_RESULT_IO_ERROR);
+			return;
+		}
 	}
 
-	if (!gnome_keyring_socket_write_buffer (socket, buffer) ||
-	    !gnome_keyring_socket_read_buffer (socket, receive_buffer)) {
-		close (socket);
+	if (!dbus_connection_send_with_reply (op->conn, op->request, &op->pending, -1))
+		g_return_if_reached ();
+
+	if (op->pending)
+		dbus_pending_call_set_notify (op->pending, on_pending_call_notify, op, operation_free);
+	else
+		schedule_op_failed (op, GNOME_KEYRING_RESULT_IO_ERROR);
+}
+
+static DBusMessage*
+prepare_property_get (const gchar *path, const gchar *interface, const gchar *name)
+{
+	DBusMessage *req;
+
+	g_assert (path);
+	g_assert (name);
+
+	if (!interface)
+		interface = "";
+
+	req = dbus_message_new_method_call (SECRETS_SERVICE, path,
+	                                    DBUS_INTERFACE_PROPERTIES, "Get");
+	g_return_val_if_fail (req, NULL);
+	if (!dbus_message_append_args (req, DBUS_TYPE_STRING, &interface,
+	                               DBUS_TYPE_STRING, &name, DBUS_TYPE_INVALID))
+		g_return_val_if_reached (NULL);
+
+	return req;
+}
+
+static GnomeKeyringResult
+send_to_service_and_simple_block (DBusMessage *req, DBusMessage **reply)
+{
+	DBusConnection *conn;
+	DBusError derr = DBUS_ERROR_INIT;
+	GnomeKeyringResult res;
+
+	g_assert (req);
+	g_assert (reply);
+
+	conn = connect_to_bus ();
+	if (conn == NULL) {
+		*reply = NULL;
 		return GNOME_KEYRING_RESULT_IO_ERROR;
 	}
 
-	close (socket);
-	return GNOME_KEYRING_RESULT_OK;
+	/* TODO: Timeout here needs to be clarified */
+	*reply = dbus_connection_send_with_reply_and_block (conn, req, -1, &derr);
+	if (*reply == NULL) {
+		/* TODO: Certain errors should be handled differently */
+		g_message ("couldn't communicate with daemon: %s", derr.message);
+		dbus_error_free (&derr);
+		res = GNOME_KEYRING_RESULT_IO_ERROR;
+	} else {
+		res = GNOME_KEYRING_RESULT_OK;
+	}
+
+	dbus_connection_unref (conn);
+	return res;
 }
-#endif
+
 /**
  * SECTION:gnome-keyring-misc
  * @title: Miscellaneous Functions
@@ -407,17 +346,23 @@ run_sync_operation (EggBuffer *buffer,
 gboolean
 gnome_keyring_is_available (void)
 {
-#if 0
-	int socket;
+	DBusConnection *conn;
+	DBusMessage *req, *reply;
 
-	socket = gnome_keyring_socket_connect_daemon (FALSE, FALSE);
-	if (socket < 0) {
+	conn = connect_to_bus ();
+	if (conn == NULL)
 		return FALSE;
-	}
-	close (socket);
-#endif
-	g_assert (FALSE && "TODO");
-	return TRUE;
+
+	req = dbus_message_new_method_call (SECRETS_SERVICE, SECRETS_SERVICE_PATH,
+	                                    DBUS_INTERFACE_PEER, "Ping");
+	g_return_val_if_fail (req, FALSE);
+
+	reply = dbus_connection_send_with_reply_and_block (conn, req, 1000, NULL);
+	dbus_message_unref (req);
+	dbus_message_unref (reply);
+	dbus_connection_unref (conn);
+
+	return (reply != NULL);
 }
 
 /**
@@ -686,27 +631,120 @@ gnome_keyring_get_default_keyring_sync (char **keyring)
 	return 0;
 }
 
-#if 0
-static gboolean
-list_keyring_names_reply (GnomeKeyringOperation *op)
+static GnomeKeyringResult
+result_invalid_response (DBusMessage *reply)
 {
-	GnomeKeyringResult result;
+	g_assert (reply);
+	g_message ("call to daemon returned an invalid response: %s.%s()",
+	           dbus_message_get_interface (reply),
+	           dbus_message_get_member (reply));
+	return GNOME_KEYRING_RESULT_IO_ERROR;
+}
+
+static gchar*
+decode_object_identifier (const gchar* enc, gssize length)
+{
+	GString *result;
+
+	g_assert (enc);
+
+	if (length < 0)
+		length = strlen (enc);
+
+	result = g_string_sized_new (length);
+	while (length > 0) {
+		char ch = *(enc++);
+		--length;
+
+		/* Underscores get special handling */
+		if (G_UNLIKELY (ch == '_' &&
+		                g_ascii_isxdigit(enc[0]) &&
+		                g_ascii_isxdigit (enc[1]))) {
+			ch = (g_ascii_xdigit_value (enc[0]) * 16) +
+			     (g_ascii_xdigit_value (enc[1]));
+			enc += 2;
+			length -= 2;
+		}
+
+		g_string_append_c_inline (result, ch);
+	}
+
+	return g_string_free (result, FALSE);
+}
+
+static gchar*
+collection_path_to_keyring_name (const char *path)
+{
+	g_return_val_if_fail (path, NULL);
+
+	path = strrchr (path, '/');
+	if (path == NULL || path[1] == '\0') {
+		g_message ("response from daemon contained an bad collection path: %s", path);
+		return NULL;
+	}
+
+	return decode_object_identifier (path, -1);
+}
+
+static GnomeKeyringResult
+list_keyring_names_decode (DBusMessage *reply, GList **names)
+{
+	DBusMessageIter iter, variant, array;
+	const char *path;
+	gchar *name;
+	int type;
+
+	g_assert (reply);
+	g_assert (names);
+
+	if (dbus_message_has_signature (reply, "v"))
+		return result_invalid_response (reply);
+
+	/* Iter to the variant */
+	if (!dbus_message_iter_init (reply, &iter))
+		g_return_val_if_reached (BROKEN);
+	g_return_val_if_fail (dbus_message_iter_get_arg_type (&iter) == DBUS_TYPE_VARIANT, BROKEN);
+	dbus_message_iter_recurse (&iter, &variant);
+
+	/* Iter to the array */
+	if (dbus_message_iter_get_arg_type (&variant) != DBUS_TYPE_ARRAY)
+		return result_invalid_response (reply);
+	dbus_message_iter_recurse (&variant, &array);
+
+	/* Each item in the array */
+	for (;;) {
+		type = dbus_message_iter_get_arg_type (&array);
+		if (type == DBUS_TYPE_INVALID)
+			break;
+		if (type != DBUS_TYPE_OBJECT_PATH)
+			return result_invalid_response (reply);
+
+		/* The object path, gets converted into a name */
+		dbus_message_iter_get_basic (&array, &path);
+		name = collection_path_to_keyring_name (path);
+		if (name != NULL)
+			*names = g_list_prepend (*names, name);
+	}
+
+	return GNOME_KEYRING_RESULT_OK;
+}
+
+static gboolean
+list_keyring_names_reply (Operation *op)
+{
 	GnomeKeyringOperationGetListCallback callback;
-	GList *names;
+	GnomeKeyringResult res;
+	GList *names = NULL;
 
 	callback = op->user_callback;
 
-	if (!gkr_proto_decode_result_string_list_reply (&op->receive_buffer, &result, &names)) {
-		(*callback) (GNOME_KEYRING_RESULT_IO_ERROR, NULL, op->user_data);
-	} else {
-		(*callback) (result, names, op->user_data);
-		gnome_keyring_string_list_free (names);
-	}
+	res = list_keyring_names_decode (op->reply, &names);
+	(*callback) (res, names, op->user_data);
+	gnome_keyring_string_list_free (names);
 
 	/* Operation is done */
 	return TRUE;
 }
-#endif
 
 /**
  * gnome_keyring_list_keyring_names:
@@ -729,21 +767,17 @@ gnome_keyring_list_keyring_names  (GnomeKeyringOperationGetListCallback    callb
                                    gpointer                                data,
                                    GDestroyNotify                          destroy_data)
 {
-#if 0
-	GnomeKeyringOperation *op;
+	Operation *op;
+	DBusMessage *req;
 
-	op = create_operation (FALSE, callback, CALLBACK_GET_LIST, data, destroy_data);
-	if (!gkr_proto_encode_op_only (&op->send_buffer,
-						 GNOME_KEYRING_OP_LIST_KEYRINGS)) {
-		schedule_op_failed (op, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-	}
+	req = prepare_property_get (SECRETS_SERVICE_PATH, SECRETS_SERVICE_INTERFACE, "Collections");
+	g_return_val_if_fail (req, NULL);
 
+	op = create_operation (callback, CALLBACK_GET_LIST, data, destroy_data);
+	op->request = req;
 	op->reply_handler = list_keyring_names_reply;
 	start_operation (op);
 	return op;
-#endif
-	g_assert (FALSE && "TODO");
-	return 0;
 }
 
 /**
@@ -763,38 +797,21 @@ gnome_keyring_list_keyring_names  (GnomeKeyringOperationGetListCallback    callb
 GnomeKeyringResult
 gnome_keyring_list_keyring_names_sync (GList **keyrings)
 {
-#if 0
-	EggBuffer send, receive;
+	DBusMessage *req, *reply;
 	GnomeKeyringResult res;
 
-	egg_buffer_init_full (&send, 128, NORMAL_ALLOCATOR);
+	req = prepare_property_get (SECRETS_SERVICE_PATH, SECRETS_SERVICE_INTERFACE,
+	                            "Collections");
+	g_return_val_if_fail (req, BROKEN);
 
-	*keyrings = NULL;
+	res = send_to_service_and_simple_block (req, &reply);
+	dbus_message_unref (req);
 
-	if (!gkr_proto_encode_op_only (&send, GNOME_KEYRING_OP_LIST_KEYRINGS)) {
-		egg_buffer_uninit (&send);
-		return GNOME_KEYRING_RESULT_BAD_ARGUMENTS;
-	}
+	if (res == GNOME_KEYRING_RESULT_OK)
+		res = list_keyring_names_decode (reply, keyrings);
 
-	egg_buffer_init_full (&receive, 128, NORMAL_ALLOCATOR);
-
-	res = run_sync_operation (&send, &receive);
-	egg_buffer_uninit (&send);
-	if (res != GNOME_KEYRING_RESULT_OK) {
-		egg_buffer_uninit (&receive);
-		return res;
-	}
-
-	if (!gkr_proto_decode_result_string_list_reply (&receive, &res, keyrings)) {
-		egg_buffer_uninit (&receive);
-		return GNOME_KEYRING_RESULT_IO_ERROR;
-	}
-	egg_buffer_uninit (&receive);
-
+	dbus_message_unref (reply);
 	return res;
-#endif
-	g_assert (FALSE && "TODO");
-	return 0;
 }
 
 /**
