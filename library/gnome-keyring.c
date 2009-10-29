@@ -46,8 +46,12 @@
 
 #define BROKEN                         GNOME_KEYRING_RESULT_IO_ERROR
 #define SECRETS_SERVICE                "org.freedesktop.secrets"
-#define SECRETS_SERVICE_PATH           "/org/freedesktop/secrets"
-#define SECRETS_SERVICE_INTERFACE      "org.freedesktop.Secrets.Service"
+#define SERVICE_PATH                   "/org/freedesktop/secrets"
+#define SERVICE_INTERFACE              "org.freedesktop.Secrets.Service"
+#define COLLECTION_INTERFACE           "org.freedesktop.Secrets.Collection"
+#define ITEM_INTERFACE                 "org.freedesktop.Secrets.Item"
+#define COLLECTION_PREFIX              "/org/freedesktop/secrets/collection"
+#define COLLECTION_DEFAULT             "/org/freedesktop/secrets/collection/default"
 
 /**
  * SECTION:gnome-keyring-generic-callbacks
@@ -298,6 +302,26 @@ prepare_property_get (const gchar *path, const gchar *interface, const gchar *na
 	return req;
 }
 
+static DBusMessage*
+prepare_property_getall (const gchar *path, const gchar *interface)
+{
+	DBusMessage *req;
+
+	g_assert (path);
+
+	if (!interface)
+		interface = "";
+
+	req = dbus_message_new_method_call (SECRETS_SERVICE, path,
+	                                    DBUS_INTERFACE_PROPERTIES, "GetAll");
+	g_return_val_if_fail (req, NULL);
+	if (!dbus_message_append_args (req, DBUS_TYPE_STRING, &interface,
+	                               DBUS_TYPE_INVALID))
+		g_return_val_if_reached (NULL);
+
+	return req;
+}
+
 static GnomeKeyringResult
 send_to_service_and_simple_block (DBusMessage *req, DBusMessage **reply)
 {
@@ -329,6 +353,90 @@ send_to_service_and_simple_block (DBusMessage *req, DBusMessage **reply)
 	return res;
 }
 
+static gchar*
+encode_object_identifier (const gchar *prefix, const gchar* name, gssize length)
+{
+	GString *result;
+
+	g_assert (name);
+
+	if (length < 0)
+		length = strlen (name);
+
+	result = g_string_sized_new (64);
+	g_string_append (result, prefix);
+	while (length > 0) {
+		char ch = *(name++);
+		--length;
+
+		/* Normal characters can go right through */
+		if (G_LIKELY ((ch >= 'A' && ch <= 'Z') ||
+		              (ch >= 'a' && ch <= 'z') ||
+		              (ch >= '0' && ch <= '9'))) {
+			g_string_append_c_inline (result, ch);
+
+		/* Special characters are encoded with a _ */
+		} else {
+			g_string_append_printf (result, "_%02x", (unsigned int)ch);
+		}
+	}
+
+	return g_string_free (result, FALSE);
+}
+
+static gchar*
+decode_object_identifier (const gchar* enc, gssize length)
+{
+	GString *result;
+
+	g_assert (enc);
+
+	if (length < 0)
+		length = strlen (enc);
+
+	result = g_string_sized_new (length);
+	while (length > 0) {
+		char ch = *(enc++);
+		--length;
+
+		/* Underscores get special handling */
+		if (G_UNLIKELY (ch == '_' &&
+		                g_ascii_isxdigit(enc[0]) &&
+		                g_ascii_isxdigit (enc[1]))) {
+			ch = (g_ascii_xdigit_value (enc[0]) * 16) +
+			     (g_ascii_xdigit_value (enc[1]));
+			enc += 2;
+			length -= 2;
+		}
+
+		g_string_append_c_inline (result, ch);
+	}
+
+	return g_string_free (result, FALSE);
+}
+
+static gchar*
+collection_path_to_keyring_name (const char *path)
+{
+	g_return_val_if_fail (path, NULL);
+
+	path = strrchr (path, '/');
+	if (path == NULL || path[1] == '\0') {
+		g_message ("response from daemon contained an bad collection path: %s", path);
+		return NULL;
+	}
+
+	return decode_object_identifier (path, -1);
+}
+
+static gchar*
+collection_path_from_keyring_name (const gchar *keyring)
+{
+	if (!keyring)
+		return g_strdup (COLLECTION_DEFAULT);
+	return encode_object_identifier (COLLECTION_PREFIX, keyring, -1);
+}
+
 /**
  * SECTION:gnome-keyring-misc
  * @title: Miscellaneous Functions
@@ -353,7 +461,7 @@ gnome_keyring_is_available (void)
 	if (conn == NULL)
 		return FALSE;
 
-	req = dbus_message_new_method_call (SECRETS_SERVICE, SECRETS_SERVICE_PATH,
+	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
 	                                    DBUS_INTERFACE_PEER, "Ping");
 	g_return_val_if_fail (req, FALSE);
 
@@ -377,14 +485,12 @@ gnome_keyring_is_available (void)
 void
 gnome_keyring_cancel_request (gpointer request)
 {
-#if 0
-	GnomeKeyringOperation *op;
+	Operation *op;
 
+	g_return_if_fail (request);
 	op = request;
 
 	schedule_op_failed (op, GNOME_KEYRING_RESULT_CANCELLED);
-#endif
-	g_assert (FALSE && "TODO");
 }
 
 #if 0
@@ -641,51 +747,6 @@ result_invalid_response (DBusMessage *reply)
 	return GNOME_KEYRING_RESULT_IO_ERROR;
 }
 
-static gchar*
-decode_object_identifier (const gchar* enc, gssize length)
-{
-	GString *result;
-
-	g_assert (enc);
-
-	if (length < 0)
-		length = strlen (enc);
-
-	result = g_string_sized_new (length);
-	while (length > 0) {
-		char ch = *(enc++);
-		--length;
-
-		/* Underscores get special handling */
-		if (G_UNLIKELY (ch == '_' &&
-		                g_ascii_isxdigit(enc[0]) &&
-		                g_ascii_isxdigit (enc[1]))) {
-			ch = (g_ascii_xdigit_value (enc[0]) * 16) +
-			     (g_ascii_xdigit_value (enc[1]));
-			enc += 2;
-			length -= 2;
-		}
-
-		g_string_append_c_inline (result, ch);
-	}
-
-	return g_string_free (result, FALSE);
-}
-
-static gchar*
-collection_path_to_keyring_name (const char *path)
-{
-	g_return_val_if_fail (path, NULL);
-
-	path = strrchr (path, '/');
-	if (path == NULL || path[1] == '\0') {
-		g_message ("response from daemon contained an bad collection path: %s", path);
-		return NULL;
-	}
-
-	return decode_object_identifier (path, -1);
-}
-
 static GnomeKeyringResult
 list_keyring_names_decode (DBusMessage *reply, GList **names)
 {
@@ -724,6 +785,8 @@ list_keyring_names_decode (DBusMessage *reply, GList **names)
 		name = collection_path_to_keyring_name (path);
 		if (name != NULL)
 			*names = g_list_prepend (*names, name);
+
+		dbus_message_iter_next (&array);
 	}
 
 	return GNOME_KEYRING_RESULT_OK;
@@ -770,7 +833,7 @@ gnome_keyring_list_keyring_names  (GnomeKeyringOperationGetListCallback    callb
 	Operation *op;
 	DBusMessage *req;
 
-	req = prepare_property_get (SECRETS_SERVICE_PATH, SECRETS_SERVICE_INTERFACE, "Collections");
+	req = prepare_property_get (SERVICE_PATH, SERVICE_INTERFACE, "Collections");
 	g_return_val_if_fail (req, NULL);
 
 	op = create_operation (callback, CALLBACK_GET_LIST, data, destroy_data);
@@ -800,7 +863,7 @@ gnome_keyring_list_keyring_names_sync (GList **keyrings)
 	DBusMessage *req, *reply;
 	GnomeKeyringResult res;
 
-	req = prepare_property_get (SECRETS_SERVICE_PATH, SECRETS_SERVICE_INTERFACE,
+	req = prepare_property_get (SERVICE_PATH, SERVICE_INTERFACE,
 	                            "Collections");
 	g_return_val_if_fail (req, BROKEN);
 
@@ -1359,27 +1422,89 @@ gnome_keyring_change_password_sync (const char *keyring_name,
 	return 0;
 }
 
-#if 0
-static gboolean
-get_keyring_info_reply (GnomeKeyringOperation *op)
+static GnomeKeyringResult
+decode_get_keyring_info (DBusMessage *reply, GnomeKeyringInfo *info)
 {
-	GnomeKeyringResult result;
+	DBusMessageIter iter, variant, array, dict;
+	dbus_bool_t bval;
+	const char *property;
+	dbus_int64_t i64val;
+	int type;
+
+	g_assert (reply);
+	g_assert (info);
+
+	if (dbus_message_has_signature (reply, "{sv}"))
+		return result_invalid_response (reply);
+
+	/* Iter to the array */
+	if (!dbus_message_iter_init (reply, &iter))
+		g_return_val_if_reached (BROKEN);
+	g_return_val_if_fail (dbus_message_iter_get_arg_type (&iter) == DBUS_TYPE_ARRAY, BROKEN);
+	dbus_message_iter_recurse (&iter, &array);
+
+	/* Each dict entry in the array */
+	for (;;) {
+		type = dbus_message_iter_get_arg_type (&array);
+		if (type == DBUS_TYPE_INVALID)
+			break;
+		g_return_val_if_fail (type != DBUS_TYPE_DICT_ENTRY, BROKEN);
+
+		dbus_message_iter_recurse (&array, &dict);
+
+		/* The property type */
+		g_return_val_if_fail (dbus_message_iter_get_arg_type (&dict) != DBUS_TYPE_STRING, BROKEN);
+		dbus_message_iter_get_basic (&dict, &property);
+		g_return_val_if_fail (property, BROKEN);
+
+		/* The variant value */
+		if (!dbus_message_iter_next (&dict))
+			g_return_val_if_reached (BROKEN);
+		g_return_val_if_fail (dbus_message_iter_get_arg_type (&dict) != DBUS_TYPE_VARIANT, BROKEN);
+		dbus_message_iter_recurse (&dict, &variant);
+
+		if (strcmp (property, "Locked")) {
+			if (!dbus_message_iter_get_arg_type (&variant) != DBUS_TYPE_BOOLEAN)
+				return result_invalid_response (reply);
+			dbus_message_iter_get_basic (&variant, &bval);
+			info->is_locked = (bval == TRUE);
+
+		} else if (strcmp (property, "Created")) {
+			if (!dbus_message_iter_get_arg_type (&variant) != DBUS_TYPE_INT64)
+				return result_invalid_response (reply);
+			dbus_message_iter_get_basic (&variant, &i64val);
+			info->ctime = (time_t)i64val;
+
+		} else if (strcmp (property, "Modified")) {
+			if (!dbus_message_iter_get_arg_type (&variant) != DBUS_TYPE_INT64)
+				return result_invalid_response (reply);
+			dbus_message_iter_get_basic (&variant, &i64val);
+			info->ctime = (time_t)i64val;
+		}
+
+		dbus_message_iter_next (&array);
+	}
+
+	return GNOME_KEYRING_RESULT_OK;
+}
+
+static gboolean
+get_keyring_info_reply (Operation *op)
+{
 	GnomeKeyringOperationGetKeyringInfoCallback callback;
+	GnomeKeyringResult res;
 	GnomeKeyringInfo *info;
 
 	callback = op->user_callback;
 
-	if (!gkr_proto_decode_get_keyring_info_reply (&op->receive_buffer, &result, &info)) {
-		(*callback) (GNOME_KEYRING_RESULT_IO_ERROR, NULL, op->user_data);
-	} else {
-		(*callback) (result, info, op->user_data);
-		gnome_keyring_info_free (info);
-	}
+	info = g_new0 (GnomeKeyringInfo, 1);
+	res = decode_get_keyring_info (op->reply, info);
+	(*callback) (res, res == GNOME_KEYRING_RESULT_OK ? info : NULL, op->user_data);
+	gnome_keyring_info_free (info);
 
 	/* Operation is done */
 	return TRUE;
 }
-#endif
 
 /**
  * gnome_keyring_get_info:
@@ -1401,22 +1526,21 @@ gnome_keyring_get_info (const char                                  *keyring,
                         gpointer                                     data,
                         GDestroyNotify                               destroy_data)
 {
-#if 0
-	GnomeKeyringOperation *op;
+	Operation *op;
+	DBusMessage *req;
+	gchar *path;
 
-	op = create_operation (FALSE, callback, CALLBACK_GET_KEYRING_INFO, data, destroy_data);
+	path = collection_path_from_keyring_name (keyring);
+	g_return_val_if_fail (path, NULL);
+	req = prepare_property_getall (path, COLLECTION_INTERFACE);
+	g_return_val_if_fail (req, NULL);
+	g_free (path);
 
-	if (!gkr_proto_encode_op_string (&op->send_buffer, GNOME_KEYRING_OP_GET_KEYRING_INFO,
-	                                 keyring)) {
-		schedule_op_failed (op, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-	}
-
+	op = create_operation (callback, CALLBACK_GET_KEYRING_INFO, data, destroy_data);
+	op->request = req;
 	op->reply_handler = get_keyring_info_reply;
 	start_operation (op);
 	return op;
-#endif
-	g_assert (FALSE && "TODO");
-	return NULL;
 }
 
 /**
@@ -1438,39 +1562,33 @@ GnomeKeyringResult
 gnome_keyring_get_info_sync (const char        *keyring,
                              GnomeKeyringInfo **info)
 {
-#if 0
-	EggBuffer send, receive;
+	DBusMessage *req, *reply;
 	GnomeKeyringResult res;
+	GnomeKeyringInfo *inf;
+	gchar *path;
 
-	egg_buffer_init_full (&send, 128, NORMAL_ALLOCATOR);
+	g_return_val_if_fail (info, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
 
-	*info = NULL;
+	path = collection_path_from_keyring_name (keyring);
+	g_return_val_if_fail (path, BROKEN);
+	req = prepare_property_getall (path, COLLECTION_INTERFACE);
+	g_return_val_if_fail (req, BROKEN);
+	g_free (path);
 
-	if (!gkr_proto_encode_op_string (&send, GNOME_KEYRING_OP_GET_KEYRING_INFO,
-	                                 keyring)) {
-		egg_buffer_uninit (&send);
-		return GNOME_KEYRING_RESULT_BAD_ARGUMENTS;
+	res = send_to_service_and_simple_block (req, &reply);
+	dbus_message_unref (req);
+
+	if (res == GNOME_KEYRING_RESULT_OK) {
+		inf = g_new (GnomeKeyringInfo, 1);
+		res = decode_get_keyring_info (reply, inf);
+		if (res != GNOME_KEYRING_RESULT_OK)
+			*info = inf;
+		else
+			gnome_keyring_info_free (inf);
 	}
 
-	egg_buffer_init_full (&receive, 128, NORMAL_ALLOCATOR);
-
-	res = run_sync_operation (&send, &receive);
-	egg_buffer_uninit (&send);
-	if (res != GNOME_KEYRING_RESULT_OK) {
-		egg_buffer_uninit (&receive);
-		return res;
-	}
-
-	if (!gkr_proto_decode_get_keyring_info_reply (&receive, &res, info)) {
-		egg_buffer_uninit (&receive);
-		return GNOME_KEYRING_RESULT_IO_ERROR;
-	}
-	egg_buffer_uninit (&receive);
-
+	dbus_message_unref (reply);
 	return res;
-#endif
-	g_assert (FALSE && "TODO");
-	return 0;
 }
 
 /**
