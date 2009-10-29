@@ -6,6 +6,14 @@ test -z "$srcdir" && srcdir=.
 
 PKG_NAME="libgnome-keyring"
 
+# Some boiler plate to get git setup as expected
+if test -d $srcdir/.git; then
+	if test -f $srcdir/.git/hooks/pre-commit.sample && \
+	   test ! -f $srcdir/.git/hooks/pre-commit; then
+		cp -pv $srcdir/.git/hooks/pre-commit.sample $srcdir/.git/hooks/pre-commit
+	fi
+fi
+
 (test -f $srcdir/configure.in && test -f $srcdir/library/gnome-keyring.h) || {
 	echo -n "**Error**: Directory "\`$srcdir\'" does not look like the"
 	echo " top-level $PKG_NAME directory"
