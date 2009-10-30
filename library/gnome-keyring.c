@@ -1847,211 +1847,26 @@ gnome_keyring_list_item_ids_sync (const char  *keyring,
  * gnome_keyring_daemon_set_display_sync:
  * @display: Deprecated
  *
- * Deprecated. Use gnome_keyring_daemon_prepare_environment_sync()
+ * Deprecated. No longer supported, always fails.
  **/
 GnomeKeyringResult
 gnome_keyring_daemon_set_display_sync (const char *display)
 {
-#if 0
-	EggBuffer send, receive;
-	GnomeKeyringResult res;
-
-	egg_buffer_init_full (&send, 128, NORMAL_ALLOCATOR);
-
-	if (!gkr_proto_encode_op_string (&send, GNOME_KEYRING_OP_SET_DAEMON_DISPLAY,
-	                                 display)) {
-		egg_buffer_uninit (&send);
-		return GNOME_KEYRING_RESULT_BAD_ARGUMENTS;
-	}
-
-	egg_buffer_init_full (&receive, 128, NORMAL_ALLOCATOR);
-	res = run_sync_operation (&send, &receive);
-	egg_buffer_uninit (&send);
-	if (res != GNOME_KEYRING_RESULT_OK) {
-		egg_buffer_uninit (&receive);
-		return res;
-	}
-
-	if (!gkr_proto_decode_result_reply (&receive, &res)) {
-		egg_buffer_uninit (&receive);
-		return GNOME_KEYRING_RESULT_IO_ERROR;
-	}
-	egg_buffer_uninit (&receive);
-
-	return res;
-#endif
-	g_assert (FALSE && "TODO");
-	return 0;
+	g_return_val_if_fail (display, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
+	return GNOME_KEYRING_RESULT_DENIED;
 }
 
 /**
  * gnome_keyring_daemon_prepare_environment_sync:
  *
- * Used by session managers or applications that manage the gnome-keyring-daemon
- * process. Prepares the environment of both the daemon and the application
- * for successful communication.
- *
- * This includes telling the daemon the DBUS addresses, X display and related
- * information to use for communication and display. This information is only
- * used by the daemon if it does not already have it. For example the X display
- * of the daemon cannot be changed using this call.
- *
- * Return value: %GNOME_KEYRING_RESULT_OK if the operation was succcessful or
- * an error result otherwise.
+ * Deprecated. No longer supported, call is ignored.
  **/
 GnomeKeyringResult
 gnome_keyring_daemon_prepare_environment_sync (void)
 {
-#if 0
-	EggBuffer send, receive;
-	GnomeKeyringResult res;
-	gchar **envp;
-	gboolean ret;
-
-	egg_buffer_init_full (&send, 128, NORMAL_ALLOCATOR);
-
-	/* Get all the environment names */
-	envp = gnome_keyring_build_environment (GNOME_KEYRING_IN_ENVIRONMENT);
-	ret = gkr_proto_encode_prepare_environment (&send, (const gchar**)envp);
-	g_strfreev (envp);
-
-	if (!ret) {
-		egg_buffer_uninit (&send);
-		return GNOME_KEYRING_RESULT_BAD_ARGUMENTS;
-	}
-
-	egg_buffer_init_full (&receive, 128, NORMAL_ALLOCATOR);
-	res = run_sync_operation (&send, &receive);
-	egg_buffer_uninit (&send);
-	if (res != GNOME_KEYRING_RESULT_OK) {
-		egg_buffer_uninit (&receive);
-		return res;
-	}
-
-	if (!gkr_proto_decode_prepare_environment_reply (&receive, &res, &envp)) {
-		egg_buffer_uninit (&receive);
-		return GNOME_KEYRING_RESULT_IO_ERROR;
-	}
-	egg_buffer_uninit (&receive);
-
-	if (res == GNOME_KEYRING_RESULT_OK) {
-		g_return_val_if_fail (envp, GNOME_KEYRING_RESULT_IO_ERROR);
-		gnome_keyring_apply_environment (envp);
-	}
-
-	g_strfreev (envp);
-
-	return res;
-#endif
-	g_assert (FALSE && "TODO");
-	return 0;
+	return GNOME_KEYRING_RESULT_OK;
 }
 
-/**
- * gnome_keyring_info_set_lock_on_idle:
- * @keyring_info: The keyring info.
- * @value: Whether to lock or not.
- *
- * Set whether or not to lock a keyring after a certain amount of idle time.
- *
- * See also gnome_keyring_info_set_lock_timeout().
- **/
-void
-gnome_keyring_info_set_lock_on_idle (GnomeKeyringInfo *keyring_info,
-                                     gboolean          value)
-{
-	keyring_info->lock_on_idle = value;
-}
-
-/**
- * gnome_keyring_info_get_lock_on_idle:
- * @keyring_info: The keyring info.
- *
- * Get whether or not to lock a keyring after a certain amount of idle time.
- *
- * See also gnome_keyring_info_get_lock_timeout().
- *
- * Return value: Whether to lock or not.
- **/
-gboolean
-gnome_keyring_info_get_lock_on_idle (GnomeKeyringInfo *keyring_info)
-{
-	return keyring_info->lock_on_idle;
-}
-
-/**
- * gnome_keyring_info_set_lock_timeout:
- * @keyring_info: The keyring info.
- * @value: The lock timeout in seconds.
- *
- * Set the idle timeout, in seconds, after which to lock the keyring.
- *
- * See also gnome_keyring_info_set_lock_on_idle().
- **/
-void
-gnome_keyring_info_set_lock_timeout (GnomeKeyringInfo *keyring_info,
-                                     guint32           value)
-{
-	keyring_info->lock_timeout = value;
-}
-
-/**
- * gnome_keyring_info_get_lock_timeout:
- * @keyring_info: The keyring info.
- *
- * Get the idle timeout, in seconds, after which to lock the keyring.
- *
- * See also gnome_keyring_info_get_lock_on_idle().
- *
- * Return value: The idle timeout, in seconds.
- **/
-guint32
-gnome_keyring_info_get_lock_timeout (GnomeKeyringInfo *keyring_info)
-{
-	return keyring_info->lock_timeout;
-}
-
-/**
- * gnome_keyring_info_get_mtime:
- * @keyring_info: The keyring info.
- *
- * Get the time at which the keyring was last modified.
- *
- * Return value: The last modified time.
- **/
-time_t
-gnome_keyring_info_get_mtime (GnomeKeyringInfo *keyring_info)
-{
-	return keyring_info->mtime;
-}
-
-/**
- * gnome_keyring_info_get_ctime:
- * @keyring_info: The keyring info.
- *
- * Get the time at which the keyring was created.
- *
- * Return value: The created time.
- **/
-time_t
-gnome_keyring_info_get_ctime (GnomeKeyringInfo *keyring_info)
-{
-	return keyring_info->ctime;
-}
-
-/**
- * gnome_keyring_info_get_is_locked:
- * @keyring_info: The keyring info.
- *
- * Get whether the keyring is locked or not.
- *
- * Return value: Whether the keyring is locked or not.
- **/
-gboolean
-gnome_keyring_info_get_is_locked (GnomeKeyringInfo *keyring_info)
-{
-	return keyring_info->is_locked;
-}
 
 #if 0
 static gboolean
@@ -3147,14 +2962,9 @@ gnome_keyring_item_set_attributes_sync (const char                *keyring,
  * @data: A pointer to arbitrary data that will be passed to the @callback.
  * @destroy_data: A function to free @data when it's no longer needed.
  *
- * Get the access control list for an item.
- *
- * A %GList of #GnomeKeyringAccessControl pointers will be passed to the @callback.
- * This list and its contents will be freed after @callback returns.
- *
- * For a synchronous version of this function see gnome_keyring_item_get_acl_sync().
- *
  * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ *
+ * Deprecated: Never returns any ACL values.
  **/
 gpointer
 gnome_keyring_item_get_acl (const char                                 *keyring,
@@ -3163,23 +2973,10 @@ gnome_keyring_item_get_acl (const char                                 *keyring,
                             gpointer                                    data,
                             GDestroyNotify                              destroy_data)
 {
-#if 0
-	GnomeKeyringOperation *op;
-
-	op = create_operation (FALSE, callback, CALLBACK_GET_ACL, data, destroy_data);
-
-	if (!gkr_proto_encode_op_string_int (&op->send_buffer,
-	                                     GNOME_KEYRING_OP_GET_ITEM_ACL,
-	                                     keyring, id)) {
-		schedule_op_failed (op, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-	}
-
-	op->reply_handler = get_acl_reply;
-	start_operation (op);
+	Operation *op;
+	op = create_operation (callback, CALLBACK_GET_ACL, data, destroy_data);
+	schedule_op_completed (op, GNOME_KEYRING_RESULT_OK);
 	return op;
-#endif
-	g_assert (FALSE && "TODO");
-	return NULL;
 }
 
 /**
@@ -3188,54 +2985,18 @@ gnome_keyring_item_get_acl (const char                                 *keyring,
  * @id: The id of the item
  * @acl: The location to return a pointer to the access control list.
  *
- * Get the access control list for an item.
+ * Return value: Always %GNOME_KEYRING_RESULT_OK.
  *
- * A %GList of #GnomeKeyringAccessControl pointers will be passed to the @callback.
- * This list should be freed using gnome_keyring_access_control_list_free().
- *
- * For an asynchronous version of this function see gnome_keyring_item_get_acl().
- *
- * Return value: %GNOME_KEYRING_RESULT_OK if the operation was succcessful or
- * an error result otherwise.
+ * Deprecated: Never returns any acls.
  **/
 GnomeKeyringResult
 gnome_keyring_item_get_acl_sync (const char  *keyring,
                                  guint32      id,
                                  GList      **acl)
 {
-#if 0
-	EggBuffer send, receive;
-	GnomeKeyringResult res;
-
-	egg_buffer_init_full (&send, 128, NORMAL_ALLOCATOR);
-
+	g_return_val_if_fail (acl, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
 	*acl = NULL;
-
-	if (!gkr_proto_encode_op_string_int (&send, GNOME_KEYRING_OP_GET_ITEM_ACL,
-	                                     keyring, id)) {
-		egg_buffer_uninit (&send);
-		return GNOME_KEYRING_RESULT_BAD_ARGUMENTS;
-	}
-
-	egg_buffer_init_full (&receive, 128, NORMAL_ALLOCATOR);
-
-	res = run_sync_operation (&send, &receive);
-	egg_buffer_uninit (&send);
-	if (res != GNOME_KEYRING_RESULT_OK) {
-		egg_buffer_uninit (&receive);
-		return res;
-	}
-
-	if (!gkr_proto_decode_get_acl_reply (&receive, &res, acl)) {
-		egg_buffer_uninit (&receive);
-		return GNOME_KEYRING_RESULT_IO_ERROR;
-	}
-	egg_buffer_uninit (&receive);
-
-	return res;
-#endif
-	g_assert (FALSE && "TODO");
-	return 0;
+	return GNOME_KEYRING_RESULT_OK;
 }
 
 /**
@@ -3247,12 +3008,9 @@ gnome_keyring_item_get_acl_sync (const char  *keyring,
  * @data: A pointer to arbitrary data that will be passed to the @callback.
  * @destroy_data: A function to free @data when it's no longer needed.
  *
- * Set the full access control list on an item. This replaces any previous ACL
- * setup on the item.
- *
- * For a synchronous version of this function see gnome_keyring_item_set_acl_sync().
- *
  * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ *
+ * Deprecated: This function no longer has any effect.
  **/
 gpointer
 gnome_keyring_item_set_acl (const char                                 *keyring,
@@ -3262,21 +3020,10 @@ gnome_keyring_item_set_acl (const char                                 *keyring,
                             gpointer                                    data,
                             GDestroyNotify                              destroy_data)
 {
-#if 0
-	GnomeKeyringOperation *op;
-
-	op = create_operation (FALSE, callback, CALLBACK_DONE, data, destroy_data);
-
-	if (!gkr_proto_encode_set_acl (&op->send_buffer, keyring, id, acl)) {
-		schedule_op_failed (op, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-	}
-
-	op->reply_handler = standard_reply;
-	start_operation (op);
+	Operation *op;
+	op = create_operation (callback, CALLBACK_DONE, data, destroy_data);
+	schedule_op_completed (op, GNOME_KEYRING_RESULT_OK);
 	return op;
-#endif
-	g_assert (FALSE && "TODO");
-	return NULL;
 }
 
 /**
@@ -3285,103 +3032,18 @@ gnome_keyring_item_set_acl (const char                                 *keyring,
  * @id: The id of the item
  * @acl: The access control list to set on the item.
  *
- * Set the full access control list on an item. This  replaces any previous
- * ACL setup on the item.
- *
- * For an asynchronous version of this function see gnome_keyring_item_set_acl().
- *
  * Return value: %GNOME_KEYRING_RESULT_OK if the operation was succcessful or
  * an error result otherwise.
+ *
+ * Deprecated: This function no longer has any effect.
  **/
 GnomeKeyringResult
 gnome_keyring_item_set_acl_sync (const char *keyring,
                                  guint32     id,
                                  GList      *acl)
 {
-#if 0
-	EggBuffer send, receive;
-	GnomeKeyringResult res;
-
-	egg_buffer_init_full (&send, 128, NORMAL_ALLOCATOR);
-
-	if (!gkr_proto_encode_set_acl (&send, keyring, id, acl)) {
-		egg_buffer_uninit (&send);
-		return GNOME_KEYRING_RESULT_BAD_ARGUMENTS;
-	}
-
-	egg_buffer_init_full (&receive, 128, NORMAL_ALLOCATOR);
-	res = run_sync_operation (&send, &receive);
-	egg_buffer_uninit (&send);
-	egg_buffer_uninit (&receive);
-
-	return res;
-#endif
-	g_assert (FALSE && "TODO");
-	return 0;
+	return GNOME_KEYRING_RESULT_OK;
 }
-
-#if 0
-typedef struct _GrantAccessRights {
-	GnomeKeyringApplicationRef app_ref;
-	GnomeKeyringAccessControl acl;
-	gchar *keyring_name;
-	guint32 id;
-} GrantAccessRights;
-
-static void
-destroy_grant_access_rights (gpointer data)
-{
-	GrantAccessRights *gar = (GrantAccessRights*)data;
-	g_free (gar->app_ref.display_name);
-	g_free (gar->app_ref.pathname);
-	g_free (gar->keyring_name);
-	g_free (gar);
-}
-
-static gboolean
-item_grant_access_rights_reply (GnomeKeyringOperation *op)
-{
-	GrantAccessRights *gar;
-	GnomeKeyringResult result;
-	GnomeKeyringOperationDoneCallback callback;
-	gboolean ret;
-	GList *acl;
-
-	callback = op->user_callback;
-
-	/* Parse the old access rights */
-	if (!gkr_proto_decode_get_acl_reply (&op->receive_buffer, &result, &acl)) {
-		(*callback) (GNOME_KEYRING_RESULT_IO_ERROR, op->user_data);
-		return TRUE;
-	}
-
-	gar = (GrantAccessRights*)op->reply_data;
-	g_assert (gar);
-
-	/* Send off the new access rights */
-	start_operation (op);
-
-	/* Append our ACL to the list */
-	egg_buffer_reset (&op->send_buffer);
-	acl = g_list_append (acl, &gar->acl);
-	ret = gkr_proto_encode_set_acl (&op->send_buffer, gar->keyring_name,
-	                                          gar->id, acl);
-
-	/* A bit of cleanup */
-	acl = g_list_remove (acl, &gar->acl);
-	g_list_free (acl);
-
-	if (!ret) {
-		(*callback) (GNOME_KEYRING_RESULT_BAD_ARGUMENTS, op->user_data);
-		return TRUE;
-	}
-
-	op->reply_handler = standard_reply;
-
-	/* Not done yet */
-	return FALSE;
-}
-#endif
 
 /**
  * gnome_keyring_item_grant_access_rights:
@@ -3394,16 +3056,10 @@ item_grant_access_rights_reply (GnomeKeyringOperation *op)
  * @data: Data to be passed to callback
  * @destroy_data: Function to be called when data is no longer needed.
  *
- * Will grant the application access rights to the item, provided
- * callee has write access to said item.
- *
- * This is similar to calling gnome_keyring_item_get_acl() and
- * gnome_keyring_item_set_acl() with appropriate parameters.
- *
- * For a synchronous version of this function see gnome_keyring_item_grant_access_rights().
- *
  * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
  * Since: 2.20
+ *
+ * Deprecated: This function no longer has any effect.
  **/
 gpointer
 gnome_keyring_item_grant_access_rights (const gchar *keyring,
@@ -3415,38 +3071,10 @@ gnome_keyring_item_grant_access_rights (const gchar *keyring,
                                         gpointer data,
                                         GDestroyNotify destroy_data)
 {
-#if 0
-	GnomeKeyringOperation *op;
-	GrantAccessRights *gar;
-
-	/* First get current ACL */
-	op = create_operation (FALSE, callback, CALLBACK_DONE, data, destroy_data);
-
-	if (!gkr_proto_encode_op_string_int (&op->send_buffer,
-	                                     GNOME_KEYRING_OP_GET_ITEM_ACL,
-	                                     keyring, id)) {
-		schedule_op_failed (op, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-	}
-
-	op->reply_handler = item_grant_access_rights_reply;
-
-	/* Copy information that the reply callback needs */
-	gar = g_new0 (GrantAccessRights, 1);
-	gar->app_ref.display_name = g_strdup (display_name);
-	gar->app_ref.pathname = g_strdup (full_path);
-	gar->acl.application = &gar->app_ref;
-	gar->acl.types_allowed = rights;
-	gar->keyring_name = g_strdup (keyring);
-	gar->id = id;
-
-	op->reply_data = gar;
-	op->destroy_reply_data = destroy_grant_access_rights;
-	start_operation (op);
-
+	Operation *op;
+	op = create_operation (callback, CALLBACK_DONE, data, destroy_data);
+	schedule_op_completed (op, GNOME_KEYRING_RESULT_OK);
 	return op;
-#endif
-	g_assert (FALSE && "TODO");
-	return NULL;
 }
 
 /**
@@ -3462,6 +3090,8 @@ gnome_keyring_item_grant_access_rights (const gchar *keyring,
  *
  * Return value: %GNOME_KEYRING_RESULT_OK if the operation was succcessful or
  * an error result otherwise.
+ *
+ * Deprecated: This function no longer has any effect.
  **/
 GnomeKeyringResult
 gnome_keyring_item_grant_access_rights_sync (const char                   *keyring,
@@ -3470,250 +3100,7 @@ gnome_keyring_item_grant_access_rights_sync (const char                   *keyri
                                              const guint32                id,
                                              const GnomeKeyringAccessType rights)
 {
-#if 0
-	GList *acl_list = NULL;
-	GnomeKeyringApplicationRef new_app_ref;
-	GnomeKeyringAccessControl acl;
-	GnomeKeyringResult res;
-
-	/* setup application structure */
-	new_app_ref.display_name = (char *) display_name;
-	new_app_ref.pathname = (char *) full_path;
-	acl.application = &new_app_ref;
-	acl.types_allowed = rights;
-
-	/* get the original acl list */
-	res = gnome_keyring_item_get_acl_sync (keyring,
-	                                       id,
-	                                       &acl_list);
-	if (GNOME_KEYRING_RESULT_OK != res)
-		goto out;
-
-	/* append access rights */
-	acl_list = g_list_append (acl_list, (gpointer) &acl);
-	res = gnome_keyring_item_set_acl_sync (keyring,
-	                                       id,
-	                                       acl_list);
-out:
-	if (acl_list)
-		g_list_free (acl_list);
-
-	return res;
-#endif
-	g_assert (FALSE && "TODO");
-	return 0;
-}
-
-/**
- * gnome_keyring_item_info_get_type:
- * @item_info: A keyring item info pointer.
- *
- * Get the item type.
- *
- * Return value: The item type
- **/
-GnomeKeyringItemType
-gnome_keyring_item_info_get_type (GnomeKeyringItemInfo *item_info)
-{
-	return item_info->type;
-}
-
-/**
- * gnome_keyring_item_info_set_type:
- * @item_info: A keyring item info pointer.
- * @type: The new item type
- *
- * Set the type on an item info.
- **/
-void
-gnome_keyring_item_info_set_type (GnomeKeyringItemInfo *item_info,
-                                  GnomeKeyringItemType  type)
-{
-	item_info->type = type;
-}
-
-/**
- * gnome_keyring_item_info_get_secret:
- * @item_info: A keyring item info pointer.
- *
- * Get the item secret.
- *
- * Return value: The newly allocated string containing the item secret.
- **/
-char *
-gnome_keyring_item_info_get_secret (GnomeKeyringItemInfo *item_info)
-{
-	/* XXXX For compatibility reasons we can't use secure memory here */
-	return g_strdup (item_info->secret);
-}
-
-/**
- * gnome_keyring_item_info_set_secret:
- * @item_info: A keyring item info pointer.
- * @value: The new item secret
- *
- * Set the secret on an item info.
- **/
-void
-gnome_keyring_item_info_set_secret (GnomeKeyringItemInfo *item_info,
-                                    const char           *value)
-{
-	gnome_keyring_free_password (item_info->secret);
-	item_info->secret = gnome_keyring_memory_strdup (value);
-}
-
-/**
- * gnome_keyring_item_info_get_display_name:
- * @item_info: A keyring item info pointer.
- *
- * Get the item display name.
- *
- * Return value: The newly allocated string containing the item display name.
- **/
-char *
-gnome_keyring_item_info_get_display_name (GnomeKeyringItemInfo *item_info)
-{
-	return g_strdup (item_info->display_name);
-}
-
-/**
- * gnome_keyring_item_info_set_display_name:
- * @item_info: A keyring item info pointer.
- * @value: The new display name.
- *
- * Set the display name on an item info.
- **/
-void
-gnome_keyring_item_info_set_display_name (GnomeKeyringItemInfo *item_info,
-                                          const char           *value)
-{
-	g_free (item_info->display_name);
-	item_info->display_name = g_strdup (value);
-}
-
-/**
- * gnome_keyring_item_info_get_mtime:
- * @item_info: A keyring item info pointer.
- *
- * Get the item last modified time.
- *
- * Return value: The item last modified time.
- **/
-time_t
-gnome_keyring_item_info_get_mtime (GnomeKeyringItemInfo *item_info)
-{
-	return item_info->mtime;
-}
-
-/**
- * gnome_keyring_item_info_get_ctime:
- * @item_info: A keyring item info pointer.
- *
- * Get the item created time.
- *
- * Return value: The item created time.
- **/
-time_t
-gnome_keyring_item_info_get_ctime (GnomeKeyringItemInfo *item_info)
-{
-	return item_info->ctime;
-}
-
-/**
- * SECTION:gnome-keyring-acl
- * @title: Item ACLs
- * @short_description: Access control lists for keyring items.
- *
- * Each item has an access control list, which specifies the applications that
- * can read, write or delete an item. The read access applies only to reading the secret.
- * All applications can read other parts of the item. ACLs are accessed and changed
- * gnome_keyring_item_get_acl() and gnome_keyring_item_set_acl().
- **/
-
-/**
- * gnome_keyring_item_ac_get_display_name:
- * @ac: A #GnomeKeyringAccessControl pointer.
- *
- * Get the access control application's display name.
- *
- * Return value: A newly allocated string containing the display name.
- **/
-char *
-gnome_keyring_item_ac_get_display_name (GnomeKeyringAccessControl *ac)
-{
-	return g_strdup (ac->application->display_name);
-}
-
-/**
- * gnome_keyring_item_ac_set_display_name:
- * @ac: A #GnomeKeyringAcccessControl pointer.
- * @value: The new application display name.
- *
- * Set the access control application's display name.
- **/
-void
-gnome_keyring_item_ac_set_display_name (GnomeKeyringAccessControl *ac,
-                                        const char                *value)
-{
-	g_free (ac->application->display_name);
-	ac->application->display_name = g_strdup (value);
-}
-
-/**
- * gnome_keyring_item_ac_get_path_name:
- * @ac: A #GnomeKeyringAccessControl pointer.
- *
- * Get the access control application's full path name.
- *
- * Return value: A newly allocated string containing the display name.
- **/
-char *
-gnome_keyring_item_ac_get_path_name (GnomeKeyringAccessControl *ac)
-{
-	return g_strdup (ac->application->pathname);
-}
-
-/**
- * gnome_keyring_item_ac_set_path_name:
- * @ac: A #GnomeKeyringAccessControl pointer
- * @value: The new application full path.
- *
- * Set the access control application's full path name.
- **/
-void
-gnome_keyring_item_ac_set_path_name (GnomeKeyringAccessControl *ac,
-                                     const char                *value)
-{
-	g_free (ac->application->pathname);
-	ac->application->pathname = g_strdup (value);
-}
-
-/**
- * gnome_keyring_item_ac_get_access_type:
- * @ac: A #GnomeKeyringAccessControl pointer.
- *
- * Get the application access rights for the access control.
- *
- * Return value: The access rights.
- **/
-GnomeKeyringAccessType
-gnome_keyring_item_ac_get_access_type (GnomeKeyringAccessControl *ac)
-{
-	return ac->types_allowed;
-}
-
-/**
- * gnome_keyring_item_ac_set_access_type:
- * @ac: A #GnomeKeyringAccessControl pointer.
- * @value: The new access rights.
- *
- * Set the application access rights for the access control.
- **/
-void
-gnome_keyring_item_ac_set_access_type (GnomeKeyringAccessControl *ac,
-                                       const GnomeKeyringAccessType value)
-{
-	ac->types_allowed = value;
+	return GNOME_KEYRING_RESULT_OK;
 }
 
 /* ------------------------------------------------------------------------------

@@ -525,3 +525,320 @@ gnome_keyring_acl_free (GList *acl)
 	g_list_free (acl);
 }
 
+/**
+ * gnome_keyring_info_set_lock_on_idle:
+ * @keyring_info: The keyring info.
+ * @value: Whether to lock or not.
+ *
+ * Set whether or not to lock a keyring after a certain amount of idle time.
+ *
+ * See also gnome_keyring_info_set_lock_timeout().
+ **/
+void
+gnome_keyring_info_set_lock_on_idle (GnomeKeyringInfo *keyring_info,
+                                     gboolean          value)
+{
+	keyring_info->lock_on_idle = value;
+}
+
+/**
+ * gnome_keyring_info_get_lock_on_idle:
+ * @keyring_info: The keyring info.
+ *
+ * Get whether or not to lock a keyring after a certain amount of idle time.
+ *
+ * See also gnome_keyring_info_get_lock_timeout().
+ *
+ * Return value: Whether to lock or not.
+ **/
+gboolean
+gnome_keyring_info_get_lock_on_idle (GnomeKeyringInfo *keyring_info)
+{
+	return keyring_info->lock_on_idle;
+}
+
+/**
+ * gnome_keyring_info_set_lock_timeout:
+ * @keyring_info: The keyring info.
+ * @value: The lock timeout in seconds.
+ *
+ * Set the idle timeout, in seconds, after which to lock the keyring.
+ *
+ * See also gnome_keyring_info_set_lock_on_idle().
+ **/
+void
+gnome_keyring_info_set_lock_timeout (GnomeKeyringInfo *keyring_info,
+                                     guint32           value)
+{
+	keyring_info->lock_timeout = value;
+}
+
+/**
+ * gnome_keyring_info_get_lock_timeout:
+ * @keyring_info: The keyring info.
+ *
+ * Get the idle timeout, in seconds, after which to lock the keyring.
+ *
+ * See also gnome_keyring_info_get_lock_on_idle().
+ *
+ * Return value: The idle timeout, in seconds.
+ **/
+guint32
+gnome_keyring_info_get_lock_timeout (GnomeKeyringInfo *keyring_info)
+{
+	return keyring_info->lock_timeout;
+}
+
+/**
+ * gnome_keyring_info_get_mtime:
+ * @keyring_info: The keyring info.
+ *
+ * Get the time at which the keyring was last modified.
+ *
+ * Return value: The last modified time.
+ **/
+time_t
+gnome_keyring_info_get_mtime (GnomeKeyringInfo *keyring_info)
+{
+	return keyring_info->mtime;
+}
+
+/**
+ * gnome_keyring_info_get_ctime:
+ * @keyring_info: The keyring info.
+ *
+ * Get the time at which the keyring was created.
+ *
+ * Return value: The created time.
+ **/
+time_t
+gnome_keyring_info_get_ctime (GnomeKeyringInfo *keyring_info)
+{
+	return keyring_info->ctime;
+}
+
+/**
+ * gnome_keyring_info_get_is_locked:
+ * @keyring_info: The keyring info.
+ *
+ * Get whether the keyring is locked or not.
+ *
+ * Return value: Whether the keyring is locked or not.
+ **/
+gboolean
+gnome_keyring_info_get_is_locked (GnomeKeyringInfo *keyring_info)
+{
+	return keyring_info->is_locked;
+}
+
+/**
+ * gnome_keyring_item_info_get_type:
+ * @item_info: A keyring item info pointer.
+ *
+ * Get the item type.
+ *
+ * Return value: The item type
+ **/
+GnomeKeyringItemType
+gnome_keyring_item_info_get_type (GnomeKeyringItemInfo *item_info)
+{
+	return item_info->type;
+}
+
+/**
+ * gnome_keyring_item_info_set_type:
+ * @item_info: A keyring item info pointer.
+ * @type: The new item type
+ *
+ * Set the type on an item info.
+ **/
+void
+gnome_keyring_item_info_set_type (GnomeKeyringItemInfo *item_info,
+                                  GnomeKeyringItemType  type)
+{
+	item_info->type = type;
+}
+
+/**
+ * gnome_keyring_item_info_get_secret:
+ * @item_info: A keyring item info pointer.
+ *
+ * Get the item secret.
+ *
+ * Return value: The newly allocated string containing the item secret.
+ **/
+char *
+gnome_keyring_item_info_get_secret (GnomeKeyringItemInfo *item_info)
+{
+	/* XXXX For compatibility reasons we can't use secure memory here */
+	return g_strdup (item_info->secret);
+}
+
+/**
+ * gnome_keyring_item_info_set_secret:
+ * @item_info: A keyring item info pointer.
+ * @value: The new item secret
+ *
+ * Set the secret on an item info.
+ **/
+void
+gnome_keyring_item_info_set_secret (GnomeKeyringItemInfo *item_info,
+                                    const char           *value)
+{
+	gnome_keyring_free_password (item_info->secret);
+	item_info->secret = gnome_keyring_memory_strdup (value);
+}
+
+/**
+ * gnome_keyring_item_info_get_display_name:
+ * @item_info: A keyring item info pointer.
+ *
+ * Get the item display name.
+ *
+ * Return value: The newly allocated string containing the item display name.
+ **/
+char *
+gnome_keyring_item_info_get_display_name (GnomeKeyringItemInfo *item_info)
+{
+	return g_strdup (item_info->display_name);
+}
+
+/**
+ * gnome_keyring_item_info_set_display_name:
+ * @item_info: A keyring item info pointer.
+ * @value: The new display name.
+ *
+ * Set the display name on an item info.
+ **/
+void
+gnome_keyring_item_info_set_display_name (GnomeKeyringItemInfo *item_info,
+                                          const char           *value)
+{
+	g_free (item_info->display_name);
+	item_info->display_name = g_strdup (value);
+}
+
+/**
+ * gnome_keyring_item_info_get_mtime:
+ * @item_info: A keyring item info pointer.
+ *
+ * Get the item last modified time.
+ *
+ * Return value: The item last modified time.
+ **/
+time_t
+gnome_keyring_item_info_get_mtime (GnomeKeyringItemInfo *item_info)
+{
+	return item_info->mtime;
+}
+
+/**
+ * gnome_keyring_item_info_get_ctime:
+ * @item_info: A keyring item info pointer.
+ *
+ * Get the item created time.
+ *
+ * Return value: The item created time.
+ **/
+time_t
+gnome_keyring_item_info_get_ctime (GnomeKeyringItemInfo *item_info)
+{
+	return item_info->ctime;
+}
+
+/**
+ * SECTION:gnome-keyring-acl
+ * @title: Item ACLs
+ * @short_description: Access control lists for keyring items.
+ *
+ * Each item has an access control list, which specifies the applications that
+ * can read, write or delete an item. The read access applies only to reading the secret.
+ * All applications can read other parts of the item. ACLs are accessed and changed
+ * gnome_keyring_item_get_acl() and gnome_keyring_item_set_acl().
+ **/
+
+/**
+ * gnome_keyring_item_ac_get_display_name:
+ * @ac: A #GnomeKeyringAccessControl pointer.
+ *
+ * Get the access control application's display name.
+ *
+ * Return value: A newly allocated string containing the display name.
+ **/
+char *
+gnome_keyring_item_ac_get_display_name (GnomeKeyringAccessControl *ac)
+{
+	return g_strdup (ac->application->display_name);
+}
+
+/**
+ * gnome_keyring_item_ac_set_display_name:
+ * @ac: A #GnomeKeyringAcccessControl pointer.
+ * @value: The new application display name.
+ *
+ * Set the access control application's display name.
+ **/
+void
+gnome_keyring_item_ac_set_display_name (GnomeKeyringAccessControl *ac,
+                                        const char                *value)
+{
+	g_free (ac->application->display_name);
+	ac->application->display_name = g_strdup (value);
+}
+
+/**
+ * gnome_keyring_item_ac_get_path_name:
+ * @ac: A #GnomeKeyringAccessControl pointer.
+ *
+ * Get the access control application's full path name.
+ *
+ * Return value: A newly allocated string containing the display name.
+ **/
+char *
+gnome_keyring_item_ac_get_path_name (GnomeKeyringAccessControl *ac)
+{
+	return g_strdup (ac->application->pathname);
+}
+
+/**
+ * gnome_keyring_item_ac_set_path_name:
+ * @ac: A #GnomeKeyringAccessControl pointer
+ * @value: The new application full path.
+ *
+ * Set the access control application's full path name.
+ **/
+void
+gnome_keyring_item_ac_set_path_name (GnomeKeyringAccessControl *ac,
+                                     const char                *value)
+{
+	g_free (ac->application->pathname);
+	ac->application->pathname = g_strdup (value);
+}
+
+/**
+ * gnome_keyring_item_ac_get_access_type:
+ * @ac: A #GnomeKeyringAccessControl pointer.
+ *
+ * Get the application access rights for the access control.
+ *
+ * Return value: The access rights.
+ **/
+GnomeKeyringAccessType
+gnome_keyring_item_ac_get_access_type (GnomeKeyringAccessControl *ac)
+{
+	return ac->types_allowed;
+}
+
+/**
+ * gnome_keyring_item_ac_set_access_type:
+ * @ac: A #GnomeKeyringAccessControl pointer.
+ * @value: The new access rights.
+ *
+ * Set the application access rights for the access control.
+ **/
+void
+gnome_keyring_item_ac_set_access_type (GnomeKeyringAccessControl *ac,
+                                       const GnomeKeyringAccessType value)
+{
+	ac->types_allowed = value;
+}
