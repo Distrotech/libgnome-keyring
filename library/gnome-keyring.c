@@ -45,6 +45,7 @@
 #include <stdarg.h>
 
 #define BROKEN                         GNOME_KEYRING_RESULT_IO_ERROR
+
 #define SECRETS_SERVICE                "org.freedesktop.secrets"
 #define SERVICE_PATH                   "/org/freedesktop/secrets"
 #define SERVICE_INTERFACE              "org.freedesktop.Secrets.Service"
@@ -79,7 +80,6 @@ typedef gboolean (*KeyringHandleReply) (Operation *op);
 struct _Operation {
 	GnomeKeyringResult result;
 
-	gboolean failed;
 	guint idle_watch;
 
 	DBusConnection *conn;
@@ -120,7 +120,7 @@ operation_free (gpointer data)
 }
 
 static gboolean
-on_scheduled_fail (gpointer data)
+on_scheduled_complete (gpointer data)
 {
 	Operation *op;
 
@@ -161,18 +161,17 @@ on_scheduled_fail (gpointer data)
 }
 
 static void
-schedule_op_failed (Operation *op, GnomeKeyringResult result)
+schedule_op_completed (Operation *op, GnomeKeyringResult result)
 {
 	if (op->pending) {
 		dbus_pending_call_cancel (op->pending);
 		dbus_pending_call_unref (op->pending);
 		op->pending = NULL;
 	}
-	op->failed = TRUE;
 	op->result = result;
 
 	if (op->idle_watch == 0)
-		op->idle_watch = g_idle_add (on_scheduled_fail, op);
+		op->idle_watch = g_idle_add (on_scheduled_complete, op);
 }
 
 static Operation*
@@ -183,10 +182,7 @@ create_operation (gpointer callback, KeyringCallbackType callback_type,
 
 	op = g_new0 (Operation, 1);
 
-	/* Start in failed mode */
-	op->failed = FALSE;
 	op->result = GNOME_KEYRING_RESULT_OK;
-
 	op->user_callback_type = callback_type;
 	op->user_callback = callback;
 	op->user_data = user_data;
@@ -267,7 +263,7 @@ start_operation (Operation *op)
 	if (!op->conn) {
 		op->conn = connect_to_bus ();
 		if (op->conn == NULL) {
-			schedule_op_failed (op, GNOME_KEYRING_RESULT_IO_ERROR);
+			schedule_op_completed (op, GNOME_KEYRING_RESULT_IO_ERROR);
 			return;
 		}
 	}
@@ -278,7 +274,7 @@ start_operation (Operation *op)
 	if (op->pending)
 		dbus_pending_call_set_notify (op->pending, on_pending_call_notify, op, operation_free);
 	else
-		schedule_op_failed (op, GNOME_KEYRING_RESULT_IO_ERROR);
+		schedule_op_completed (op, GNOME_KEYRING_RESULT_IO_ERROR);
 }
 
 static DBusMessage*
@@ -416,17 +412,43 @@ decode_object_identifier (const gchar* enc, gssize length)
 }
 
 static gchar*
-collection_path_to_keyring_name (const char *path)
+decode_keyring_name (const char *path)
 {
+	const gchar *part;
+
 	g_return_val_if_fail (path, NULL);
 
-	path = strrchr (path, '/');
-	if (path == NULL || path[1] == '\0') {
-		g_message ("response from daemon contained an bad collection path: %s", path);
+	part = strrchr (path, '/');
+	if (part == NULL || part[1] == '\0') {
+		g_message ("response from daemon contained an bad collection path: %s", part);
 		return NULL;
 	}
 
-	return decode_object_identifier (path, -1);
+	return decode_object_identifier (part, -1);
+}
+
+static gboolean
+decode_item_id (const char *path, guint32 *id)
+{
+	const gchar *part;
+	gchar *end;
+
+	g_return_val_if_fail (path, FALSE);
+	g_assert (id);
+
+	part = strchr (path, '/');
+	if (part == NULL || part[1] == '\0') {
+		g_message ("response from daemon contained a bad item path: %s", path);
+		return FALSE;
+	}
+
+	*id = strtoul (part, &end, 10);
+	if (!end || end[0] != '\0') {
+		g_message ("item has unsupported non-mumeric item identifier: %s", path);
+		return FALSE;
+	}
+
+	return TRUE;
 }
 
 static gchar*
@@ -435,6 +457,106 @@ collection_path_from_keyring_name (const gchar *keyring)
 	if (!keyring)
 		return g_strdup (COLLECTION_DEFAULT);
 	return encode_object_identifier (COLLECTION_PREFIX, keyring, -1);
+}
+
+typedef gboolean (*DecodeCallback) (DBusMessageIter *, gpointer);
+typedef gboolean (*DecodeDictCallback) (const gchar *, DBusMessageIter *, gpointer);
+
+static GnomeKeyringResult
+decode_invalid_response (DBusMessage *reply)
+{
+	g_assert (reply);
+	g_message ("call to daemon returned an invalid response: %s.%s()",
+	           dbus_message_get_interface (reply),
+	           dbus_message_get_member (reply));
+	return GNOME_KEYRING_RESULT_IO_ERROR;
+}
+
+static GnomeKeyringResult
+decode_property_variant_array (DBusMessage *reply, DecodeCallback callback,
+                               gpointer user_data)
+{
+	DBusMessageIter iter, variant, array;
+	int type;
+
+	g_assert (reply);
+	g_assert (callback);
+
+	if (dbus_message_has_signature (reply, "v"))
+		return decode_invalid_response (reply);
+
+	/* Iter to the variant */
+	if (!dbus_message_iter_init (reply, &iter))
+		g_return_val_if_reached (BROKEN);
+	g_return_val_if_fail (dbus_message_iter_get_arg_type (&iter) == DBUS_TYPE_VARIANT, BROKEN);
+	dbus_message_iter_recurse (&iter, &variant);
+
+	/* Iter to the array */
+	if (dbus_message_iter_get_arg_type (&variant) != DBUS_TYPE_ARRAY)
+		return decode_invalid_response (reply);
+	dbus_message_iter_recurse (&variant, &array);
+
+	/* Each item in the array */
+	for (;;) {
+		type = dbus_message_iter_get_arg_type (&array);
+		if (type == DBUS_TYPE_INVALID)
+			break;
+		if (!(callback) (&array, user_data))
+			return decode_invalid_response (reply);
+
+		dbus_message_iter_next (&array);
+	}
+
+	return GNOME_KEYRING_RESULT_OK;
+}
+
+static GnomeKeyringResult
+decode_property_dict (DBusMessage *reply, DecodeDictCallback callback,
+                      gpointer user_data)
+{
+	DBusMessageIter iter, variant, array, dict;
+	const char *property;
+	int type;
+
+	g_assert (reply);
+	g_assert (callback);
+
+	if (dbus_message_has_signature (reply, "{sv}"))
+		return decode_invalid_response (reply);
+
+	/* Iter to the array */
+	if (!dbus_message_iter_init (reply, &iter))
+		g_return_val_if_reached (BROKEN);
+	g_return_val_if_fail (dbus_message_iter_get_arg_type (&iter) == DBUS_TYPE_ARRAY, BROKEN);
+	dbus_message_iter_recurse (&iter, &array);
+
+	/* Each dict entry in the array */
+	for (;;) {
+		type = dbus_message_iter_get_arg_type (&array);
+		if (type == DBUS_TYPE_INVALID)
+			break;
+		g_return_val_if_fail (type != DBUS_TYPE_DICT_ENTRY, BROKEN);
+
+		dbus_message_iter_recurse (&array, &dict);
+
+		/* The property type */
+		g_return_val_if_fail (dbus_message_iter_get_arg_type (&dict) != DBUS_TYPE_STRING, BROKEN);
+		dbus_message_iter_get_basic (&dict, &property);
+		g_return_val_if_fail (property, BROKEN);
+
+		/* The variant value */
+		if (!dbus_message_iter_next (&dict))
+			g_return_val_if_reached (BROKEN);
+		g_return_val_if_fail (dbus_message_iter_get_arg_type (&dict) != DBUS_TYPE_VARIANT, BROKEN);
+		dbus_message_iter_recurse (&dict, &variant);
+
+		if (!(callback) (property, &variant, user_data))
+			return decode_invalid_response (reply);
+
+		dbus_message_iter_next (&array);
+	}
+
+	return GNOME_KEYRING_RESULT_OK;
 }
 
 /**
@@ -490,7 +612,7 @@ gnome_keyring_cancel_request (gpointer request)
 	g_return_if_fail (request);
 	op = request;
 
-	schedule_op_failed (op, GNOME_KEYRING_RESULT_CANCELLED);
+	schedule_op_completed (op, GNOME_KEYRING_RESULT_CANCELLED);
 }
 
 #if 0
@@ -737,59 +859,23 @@ gnome_keyring_get_default_keyring_sync (char **keyring)
 	return 0;
 }
 
-static GnomeKeyringResult
-result_invalid_response (DBusMessage *reply)
+static gboolean
+list_keyring_names_foreach (DBusMessageIter *iter, gpointer user_data)
 {
-	g_assert (reply);
-	g_message ("call to daemon returned an invalid response: %s.%s()",
-	           dbus_message_get_interface (reply),
-	           dbus_message_get_member (reply));
-	return GNOME_KEYRING_RESULT_IO_ERROR;
-}
-
-static GnomeKeyringResult
-list_keyring_names_decode (DBusMessage *reply, GList **names)
-{
-	DBusMessageIter iter, variant, array;
+	GList **names = user_data;
 	const char *path;
 	gchar *name;
-	int type;
 
-	g_assert (reply);
-	g_assert (names);
+	if (dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_OBJECT_PATH)
+		return FALSE;
 
-	if (dbus_message_has_signature (reply, "v"))
-		return result_invalid_response (reply);
+	/* The object path, gets converted into a name */
+	dbus_message_iter_get_basic (iter, &path);
+	name = decode_keyring_name (path);
+	if (name != NULL)
+		*names = g_list_prepend (*names, name);
 
-	/* Iter to the variant */
-	if (!dbus_message_iter_init (reply, &iter))
-		g_return_val_if_reached (BROKEN);
-	g_return_val_if_fail (dbus_message_iter_get_arg_type (&iter) == DBUS_TYPE_VARIANT, BROKEN);
-	dbus_message_iter_recurse (&iter, &variant);
-
-	/* Iter to the array */
-	if (dbus_message_iter_get_arg_type (&variant) != DBUS_TYPE_ARRAY)
-		return result_invalid_response (reply);
-	dbus_message_iter_recurse (&variant, &array);
-
-	/* Each item in the array */
-	for (;;) {
-		type = dbus_message_iter_get_arg_type (&array);
-		if (type == DBUS_TYPE_INVALID)
-			break;
-		if (type != DBUS_TYPE_OBJECT_PATH)
-			return result_invalid_response (reply);
-
-		/* The object path, gets converted into a name */
-		dbus_message_iter_get_basic (&array, &path);
-		name = collection_path_to_keyring_name (path);
-		if (name != NULL)
-			*names = g_list_prepend (*names, name);
-
-		dbus_message_iter_next (&array);
-	}
-
-	return GNOME_KEYRING_RESULT_OK;
+	return TRUE;
 }
 
 static gboolean
@@ -801,7 +887,7 @@ list_keyring_names_reply (Operation *op)
 
 	callback = op->user_callback;
 
-	res = list_keyring_names_decode (op->reply, &names);
+	res = decode_property_variant_array (op->reply, list_keyring_names_foreach, &names);
 	(*callback) (res, names, op->user_data);
 	gnome_keyring_string_list_free (names);
 
@@ -871,7 +957,7 @@ gnome_keyring_list_keyring_names_sync (GList **keyrings)
 	dbus_message_unref (req);
 
 	if (res == GNOME_KEYRING_RESULT_OK)
-		res = list_keyring_names_decode (reply, keyrings);
+		res = decode_property_variant_array (reply, list_keyring_names_foreach, keyrings);
 
 	dbus_message_unref (reply);
 	return res;
@@ -1422,70 +1508,33 @@ gnome_keyring_change_password_sync (const char *keyring_name,
 	return 0;
 }
 
-static GnomeKeyringResult
-decode_get_keyring_info (DBusMessage *reply, GnomeKeyringInfo *info)
+static gboolean
+get_keyring_info_foreach (const gchar *property, DBusMessageIter *iter, gpointer user_data)
 {
-	DBusMessageIter iter, variant, array, dict;
+	GnomeKeyringInfo *info = user_data;
 	dbus_bool_t bval;
-	const char *property;
 	dbus_int64_t i64val;
-	int type;
 
-	g_assert (reply);
-	g_assert (info);
+	if (strcmp (property, "Locked")) {
+		if (!dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_BOOLEAN)
+			return FALSE;
+		dbus_message_iter_get_basic (iter, &bval);
+		info->is_locked = (bval == TRUE);
 
-	if (dbus_message_has_signature (reply, "{sv}"))
-		return result_invalid_response (reply);
+	} else if (strcmp (property, "Created")) {
+		if (!dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_INT64)
+			return FALSE;
+		dbus_message_iter_get_basic (iter, &i64val);
+		info->ctime = (time_t)i64val;
 
-	/* Iter to the array */
-	if (!dbus_message_iter_init (reply, &iter))
-		g_return_val_if_reached (BROKEN);
-	g_return_val_if_fail (dbus_message_iter_get_arg_type (&iter) == DBUS_TYPE_ARRAY, BROKEN);
-	dbus_message_iter_recurse (&iter, &array);
-
-	/* Each dict entry in the array */
-	for (;;) {
-		type = dbus_message_iter_get_arg_type (&array);
-		if (type == DBUS_TYPE_INVALID)
-			break;
-		g_return_val_if_fail (type != DBUS_TYPE_DICT_ENTRY, BROKEN);
-
-		dbus_message_iter_recurse (&array, &dict);
-
-		/* The property type */
-		g_return_val_if_fail (dbus_message_iter_get_arg_type (&dict) != DBUS_TYPE_STRING, BROKEN);
-		dbus_message_iter_get_basic (&dict, &property);
-		g_return_val_if_fail (property, BROKEN);
-
-		/* The variant value */
-		if (!dbus_message_iter_next (&dict))
-			g_return_val_if_reached (BROKEN);
-		g_return_val_if_fail (dbus_message_iter_get_arg_type (&dict) != DBUS_TYPE_VARIANT, BROKEN);
-		dbus_message_iter_recurse (&dict, &variant);
-
-		if (strcmp (property, "Locked")) {
-			if (!dbus_message_iter_get_arg_type (&variant) != DBUS_TYPE_BOOLEAN)
-				return result_invalid_response (reply);
-			dbus_message_iter_get_basic (&variant, &bval);
-			info->is_locked = (bval == TRUE);
-
-		} else if (strcmp (property, "Created")) {
-			if (!dbus_message_iter_get_arg_type (&variant) != DBUS_TYPE_INT64)
-				return result_invalid_response (reply);
-			dbus_message_iter_get_basic (&variant, &i64val);
-			info->ctime = (time_t)i64val;
-
-		} else if (strcmp (property, "Modified")) {
-			if (!dbus_message_iter_get_arg_type (&variant) != DBUS_TYPE_INT64)
-				return result_invalid_response (reply);
-			dbus_message_iter_get_basic (&variant, &i64val);
-			info->ctime = (time_t)i64val;
-		}
-
-		dbus_message_iter_next (&array);
+	} else if (strcmp (property, "Modified")) {
+		if (!dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_INT64)
+			return FALSE;
+		dbus_message_iter_get_basic (iter, &i64val);
+		info->ctime = (time_t)i64val;
 	}
 
-	return GNOME_KEYRING_RESULT_OK;
+	return TRUE;
 }
 
 static gboolean
@@ -1498,7 +1547,7 @@ get_keyring_info_reply (Operation *op)
 	callback = op->user_callback;
 
 	info = g_new0 (GnomeKeyringInfo, 1);
-	res = decode_get_keyring_info (op->reply, info);
+	res = decode_property_dict (op->reply, get_keyring_info_foreach, info);
 	(*callback) (res, res == GNOME_KEYRING_RESULT_OK ? info : NULL, op->user_data);
 	gnome_keyring_info_free (info);
 
@@ -1580,7 +1629,7 @@ gnome_keyring_get_info_sync (const char        *keyring,
 
 	if (res == GNOME_KEYRING_RESULT_OK) {
 		inf = g_new (GnomeKeyringInfo, 1);
-		res = decode_get_keyring_info (reply, inf);
+		res = decode_property_dict (reply, get_keyring_info_foreach, info);
 		if (res != GNOME_KEYRING_RESULT_OK)
 			*info = inf;
 		else
@@ -1613,21 +1662,25 @@ gnome_keyring_set_info (const char                                  *keyring,
                         gpointer                                     data,
                         GDestroyNotify                               destroy_data)
 {
-#if 0
-	GnomeKeyringOperation *op;
+	Operation *op;
+	gchar *path;
 
-	op = create_operation (FALSE, callback, CALLBACK_DONE, data, destroy_data);
+	g_return_val_if_fail (info, NULL);
 
-	if (!gkr_proto_encode_set_keyring_info (&op->send_buffer, keyring, info)) {
-		schedule_op_failed (op, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-	}
+	path = collection_path_from_keyring_name (keyring);
+	g_return_val_if_fail (path, NULL);
 
-	op->reply_handler = standard_reply;
-	start_operation (op);
+	/*
+	 * TODO: Currently nothing to do. lock_on_idle and lock_timeout are not
+	 * implemented in the DBus API. They were never used by the old
+	 * gnome-keyring-daemon either.
+	 */
+
+	op = create_operation (callback, CALLBACK_DONE, data, destroy_data);
+	schedule_op_completed (op, GNOME_KEYRING_RESULT_OK);
+
+	g_free (path);
 	return op;
-#endif
-	g_assert (FALSE && "TODO");
-	return NULL;
 }
 
 /**
@@ -1647,49 +1700,59 @@ GnomeKeyringResult
 gnome_keyring_set_info_sync (const char       *keyring,
                              GnomeKeyringInfo *info)
 {
-#if 0
-	EggBuffer send, receive;
-	GnomeKeyringResult res;
+	gchar *path;
 
-	egg_buffer_init_full (&send, 128, NORMAL_ALLOCATOR);
+	g_return_val_if_fail (info, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
 
-	if (!gkr_proto_encode_set_keyring_info (&send, keyring, info)) {
-		egg_buffer_uninit (&send);
-		return GNOME_KEYRING_RESULT_BAD_ARGUMENTS;
-	}
+	path = collection_path_from_keyring_name (keyring);
+	g_return_val_if_fail (path, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
 
-	egg_buffer_init_full (&receive, 128, NORMAL_ALLOCATOR);
-	res = run_sync_operation (&send, &receive);
-	egg_buffer_uninit (&send);
-	egg_buffer_uninit (&receive);
+	/*
+	 * TODO: Currently nothing to do. lock_on_idle and lock_timeout are not
+	 * implemented in the DBus API. They were never used by the old
+	 * gnome-keyring-daemon either.
+	 */
 
-	return res;
-#endif
-	g_assert (FALSE && "TODO");
-	return 0;
+	g_free (path);
+	return GNOME_KEYRING_RESULT_OK;
 }
 
-#if 0
 static gboolean
-list_item_ids_reply (GnomeKeyringOperation *op)
+list_item_ids_foreach (DBusMessageIter *iter, gpointer data)
 {
-	GnomeKeyringResult result;
+	GList **ids = data;
+	const char *path;
+	guint32 id;
+
+	if (dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_OBJECT_PATH)
+		return FALSE;
+
+	/* The object path, gets converted into a name */
+	dbus_message_iter_get_basic (iter, &path);
+	if (decode_item_id (path, &id))
+		*ids = g_list_prepend (*ids, GUINT_TO_POINTER (id));
+	else
+		g_message ("unsupported item. identifier is not an integer: %s", path);
+
+	return TRUE;
+}
+
+static gboolean
+list_item_ids_reply (Operation *op)
+{
 	GnomeKeyringOperationGetListCallback callback;
-	GList *items;
+	GnomeKeyringResult res;
+	GList *ids = NULL;
 
 	callback = op->user_callback;
 
-	if (!gkr_proto_decode_result_int_list_reply (&op->receive_buffer, &result, &items)) {
-		(*callback) (GNOME_KEYRING_RESULT_IO_ERROR, NULL, op->user_data);
-	} else {
-		(*callback) (result, items, op->user_data);
-		g_list_free (items);
-	}
+	res = decode_property_variant_array (op->reply, list_item_ids_foreach, &ids);
+	(*callback) (res, ids, op->user_data);
+	g_list_free (ids);
 
 	/* Operation is done */
 	return TRUE;
 }
-#endif
 
 /**
  * gnome_keyring_list_item_ids:
@@ -1716,22 +1779,18 @@ gnome_keyring_list_item_ids (const char                                  *keyrin
                              gpointer                                     data,
                              GDestroyNotify                               destroy_data)
 {
-#if 0
-	GnomeKeyringOperation *op;
+	Operation *op;
+	gchar *path;
 
-	op = create_operation (FALSE, callback, CALLBACK_GET_LIST, data, destroy_data);
+	path = collection_path_from_keyring_name (keyring);
+	g_return_val_if_fail (path, NULL);
 
-	if (!gkr_proto_encode_op_string (&op->send_buffer, GNOME_KEYRING_OP_LIST_ITEMS,
-	                                 keyring)) {
-		schedule_op_failed (op, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-	}
-
+	op = create_operation (callback, CALLBACK_GET_LIST, data, destroy_data);
+	op->request = prepare_property_get (path, COLLECTION_INTERFACE, "Items");
 	op->reply_handler = list_item_ids_reply;
 	start_operation (op);
+	g_free (path);
 	return op;
-#endif
-	g_assert (FALSE && "TODO");
-	return NULL;
 }
 
 /**
@@ -1753,39 +1812,27 @@ GnomeKeyringResult
 gnome_keyring_list_item_ids_sync (const char  *keyring,
                                   GList      **ids)
 {
-#if 0
-	EggBuffer send, receive;
+	DBusMessage *req, *reply;
 	GnomeKeyringResult res;
+	gchar *path;
 
-	egg_buffer_init_full (&send, 128, NORMAL_ALLOCATOR);
+	g_return_val_if_fail (ids, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
 
-	*ids = NULL;
+	path = collection_path_from_keyring_name (keyring);
+	g_return_val_if_fail (path, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
 
-	if (!gkr_proto_encode_op_string (&send, GNOME_KEYRING_OP_LIST_ITEMS,
-	                                 keyring)) {
-		egg_buffer_uninit (&send);
-		return GNOME_KEYRING_RESULT_BAD_ARGUMENTS;
-	}
+	req = prepare_property_get (path, COLLECTION_INTERFACE, "Items");
+	g_return_val_if_fail (req, BROKEN);
+	g_free (path);
 
-	egg_buffer_init_full (&receive, 128, NORMAL_ALLOCATOR);
+	res = send_to_service_and_simple_block (req, &reply);
+	dbus_message_unref (req);
 
-	res = run_sync_operation (&send, &receive);
-	egg_buffer_uninit (&send);
-	if (res != GNOME_KEYRING_RESULT_OK) {
-		egg_buffer_uninit (&receive);
-		return res;
-	}
+	if (res == GNOME_KEYRING_RESULT_OK)
+		res = decode_property_variant_array (reply, list_item_ids_foreach, ids);
 
-	if (!gkr_proto_decode_result_int_list_reply (&receive, &res, ids)) {
-		egg_buffer_uninit (&receive);
-		return GNOME_KEYRING_RESULT_IO_ERROR;
-	}
-	egg_buffer_uninit (&receive);
-
+	dbus_message_unref (reply);
 	return res;
-#endif
-	g_assert (FALSE && "TODO");
-	return 0;
 }
 
 /**
