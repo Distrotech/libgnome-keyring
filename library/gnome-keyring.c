@@ -637,27 +637,20 @@ gnome_keyring_cancel_request (gpointer request)
 	schedule_op_completed (op, GNOME_KEYRING_RESULT_CANCELLED);
 }
 
-#if 0
 static gboolean
-standard_reply (GnomeKeyringOperation *op)
+standard_reply (Operation *op)
 {
-	GnomeKeyringResult result;
 	GnomeKeyringOperationDoneCallback callback;
 
 	g_assert (op->user_callback_type == CALLBACK_DONE);
-
 	callback = op->user_callback;
-
-	if (!gkr_proto_decode_result_reply (&op->receive_buffer, &result)) {
-		(*callback) (GNOME_KEYRING_RESULT_IO_ERROR, op->user_data);
-	} else {
-		(*callback) (result, op->user_data);
-	}
+	(*callback) (op->result, op->user_data);
 
 	/* Operation is done */
 	return TRUE;
 }
 
+#if 0
 static gboolean
 string_reply (GnomeKeyringOperation *op)
 {
@@ -1003,20 +996,18 @@ gnome_keyring_lock_all (GnomeKeyringOperationDoneCallback       callback,
                         gpointer                                data,
                         GDestroyNotify                          destroy_data)
 {
-#if 0
-	GnomeKeyringOperation *op;
+	DBusMessage *req;
+	Operation *op;
 
-	op = create_operation (FALSE, callback, CALLBACK_DONE, data, destroy_data);
-	if (!gkr_proto_encode_op_only (&op->send_buffer, GNOME_KEYRING_OP_LOCK_ALL)) {
-		schedule_op_failed (op, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-	}
+	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
+	                                    SERVICE_INTERFACE, "LockService");
+	g_return_val_if_fail (req, NULL);
 
+	op = create_operation (callback, CALLBACK_DONE, data, destroy_data);
+	op->request = req;
 	op->reply_handler = standard_reply;
 	start_operation (op);
 	return op;
-#endif
-	g_assert (FALSE && "TODO");
-	return NULL;
 }
 
 /**
@@ -1033,35 +1024,18 @@ gnome_keyring_lock_all (GnomeKeyringOperationDoneCallback       callback,
 GnomeKeyringResult
 gnome_keyring_lock_all_sync (void)
 {
-#if 0
-	EggBuffer send, receive;
+	DBusMessage *req, *reply;
 	GnomeKeyringResult res;
 
-	egg_buffer_init_full (&send, 128, NORMAL_ALLOCATOR);
+	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
+	                                    SERVICE_INTERFACE, "LockService");
+	g_return_val_if_fail (req, BROKEN);
 
-	if (!gkr_proto_encode_op_only (&send, GNOME_KEYRING_OP_LOCK_ALL)) {
-		egg_buffer_uninit (&send);
-		return GNOME_KEYRING_RESULT_BAD_ARGUMENTS;
-	}
-
-	egg_buffer_init_full (&receive, 128, NORMAL_ALLOCATOR);
-	res = run_sync_operation (&send, &receive);
-	egg_buffer_uninit (&send);
-	if (res != GNOME_KEYRING_RESULT_OK) {
-		egg_buffer_uninit (&receive);
-		return res;
-	}
-
-	if (!gkr_proto_decode_result_reply (&receive, &res)) {
-		egg_buffer_uninit (&receive);
-		return GNOME_KEYRING_RESULT_IO_ERROR;
-	}
-	egg_buffer_uninit (&receive);
+	res = send_to_service_and_simple_block (req, &reply);
+	dbus_message_unref (req);
+	dbus_message_unref (reply);
 
 	return res;
-#endif
-	g_assert (FALSE && "TODO");
-	return 0;
 }
 
 /**
