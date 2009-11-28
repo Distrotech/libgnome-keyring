@@ -44,479 +44,11 @@
 #include <sys/uio.h>
 #include <stdarg.h>
 
-#define BROKEN                         GNOME_KEYRING_RESULT_IO_ERROR
-
-#define SECRETS_SERVICE                "org.freedesktop.secrets"
-#define SERVICE_PATH                   "/org/freedesktop/secrets"
-#define COLLECTION_INTERFACE           "org.freedesktop.Secrets.Collection"
-#define ITEM_INTERFACE                 "org.freedesktop.Secrets.Item"
-#define PROMPT_INTERFACE               "org.freedesktop.Secrets.Prompt"
-#define SERVICE_INTERFACE              "org.freedesktop.Secrets.Service"
-#define COLLECTION_PREFIX              "/org/freedesktop/secrets/collection/"
-#define COLLECTION_DEFAULT             "/org/freedesktop/secrets/collection/default"
-
 /**
  * SECTION:gnome-keyring-generic-callbacks
  * @title: Callbacks
  * @short_description: Different callbacks for retrieving async results
  */
-
-typedef enum {
-	CALLBACK_DONE,
-	CALLBACK_GET_STRING,
-	CALLBACK_GET_INT,
-	CALLBACK_GET_LIST,
-	CALLBACK_GET_KEYRING_INFO,
-	CALLBACK_GET_ITEM_INFO,
-	CALLBACK_GET_ATTRIBUTES,
-	CALLBACK_GET_ACL
-} KeyringCallbackType;
-
-typedef GnomeKeyringResult (*ParseIterFunc) (DBusMessageIter *iter, gpointer user_data);
-
-#define NORMAL_ALLOCATOR  ((EggBufferAllocator)g_realloc)
-#define SECURE_ALLOCATOR  ((EggBufferAllocator)gnome_keyring_memory_realloc)
-#define INCOMPLETE -1
-
-static DBusConnection *dbus_connection = NULL;
-G_LOCK_DEFINE_STATIC(dbus_connection);
-
-typedef struct _Operation Operation;
-typedef void (*KeyringHandleReply) (Operation *op, DBusMessage *reply);
-
-struct _Operation {
-	/* First two only atomically accessed */
-	gint refs;
-	gint result;
-
-	/* Managed by operation calls */
-	DBusConnection *conn;
-	DBusPendingCall *pending;
-	gchar *prompt;
-
-	/* User callback information */
-	KeyringCallbackType user_callback_type;
-	gpointer user_callback;
-	gpointer user_data;
-	GDestroyNotify destroy_user_data;
-
-	/* May be set by others */
-	KeyringHandleReply reply_handler;
-	gpointer reply_data;
-	GDestroyNotify destroy_reply_data;
-};
-
-static Operation*
-operation_ref (gpointer data)
-{
-	Operation *op = data;
-	g_return_val_if_fail (op, NULL);
-	g_atomic_int_inc (&op->refs);
-	return op;
-}
-
-static void
-operation_unref (gpointer data)
-{
-	Operation *op = data;
-
-	if (!op)
-		return;
-
-	if (!g_atomic_int_dec_and_test (&op->refs))
-		return;
-
-	if (op->pending) {
-		dbus_pending_call_cancel (op->pending);
-		dbus_pending_call_unref (op->pending);
-		op->pending = NULL;
-	}
-	if (op->destroy_user_data != NULL && op->user_data != NULL)
-		(*op->destroy_user_data) (op->user_data);
-	if (op->destroy_reply_data != NULL && op->reply_data != NULL)
-		(*op->destroy_reply_data) (op->reply_data);
-	g_free (op->prompt);
-	g_free (op);
-}
-
-static Operation*
-operation_new (gpointer callback, KeyringCallbackType callback_type,
-               gpointer user_data, GDestroyNotify destroy_user_data)
-{
-	Operation *op;
-
-	op = g_new0 (Operation, 1);
-
-	op->refs = 1;
-	op->result = INCOMPLETE;
-	op->user_callback_type = callback_type;
-	op->user_callback = callback;
-	op->user_data = user_data;
-	op->destroy_user_data = destroy_user_data;
-
-	return op;
-}
-
-static GnomeKeyringResult
-operation_get_result (Operation *op)
-{
-	GnomeKeyringResult res;
-	g_assert (op);
-	res = g_atomic_int_get (&op->result);
-	g_assert (res != INCOMPLETE);
-	return res;
-}
-
-static gboolean
-operation_set_result (Operation *op, GnomeKeyringResult res)
-{
-	g_assert (op);
-	g_assert (res != INCOMPLETE);
-	return g_atomic_int_compare_and_exchange (&op->result, INCOMPLETE, res);
-}
-
-static void
-operation_complete (Operation *op, GnomeKeyringResult res)
-{
-	g_assert (op);
-	switch (op->user_callback_type) {
-	case CALLBACK_DONE:
-		((GnomeKeyringOperationDoneCallback)op->user_callback) (res, op->user_data);
-		break;
-	case CALLBACK_GET_STRING:
-		((GnomeKeyringOperationGetStringCallback)op->user_callback) (res, NULL, op->user_data);
-		break;
-	case CALLBACK_GET_INT:
-		((GnomeKeyringOperationGetIntCallback)op->user_callback) (res, 0, op->user_data);
-		break;
-	case CALLBACK_GET_LIST:
-		((GnomeKeyringOperationGetListCallback)op->user_callback) (res, NULL, op->user_data);
-		break;
-	case CALLBACK_GET_KEYRING_INFO:
-		((GnomeKeyringOperationGetKeyringInfoCallback)op->user_callback) (res, NULL, op->user_data);
-		break;
-	case CALLBACK_GET_ITEM_INFO:
-		((GnomeKeyringOperationGetItemInfoCallback)op->user_callback) (res, NULL, op->user_data);
-		break;
-	case CALLBACK_GET_ATTRIBUTES:
-		((GnomeKeyringOperationGetAttributesCallback)op->user_callback) (res, NULL, op->user_data);
-		break;
-	case CALLBACK_GET_ACL:
-		((GnomeKeyringOperationGetListCallback)op->user_callback) (res, NULL, op->user_data);
-		break;
-	}
-}
-
-static gboolean
-on_scheduled_complete (gpointer data)
-{
-	Operation *op = data;
-	operation_complete (op, operation_get_result (op));
-
-	/* Don't run idle handler again */
-	return FALSE;
-}
-
-static void
-operation_schedule_completed (Operation *op, GnomeKeyringResult result)
-{
-	if (operation_set_result (op, result))
-		g_idle_add_full (G_PRIORITY_DEFAULT_IDLE, on_scheduled_complete,
-		                 operation_ref (op), operation_unref);
-}
-
-static DBusConnection*
-connect_to_bus (void)
-{
-	DBusError derr = DBUS_ERROR_INIT;
-	DBusConnection *conn;
-	const gchar *rule;
-
-	/*
-	 * TODO: We currently really have no way to close this connection or do
-	 * cleanup, and it's unclear how and whether we need to.
-	 */
-
-	if (!dbus_connection) {
-		if (!g_getenv ("DBUS_SESSION_BUS_ADDRESS"))
-			return NULL;
-
-		conn = dbus_bus_get_private (DBUS_BUS_SESSION, &derr);
-		if (conn == NULL) {
-			g_message ("couldn't connect to dbus session bus: %s", derr.message);
-			dbus_error_free (&derr);
-			return NULL;
-		}
-
-		dbus_connection_set_exit_on_disconnect (conn, FALSE);
-
-		/* Listen for the completed signal */
-		rule = "type='signal',interface='org.gnome.secrets.Prompt',member='Completed'";
-		dbus_bus_add_match (conn, rule, NULL);
-
-		G_LOCK (dbus_connection);
-		{
-			if (dbus_connection) {
-				dbus_connection_unref (dbus_connection);
-			} else {
-				egg_dbus_connect_with_mainloop (conn, NULL);
-				dbus_connection = conn;
-			}
-		}
-	}
-
-	return dbus_connection_ref (dbus_connection);
-}
-
-static GnomeKeyringResult
-handle_error_to_result (DBusError *derr, const gchar *desc)
-{
-	g_assert (derr);
-	g_assert (dbus_error_is_set (derr));
-
-	if (!desc)
-		desc = "secrets service operation failed";
-
-	g_message ("%s: %s", desc, derr->message);
-	dbus_error_free (derr);
-
-	/* TODO: Need to be more specific about errors */
-	return GNOME_KEYRING_RESULT_IO_ERROR;
-}
-
-static DBusHandlerResult
-on_prompt_completed (DBusConnection *connection, DBusMessage *message, void *user_data)
-{
-	Operation *op = user_data;
-
-	g_assert (op);
-	g_return_val_if_fail (op->prompt, DBUS_HANDLER_RESULT_NOT_YET_HANDLED);
-
-	if (dbus_message_is_signal (message, PROMPT_INTERFACE, "Completed") &&
-	    dbus_message_has_path (message, op->prompt)) {
-
-		g_free (op->prompt);
-		op->prompt = NULL;
-		dbus_connection_remove_filter (op->conn, on_prompt_completed, op);
-
-		if (operation_get_result (op) == INCOMPLETE) {
-			if (op->reply_handler)
-				(op->reply_handler) (op, message);
-		}
-
-		return DBUS_HANDLER_RESULT_HANDLED;
-	}
-
-	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
-}
-
-static void
-on_pending_call_notify (DBusPendingCall *pending, void *user_data)
-{
-	DBusError derr = DBUS_ERROR_INIT;
-	Operation *op = user_data;
-	GnomeKeyringResult res;
-	DBusMessage *reply;
-
-	g_assert (pending == op->pending);
-
-	reply = dbus_pending_call_steal_reply (pending);
-	g_return_if_fail (reply);
-
-	dbus_pending_call_unref (op->pending);
-	op->pending = NULL;
-
-	if (dbus_set_error_from_message (&derr, reply)) {
-
-		/* Are we prompting, if so cancel the completed */
-		if (op->prompt) {
-			g_free (op->prompt);
-			op->prompt = NULL;
-			dbus_connection_remove_filter (op->conn, on_prompt_completed, op);
-		}
-
-		/* Return the error result to the callback */
-		res = handle_error_to_result (&derr, NULL);
-		g_assert (res != GNOME_KEYRING_RESULT_OK);
-		if (operation_set_result (op, res))
-			operation_complete (op, res);
-	} else {
-
-		/*
-		 * Are we prompting not prompting, mark as a reply.
-		 * When prompting, completed listener will handle reply.
-		 */
-		if (!op->prompt && operation_get_result (op) == INCOMPLETE) {
-			if (op->reply_handler)
-				(op->reply_handler) (op, reply);
-		}
-	}
-
-	dbus_message_unref (reply);
-}
-
-static void
-start_operation (Operation *op, DBusMessage *request)
-{
-	g_assert (op);
-
-	if (!op->conn)
-		op->conn = connect_to_bus ();
-
-	if (op->conn) {
-		if (!dbus_connection_send_with_reply (op->conn, request, &op->pending, -1))
-			g_return_if_reached ();
-	}
-
-	if (op->pending)
-		dbus_pending_call_set_notify (op->pending, on_pending_call_notify,
-		                              operation_ref (op), operation_unref);
-	else
-		operation_schedule_completed (op, GNOME_KEYRING_RESULT_IO_ERROR);
-}
-
-static void
-prompt_operation (Operation *op, const gchar *prompt)
-{
-	DBusMessage *req;
-
-	g_assert (op != NULL);
-	g_assert (prompt != NULL);
-
-	/* Start waiting for a completed response to this prompt */
-	op->prompt = g_strdup (prompt);
-	dbus_connection_add_filter (op->conn, on_prompt_completed,
-	                            operation_ref (op), operation_unref);
-
-	req = dbus_message_new_method_call (SECRETS_SERVICE, prompt,
-	                                    PROMPT_INTERFACE, "Prompt");
-
-	start_operation (op, req);
-	dbus_message_unref (req);
-}
-
-static GnomeKeyringResult
-send_to_service_and_simple_block (DBusMessage *req, DBusMessage **reply)
-{
-	DBusConnection *conn;
-	DBusError derr = DBUS_ERROR_INIT;
-	GnomeKeyringResult res;
-
-	g_assert (req);
-	g_assert (reply);
-
-	conn = connect_to_bus ();
-	if (conn == NULL) {
-		*reply = NULL;
-		return GNOME_KEYRING_RESULT_IO_ERROR;
-	}
-
-	/* TODO: Timeout here needs to be clarified */
-	*reply = dbus_connection_send_with_reply_and_block (conn, req, -1, &derr);
-	if (*reply == NULL)
-		res = handle_error_to_result (&derr, "couldn't communicate with daemon");
-	else
-		res = GNOME_KEYRING_RESULT_OK;
-
-	dbus_connection_unref (conn);
-	return res;
-}
-
-typedef struct _BlockingPrompt {
-	const gchar *prompt;
-	DBusMessage **signal;
-} BlockingPrompt;
-
-static DBusHandlerResult
-on_blocking_prompt_completed (DBusConnection *connection, DBusMessage *message, void *user_data)
-{
-	BlockingPrompt *cp = user_data;
-
-	g_assert (cp->signal);
-	g_assert (cp->prompt);
-
-	if (dbus_message_is_signal (message, PROMPT_INTERFACE, "Completed") &&
-	    dbus_message_has_path (message, cp->prompt)) {
-		g_return_val_if_fail (*cp->signal == NULL, DBUS_HANDLER_RESULT_NOT_YET_HANDLED);
-		*cp->signal = dbus_message_ref (message);
-		return DBUS_HANDLER_RESULT_HANDLED;
-	}
-
-	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
-}
-
-static GnomeKeyringResult
-prompt_service_and_block (const gchar *prompt, DBusMessage **reply)
-{
-	DBusError derr = DBUS_ERROR_INIT;
-	DBusMessage *req, *rep, *signal;
-	DBusConnection *conn;
-	BlockingPrompt cp = { prompt, &signal };
-	GnomeKeyringResult res;
-	DBusMessageIter iter;
-	dbus_bool_t dismissed;
-
-	g_assert (prompt);
-	g_assert (reply);
-
-	conn = connect_to_bus ();
-	if (conn == NULL) {
-		*reply = NULL;
-		return GNOME_KEYRING_RESULT_IO_ERROR;
-	}
-
-	/* Start waiting for a completed response to this prompt */
-	dbus_connection_add_filter (conn, on_blocking_prompt_completed, &cp, NULL);
-
-	req = dbus_message_new_method_call (SECRETS_SERVICE, prompt,
-	                                    PROMPT_INTERFACE, "Prompt");
-
-	rep = dbus_connection_send_with_reply_and_block (conn, req, -1, &derr);
-	dbus_message_unref (req);
-	dbus_message_unref (rep);
-
-	/* Wait for a completed signal */
-	if (rep != NULL) {
-		dbus_connection_flush (conn);
-		while (signal == NULL) {
-			if (!dbus_connection_read_write_dispatch (conn, -1))
-				break;
-		}
-	}
-
-	dbus_connection_remove_filter (conn, on_blocking_prompt_completed, &cp);
-	dbus_connection_unref (conn);
-
-	/* The prompt method failed for some reason */
-	if (rep == NULL) {
-		res = handle_error_to_result (&derr, "couldn't perform prompting");
-
-	} else if (signal == NULL) {
-		g_message ("the dbus connection disconnected while prompting");
-		res = GNOME_KEYRING_RESULT_IO_ERROR;
-
-	} else if (!dbus_message_has_signature (signal, "bv")) {
-		g_message ("the Completed signal while prompting had an invalid signature");
-		res = GNOME_KEYRING_RESULT_IO_ERROR;
-
-	} else {
-		if (!dbus_message_iter_init (signal, &iter) ||
-		    dbus_message_iter_get_arg_type (&iter) != DBUS_TYPE_BOOLEAN)
-			g_return_val_if_reached (BROKEN);
-		dbus_message_iter_get_basic (&iter, &dismissed);
-		res = dismissed ? GNOME_KEYRING_RESULT_CANCELLED : GNOME_KEYRING_RESULT_OK;
-	}
-
-	if (res == GNOME_KEYRING_RESULT_OK) {
-		dbus_message_unref (signal);
-		*reply = NULL;
-	} else {
-		*reply = signal;
-	}
-
-	return res;
-}
-
 
 static DBusMessage*
 prepare_property_get (const gchar *path, const gchar *interface, const gchar *name)
@@ -807,23 +339,18 @@ decode_property_dict (DBusMessage *reply, DecodeDictCallback callback,
 gboolean
 gnome_keyring_is_available (void)
 {
-	DBusConnection *conn;
 	DBusMessage *req, *reply;
-
-	conn = connect_to_bus ();
-	if (conn == NULL)
-		return FALSE;
+	GnomeKeyringResult res;
 
 	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
 	                                    DBUS_INTERFACE_PEER, "Ping");
 	g_return_val_if_fail (req, FALSE);
 
-	reply = dbus_connection_send_with_reply_and_block (conn, req, 1000, NULL);
+	res = block_request (req, &reply);
 	dbus_message_unref (req);
-	dbus_message_unref (reply);
-	dbus_connection_unref (conn);
-
-	return (reply != NULL);
+	if (res == GNOME_KEYRING_RESULT_OK)
+		dbus_message_unref (reply);
+	return (res == GNOME_KEYRING_RESULT_OK);
 }
 
 /**
@@ -840,62 +367,8 @@ gnome_keyring_cancel_request (gpointer request)
 {
 	Operation *op = request;
 	g_return_if_fail (request);
-	operation_schedule_completed (op, GNOME_KEYRING_RESULT_CANCELLED);
+	operation_schedule_complete (op, GNOME_KEYRING_RESULT_CANCELLED);
 }
-
-static void
-standard_reply (Operation *op, DBusMessage *reply)
-{
-	GnomeKeyringOperationDoneCallback callback;
-	g_assert (op->user_callback_type == CALLBACK_DONE);
-	callback = op->user_callback;
-	(*callback) (GNOME_KEYRING_RESULT_OK, op->user_data);
-}
-
-#if 0
-static gboolean
-string_reply (GnomeKeyringOperation *op)
-{
-	GnomeKeyringResult result;
-	GnomeKeyringOperationGetStringCallback callback;
-	char *string;
-
-	g_assert (op->user_callback_type == CALLBACK_GET_STRING);
-
-	callback = op->user_callback;
-
-	if (!gkr_proto_decode_result_string_reply (&op->receive_buffer, &result, &string)) {
-		(*callback) (GNOME_KEYRING_RESULT_IO_ERROR, NULL, op->user_data);
-	} else {
-		(*callback) (result, string, op->user_data);
-		g_free (string);
-	}
-
-	/* Operation is done */
-	return TRUE;
-}
-
-static gboolean
-int_reply (GnomeKeyringOperation *op)
-{
-	GnomeKeyringResult result;
-	GnomeKeyringOperationGetIntCallback callback;
-	guint32 integer;
-
-	g_assert (op->user_callback_type == CALLBACK_GET_INT);
-
-	callback = op->user_callback;
-
-	if (!gkr_proto_decode_result_integer_reply (&op->receive_buffer, &result, &integer)) {
-		(*callback) (GNOME_KEYRING_RESULT_IO_ERROR, 0, op->user_data);
-	} else {
-		(*callback) (result, integer, op->user_data);
-	}
-
-	/* Operation is done */
-	return TRUE;
-}
-#endif
 
 /**
  * SECTION:gnome-keyring-keyrings
@@ -1096,16 +569,13 @@ list_keyring_names_foreach (DBusMessageIter *iter, gpointer user_data)
 }
 
 static void
-list_keyring_names_reply (Operation *op, DBusMessage *reply)
+list_keyring_names_reply (Operation *op, Callback *cb,
+                          DBusMessage *reply, gpointer user_data)
 {
-	GnomeKeyringOperationGetListCallback callback;
 	GnomeKeyringResult res;
 	GList *names = NULL;
-
-	callback = op->user_callback;
-
 	res = decode_property_variant_array (reply, list_keyring_names_foreach, &names);
-	(*callback) (res, names, op->user_data);
+	callback_get_list (cb, res, names);
 	gnome_keyring_string_list_free (names);
 }
 
@@ -1137,11 +607,11 @@ gnome_keyring_list_keyring_names  (GnomeKeyringOperationGetListCallback    callb
 	g_return_val_if_fail (req, NULL);
 
 	op = operation_new (callback, CALLBACK_GET_LIST, data, destroy_data);
-	op->reply_handler = list_keyring_names_reply;
-	start_operation (op, req);
+	operation_set_handler (op, list_keyring_names_reply, NULL, NULL);
+	operation_start (op, req);
+	operation_unref (op);
 
 	dbus_message_unref (req);
-	operation_unref (op);
 	return op;
 }
 
@@ -1169,7 +639,7 @@ gnome_keyring_list_keyring_names_sync (GList **keyrings)
 	                            "Collections");
 	g_return_val_if_fail (req, BROKEN);
 
-	res = send_to_service_and_simple_block (req, &reply);
+	res = block_request (req, &reply);
 	dbus_message_unref (req);
 
 	if (res == GNOME_KEYRING_RESULT_OK)
@@ -1205,11 +675,10 @@ gnome_keyring_lock_all (GnomeKeyringOperationDoneCallback       callback,
 	g_return_val_if_fail (req, NULL);
 
 	op = operation_new (callback, CALLBACK_DONE, data, destroy_data);
-	op->reply_handler = standard_reply;
-	start_operation (op, req);
+	operation_start (op, req);
+	operation_unref (op);
 
 	dbus_message_unref (req);
-	operation_unref (op);
 	return op;
 }
 
@@ -1234,7 +703,7 @@ gnome_keyring_lock_all_sync (void)
 	                                    SERVICE_INTERFACE, "LockService");
 	g_return_val_if_fail (req, BROKEN);
 
-	res = send_to_service_and_simple_block (req, &reply);
+	res = block_request (req, &reply);
 	dbus_message_unref (req);
 	dbus_message_unref (reply);
 
@@ -1242,34 +711,28 @@ gnome_keyring_lock_all_sync (void)
 }
 
 static void
-create_keyring_reply (Operation *op, DBusMessage *reply)
+create_keyring_reply (Operation *op, Callback *cb,
+                      DBusMessage *reply, gpointer user_data)
 {
-	GnomeKeyringOperationDoneCallback callback;
 	const char *collection;
 	const char *prompt;
-
-	g_assert (op->user_callback_type == CALLBACK_DONE);
-	callback = op->user_callback;
-	g_assert (callback);
 
 	/* Parse the response */
 	if (!dbus_message_get_args (reply, NULL, DBUS_TYPE_OBJECT_PATH, &collection,
 	                            DBUS_TYPE_OBJECT_PATH, &prompt, DBUS_TYPE_INVALID)) {
 		g_warning ("bad response to CreateCollection from service");
-		(callback) (GNOME_KEYRING_RESULT_IO_ERROR, op->user_data);
+		callback_done (cb, GNOME_KEYRING_RESULT_IO_ERROR);
 		return;
 	}
 
 	/* No prompt, we're done */
 	g_return_if_fail (prompt);
-	if (g_str_equal (prompt, "/")) {
-		(callback) (GNOME_KEYRING_RESULT_OK, op->user_data);
+	if (g_str_equal (prompt, "/"))
+		callback_done (cb, GNOME_KEYRING_RESULT_OK);
 
 	/* A prompt, display it */
-	} else {
-		op->reply_handler = standard_reply;
-		prompt_operation (op, prompt);
-	}
+	else
+		operation_prompt (op, prompt);
 }
 
 static DBusMessage*
@@ -1323,11 +786,13 @@ gnome_keyring_create (const char                                  *keyring_name,
 	Operation *op;
 
 	/* TODO: Password is currently ignored */
+	req = create_keyring_prepare (keyring_name);
+	g_return_val_if_fail (req, NULL);
 
 	op = operation_new (callback, CALLBACK_DONE, data, destroy_data);
-	req = create_keyring_prepare (keyring_name);
-	op->reply_handler = create_keyring_reply;
-	start_operation (op, req);
+	operation_set_handler (op, create_keyring_reply, NULL, NULL);
+	operation_start (op, req);
+	operation_unref (op);
 
 	dbus_message_unref (req);
 	return op;
@@ -1359,7 +824,7 @@ gnome_keyring_create_sync (const char *keyring_name,
 	req = create_keyring_prepare (keyring_name);
 	g_return_val_if_fail (req, BROKEN);
 
-	res = send_to_service_and_simple_block (req, &reply);
+	res = block_request (req, &reply);
 	dbus_message_unref (req);
 
 	if (res != GNOME_KEYRING_RESULT_OK)
@@ -1371,7 +836,7 @@ gnome_keyring_create_sync (const char *keyring_name,
 		g_return_val_if_fail (prompt, BROKEN);
 		if (!g_str_equal (prompt, "/")) {
 			dbus_message_unref (reply);
-			res = prompt_service_and_block (prompt, &reply);
+			res = block_prompt (prompt, &reply);
 		}
 	} else {
 		g_warning ("bad response to CreateCollection from service");
@@ -1787,18 +1252,14 @@ get_keyring_info_foreach (const gchar *property, DBusMessageIter *iter, gpointer
 }
 
 static void
-get_keyring_info_reply (Operation *op, DBusMessage *reply)
+get_keyring_info_reply (Operation *op, Callback *cb,
+                        DBusMessage *reply, gpointer user_data)
 {
-	GnomeKeyringOperationGetKeyringInfoCallback callback;
 	GnomeKeyringResult res;
 	GnomeKeyringInfo *info;
-
-	g_assert (op->user_callback_type == CALLBACK_GET_KEYRING_INFO);
-	callback = op->user_callback;
-
 	info = g_new0 (GnomeKeyringInfo, 1);
 	res = decode_property_dict (reply, get_keyring_info_foreach, info);
-	(*callback) (res, res == GNOME_KEYRING_RESULT_OK ? info : NULL, op->user_data);
+	callback_get_keyring_info (cb, res, info);
 	gnome_keyring_info_free (info);
 }
 
@@ -1830,13 +1291,14 @@ gnome_keyring_get_info (const char                                  *keyring,
 	g_return_val_if_fail (path, NULL);
 
 	req = prepare_property_getall (path, COLLECTION_INTERFACE);
+	g_return_val_if_fail (req, NULL);
 
 	op = operation_new (callback, CALLBACK_GET_KEYRING_INFO, data, destroy_data);
-	op->reply_handler = get_keyring_info_reply;
-	start_operation (op, req);
+	operation_set_handler (op, get_keyring_info_reply, NULL, NULL);
+	operation_start (op, req);
+	operation_unref (op);
 
 	dbus_message_unref (req);
-	operation_unref (op);
 	g_free (path);
 	return op;
 }
@@ -1873,7 +1335,7 @@ gnome_keyring_get_info_sync (const char        *keyring,
 	g_return_val_if_fail (req, BROKEN);
 	g_free (path);
 
-	res = send_to_service_and_simple_block (req, &reply);
+	res = block_request (req, &reply);
 	dbus_message_unref (req);
 
 	if (res == GNOME_KEYRING_RESULT_OK) {
@@ -1926,7 +1388,8 @@ gnome_keyring_set_info (const char                                  *keyring,
 	 */
 
 	op = operation_new (callback, CALLBACK_DONE, data, destroy_data);
-	operation_schedule_completed (op, GNOME_KEYRING_RESULT_OK);
+	operation_schedule_complete (op, GNOME_KEYRING_RESULT_OK);
+	operation_unref (op);
 
 	g_free (path);
 	return op;
@@ -1987,17 +1450,13 @@ list_item_ids_foreach (DBusMessageIter *iter, gpointer data)
 }
 
 static void
-list_item_ids_reply (Operation *op, DBusMessage *reply)
+list_item_ids_reply (Operation *op, Callback *cb,
+                     DBusMessage *reply, gpointer user_data)
 {
-	GnomeKeyringOperationGetListCallback callback;
 	GnomeKeyringResult res;
 	GList *ids = NULL;
-
-	g_assert (op->user_callback_type == CALLBACK_GET_LIST);
-	callback = op->user_callback;
-
 	res = decode_property_variant_array (reply, list_item_ids_foreach, &ids);
-	(*callback) (res, ids, op->user_data);
+	callback_get_list (cb, res, ids);
 	g_list_free (ids);
 }
 
@@ -2034,14 +1493,16 @@ gnome_keyring_list_item_ids (const char                                  *keyrin
 	g_return_val_if_fail (path, NULL);
 
 	req = prepare_property_get (path, COLLECTION_INTERFACE, "Items");
+	g_return_val_if_fail (req, NULL);
 
 	op = operation_new (callback, CALLBACK_GET_LIST, data, destroy_data);
-	op->reply_handler = list_item_ids_reply;
-	start_operation (op, req);
+	operation_set_handler (op, list_item_ids_reply, NULL, NULL);
+	operation_start (op, req);
+	operation_unref (op);
 
 	dbus_message_unref (req);
-	operation_unref (op);
 	g_free (path);
+
 	return op;
 }
 
@@ -2077,7 +1538,7 @@ gnome_keyring_list_item_ids_sync (const char  *keyring,
 	g_return_val_if_fail (req, BROKEN);
 	g_free (path);
 
-	res = send_to_service_and_simple_block (req, &reply);
+	res = block_request (req, &reply);
 	dbus_message_unref (req);
 
 	if (res == GNOME_KEYRING_RESULT_OK)
@@ -3062,18 +2523,14 @@ get_attributes_decode (DBusMessage *reply, GnomeKeyringAttributeList *attrs)
 }
 
 static void
-get_attributes_reply (Operation *op, DBusMessage *reply)
+get_attributes_reply (Operation *op, Callback *cb,
+                      DBusMessage *reply, gpointer user_data)
 {
-	GnomeKeyringOperationGetAttributesCallback callback;
 	GnomeKeyringResult res;
 	GnomeKeyringAttributeList *attrs;
-
-	g_assert (op->user_callback_type == CALLBACK_GET_ATTRIBUTES);
-	callback = op->user_callback;
-
 	attrs = gnome_keyring_attribute_list_new ();
 	res = get_attributes_decode (reply, attrs);
-	(*callback) (res, res == GNOME_KEYRING_RESULT_OK ? attrs : NULL, op->user_data);
+	callback_get_attributes (cb, res, attrs);
 	gnome_keyring_attribute_list_free (attrs);
 }
 
@@ -3109,14 +2566,16 @@ gnome_keyring_item_get_attributes (const char                                 *k
 	g_return_val_if_fail (path, NULL);
 
 	req = prepare_property_get (path, ITEM_INTERFACE, "Attributes");
+	g_return_val_if_fail (req, NULL);
 
 	op = operation_new (callback, CALLBACK_GET_ATTRIBUTES, data, destroy_data);
-	op->reply_handler = get_attributes_reply;
-	start_operation (op, req);
+	operation_set_handler (op, get_attributes_reply, NULL, NULL);
+	operation_start (op, req);
+	operation_unref (op);
 
 	dbus_message_unref (req);
-	operation_unref (op);
 	g_free (path);
+
 	return op;
 }
 
@@ -3154,7 +2613,7 @@ gnome_keyring_item_get_attributes_sync (const char                 *keyring,
 	g_return_val_if_fail (req, BROKEN);
 	g_free (path);
 
-	res = send_to_service_and_simple_block (req, &reply);
+	res = block_request (req, &reply);
 	dbus_message_unref (req);
 
 	if (res == GNOME_KEYRING_RESULT_OK) {
@@ -3274,8 +2733,9 @@ gnome_keyring_item_get_acl (const char                                 *keyring,
                             GDestroyNotify                              destroy_data)
 {
 	Operation *op;
-	op = operation_new (callback, CALLBACK_GET_ACL, data, destroy_data);
-	operation_schedule_completed (op, GNOME_KEYRING_RESULT_OK);
+	op = operation_new (callback, CALLBACK_GET_LIST, data, destroy_data);
+	operation_schedule_complete (op, GNOME_KEYRING_RESULT_OK);
+	operation_unref (op);
 	return op;
 }
 
@@ -3322,7 +2782,8 @@ gnome_keyring_item_set_acl (const char                                 *keyring,
 {
 	Operation *op;
 	op = operation_new (callback, CALLBACK_DONE, data, destroy_data);
-	operation_schedule_completed (op, GNOME_KEYRING_RESULT_OK);
+	operation_schedule_complete (op, GNOME_KEYRING_RESULT_OK);
+	operation_unref (op);
 	return op;
 }
 
@@ -3373,7 +2834,8 @@ gnome_keyring_item_grant_access_rights (const gchar *keyring,
 {
 	Operation *op;
 	op = operation_new (callback, CALLBACK_DONE, data, destroy_data);
-	operation_schedule_completed (op, GNOME_KEYRING_RESULT_OK);
+	operation_schedule_complete (op, GNOME_KEYRING_RESULT_OK);
+	operation_unref (op);
 	return op;
 }
 
