@@ -129,7 +129,9 @@ gboolean            operation_set_result        (Operation *op,
                                                  GnomeKeyringResult res);
 
 void                operation_set_handler       (Operation *op,
-                                                 OperationHandler handler,
+                                                 OperationHandler handler);
+
+void                operation_set_data          (Operation *op,
                                                  gpointer user_data,
                                                  GDestroyNotify destroy_func);
 

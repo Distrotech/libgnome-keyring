@@ -661,7 +661,7 @@ gnome_keyring_list_keyring_names  (GnomeKeyringOperationGetListCallback    callb
 	g_return_val_if_fail (req, NULL);
 
 	op = operation_new (callback, CALLBACK_GET_LIST, data, destroy_data);
-	operation_set_handler (op, list_keyring_names_reply, NULL, NULL);
+	operation_set_handler (op, list_keyring_names_reply);
 	operation_start (op, req);
 	operation_unref (op);
 
@@ -844,7 +844,7 @@ gnome_keyring_create (const char                                  *keyring_name,
 	g_return_val_if_fail (req, NULL);
 
 	op = operation_new (callback, CALLBACK_DONE, data, destroy_data);
-	operation_set_handler (op, create_keyring_reply, NULL, NULL);
+	operation_set_handler (op, create_keyring_reply);
 	operation_start (op, req);
 	operation_unref (op);
 
@@ -961,7 +961,7 @@ xlock_first_reply (Operation *op, Callback *cb,
 
 	/* Is there a prompt needed? */
 	if (g_str_equal (prompt, "/")) {
-		operation_set_handler (op, xlock_prompt_reply, g_strdup (path), g_free);
+		operation_set_handler (op, xlock_prompt_reply);
 		operation_prompt (op, prompt);
 		return;
 	}
@@ -985,7 +985,8 @@ xlock_async (const gchar *method, const gchar *keyring,
 	g_return_val_if_fail (req, NULL);
 
 	op = operation_new (callback, CALLBACK_DONE, data, destroy_data);
-	operation_set_handler (op, xlock_first_reply, path, g_free);
+	operation_set_handler (op, xlock_first_reply);
+	operation_set_data (op, path, g_free);
 	operation_start (op, req);
 
 	dbus_message_unref (req);
@@ -1406,7 +1407,7 @@ gnome_keyring_get_info (const char                                  *keyring,
 	g_return_val_if_fail (req, NULL);
 
 	op = operation_new (callback, CALLBACK_GET_KEYRING_INFO, data, destroy_data);
-	operation_set_handler (op, get_keyring_info_reply, NULL, NULL);
+	operation_set_handler (op, get_keyring_info_reply);
 	operation_start (op, req);
 	operation_unref (op);
 
@@ -1608,7 +1609,7 @@ gnome_keyring_list_item_ids (const char                                  *keyrin
 	g_return_val_if_fail (req, NULL);
 
 	op = operation_new (callback, CALLBACK_GET_LIST, data, destroy_data);
-	operation_set_handler (op, list_item_ids_reply, NULL, NULL);
+	operation_set_handler (op, list_item_ids_reply);
 	operation_start (op, req);
 	operation_unref (op);
 
@@ -2681,7 +2682,7 @@ gnome_keyring_item_get_attributes (const char                                 *k
 	g_return_val_if_fail (req, NULL);
 
 	op = operation_new (callback, CALLBACK_GET_ATTRIBUTES, data, destroy_data);
-	operation_set_handler (op, get_attributes_reply, NULL, NULL);
+	operation_set_handler (op, get_attributes_reply);
 	operation_start (op, req);
 	operation_unref (op);
 

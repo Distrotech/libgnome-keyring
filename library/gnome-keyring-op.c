@@ -128,13 +128,17 @@ operation_set_result (Operation *op, GnomeKeyringResult res)
 }
 
 void
-operation_set_handler (Operation *op, OperationHandler handler,
-                       gpointer user_data, GDestroyNotify destroy_func)
+operation_set_handler (Operation *op, OperationHandler handler)
 {
 	g_assert (op);
-	g_assert (!op->reply_handler);
-	g_assert (!op->reply_data);
 	op->reply_handler = handler;
+}
+
+void
+operation_set_data (Operation *op, gpointer user_data, GDestroyNotify destroy_func)
+{
+	g_assert (op);
+	g_assert (!op->reply_data);
 	op->reply_data = user_data;
 	op->destroy_reply_data = destroy_func;
 }
