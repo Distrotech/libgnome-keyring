@@ -322,6 +322,60 @@ decode_property_dict (DBusMessage *reply, DecodeDictCallback callback,
 	return GNOME_KEYRING_RESULT_OK;
 }
 
+static gboolean
+decode_prompt_completed (DBusMessage* reply, const gchar *signature, DBusMessageIter *variant)
+{
+	DBusMessageIter iter;
+	dbus_bool_t dismissed;
+
+	g_assert (reply);
+	g_assert (signature);
+	g_assert (variant);
+
+	if (!dbus_message_has_signature (reply, "bv"))
+		return FALSE;
+
+	if (!dbus_message_iter_init (reply, &iter))
+		g_return_val_if_reached (FALSE);
+	dbus_message_iter_get_basic (&iter, &dismissed);
+	g_return_val_if_fail (!dismissed, FALSE);
+	if (!dbus_message_iter_next (&iter))
+		g_return_val_if_reached (FALSE);
+	dbus_message_iter_recurse (&iter, variant);
+	if (!g_str_equal (dbus_message_iter_get_signature (variant), signature))
+		return FALSE;
+	return TRUE;
+}
+
+static gboolean
+decode_check_object_paths (DBusMessageIter *iter, const gchar *check)
+{
+	DBusMessageIter array;
+	const char *path;
+
+	g_assert (iter);
+	g_assert (check);
+
+	g_return_val_if_fail (dbus_message_iter_get_arg_type (iter) == DBUS_TYPE_ARRAY, FALSE);
+	g_return_val_if_fail (dbus_message_iter_get_element_type (iter) == DBUS_TYPE_OBJECT_PATH, FALSE);
+
+	dbus_message_iter_recurse (iter, &array);
+
+	while (dbus_message_iter_get_arg_type (&array) == DBUS_TYPE_OBJECT_PATH) {
+
+		path = NULL;
+		dbus_message_iter_get_basic (&array, &path);
+		g_return_val_if_fail (path, FALSE);
+		if (g_str_equal (path, check))
+			return TRUE;
+
+		if (!dbus_message_iter_next (&array))
+			break;
+	}
+
+	return FALSE;
+}
+
 /**
  * SECTION:gnome-keyring-misc
  * @title: Miscellaneous Functions
@@ -848,6 +902,150 @@ gnome_keyring_create_sync (const char *keyring_name,
 	return res;
 }
 
+
+static DBusMessage*
+xlock_prepare (const char *method, const char *object)
+{
+	DBusMessage *req;
+	const char **objects;
+
+	objects = &object;
+
+	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
+	                                    SERVICE_INTERFACE, method);
+	g_return_val_if_fail (req, NULL);
+
+	dbus_message_append_args (req, DBUS_TYPE_ARRAY, DBUS_TYPE_OBJECT_PATH, &objects, 1,
+	                          DBUS_TYPE_INVALID);
+
+	return req;
+}
+static void
+xlock_prompt_reply (Operation *op, Callback *cb,
+                    DBusMessage *reply, gpointer user_data)
+{
+	const gchar *path = user_data;
+	DBusMessageIter iter;
+
+	if (!decode_prompt_completed (reply, "ao", &iter))
+		return;
+
+	if (decode_check_object_paths (&iter, path))
+		callback_done (cb, GNOME_KEYRING_RESULT_OK);
+	else
+		callback_done (cb, GNOME_KEYRING_RESULT_DENIED);
+}
+
+static void
+xlock_first_reply (Operation *op, Callback *cb,
+                   DBusMessage *reply, gpointer user_data)
+{
+	const gchar *path = user_data;
+	DBusMessageIter iter;
+	const char *prompt;
+
+	if (!dbus_message_has_signature (reply, "aoo")) {
+		callback_done (cb, decode_invalid_response (reply));
+		return;
+	}
+
+	if (!dbus_message_iter_init (reply, &iter))
+		g_return_if_reached ();
+	if (decode_check_object_paths (&iter, path)) {
+		callback_done (cb, GNOME_KEYRING_RESULT_OK);
+		return;
+	}
+
+	dbus_message_iter_next (&iter);
+	dbus_message_iter_get_basic (&iter, &prompt);
+
+	/* Is there a prompt needed? */
+	if (g_str_equal (prompt, "/")) {
+		operation_set_handler (op, xlock_prompt_reply, g_strdup (path), g_free);
+		operation_prompt (op, prompt);
+		return;
+	}
+
+	callback_done (cb, GNOME_KEYRING_RESULT_DENIED);
+}
+
+static gpointer
+xlock_async (const gchar *method, const gchar *keyring,
+             GnomeKeyringOperationDoneCallback callback,
+             gpointer data, GDestroyNotify destroy_data)
+{
+	DBusMessage *req;
+	Operation *op;
+	gchar *path;
+
+	path = encode_keyring_name (keyring);
+	g_return_val_if_fail (path, NULL);
+
+	req = xlock_prepare (method, path);
+	g_return_val_if_fail (req, NULL);
+
+	op = operation_new (callback, CALLBACK_DONE, data, destroy_data);
+	operation_set_handler (op, xlock_first_reply, path, g_free);
+	operation_start (op, req);
+
+	dbus_message_unref (req);
+	return op;
+}
+
+static GnomeKeyringResult
+xlock_sync (const gchar *method, const char *keyring)
+{
+	DBusMessage *req, *reply, *complete;
+	DBusMessageIter iter;
+	GnomeKeyringResult res;
+	const char *prompt;
+	gchar *path;
+
+	path = encode_keyring_name (keyring);
+	g_return_val_if_fail (path, BROKEN);
+
+	req = xlock_prepare (method, path);
+	g_return_val_if_fail (req, BROKEN);
+
+	res = block_request (req, &reply);
+	dbus_message_unref (req);
+
+	if (res != GNOME_KEYRING_RESULT_OK)
+		return res;
+
+	/* Parse the response */
+	if (res == GNOME_KEYRING_RESULT_OK) {
+		if (!dbus_message_has_signature (reply, "aoo"))
+			res = decode_invalid_response (reply);
+	}
+
+	if (res == GNOME_KEYRING_RESULT_OK) {
+		if (!dbus_message_iter_init (reply, &iter))
+			g_return_val_if_reached (BROKEN);
+
+		res = GNOME_KEYRING_RESULT_OK;
+		if (!decode_check_object_paths (&iter, path)) {
+			dbus_message_iter_next (&iter);
+			dbus_message_iter_get_basic (&iter, &prompt);
+			res = block_prompt (prompt, &complete);
+
+			if (res == GNOME_KEYRING_RESULT_OK) {
+				if (!decode_prompt_completed (reply, "ao", &iter))
+					res = GNOME_KEYRING_RESULT_IO_ERROR;
+				else if (decode_check_object_paths (&iter, path))
+					res = GNOME_KEYRING_RESULT_OK;
+				else
+					res = GNOME_KEYRING_RESULT_DENIED;
+			}
+		}
+	}
+
+	dbus_message_unref (reply);
+	g_free (path);
+
+	return res;
+}
+
 /**
  * gnome_keyring_unlock:
  * @keyring: The name of the keyring to unlock, or %NULL for the default keyring.
@@ -874,23 +1072,8 @@ gnome_keyring_unlock (const char                                  *keyring,
                       gpointer                                     data,
                       GDestroyNotify                               destroy_data)
 {
-#if 0
-	GnomeKeyringOperation *op;
-
-	op = operation_new (FALSE, callback, CALLBACK_DONE, data, destroy_data);
-
-	/* Automatically secures buffer */
-	if (!gkr_proto_encode_op_string_secret (&op->send_buffer, GNOME_KEYRING_OP_UNLOCK_KEYRING,
-	                                        keyring, password)) {
-		schedule_op_failed (op, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-	}
-
-	op->reply_handler = standard_reply;
-	start_and_take_operation (op);
-	return op;
-#endif
-	g_assert (FALSE && "TODO");
-	return NULL;
+	/* TODO: What to do with password? */
+	return xlock_async ("Unlock", keyring, callback, data, destroy_data);
 }
 
 /**
@@ -914,37 +1097,8 @@ GnomeKeyringResult
 gnome_keyring_unlock_sync (const char *keyring,
                            const char *password)
 {
-#if 0
-	EggBuffer send, receive;
-	GnomeKeyringResult res;
-
-	/* Use secure non-pageable buffer */
-	egg_buffer_init_full (&send, 128, SECURE_ALLOCATOR);
-
-	if (!gkr_proto_encode_op_string_secret (&send, GNOME_KEYRING_OP_UNLOCK_KEYRING,
-	                                        keyring, password)) {
-		egg_buffer_uninit (&send);
-		return GNOME_KEYRING_RESULT_BAD_ARGUMENTS;
-	}
-
-	egg_buffer_init_full (&receive, 128, NORMAL_ALLOCATOR);
-	res = run_sync_operation (&send, &receive);
-	egg_buffer_uninit (&send);
-	if (res != GNOME_KEYRING_RESULT_OK) {
-		egg_buffer_uninit (&receive);
-		return res;
-	}
-
-	if (!gkr_proto_decode_result_reply (&receive, &res)) {
-		egg_buffer_uninit (&receive);
-		return GNOME_KEYRING_RESULT_IO_ERROR;
-	}
-	egg_buffer_uninit (&receive);
-
-	return res;
-#endif
-	g_assert (FALSE && "TODO");
-	return 0;
+	/* TODO: What to do with password? */
+	return xlock_sync ("Unlock", keyring);
 }
 
 /**
@@ -970,22 +1124,8 @@ gnome_keyring_lock (const char                                  *keyring,
                     gpointer                                     data,
                     GDestroyNotify                               destroy_data)
 {
-#if 0
-	GnomeKeyringOperation *op;
-
-	op = operation_new (FALSE, callback, CALLBACK_DONE, data, destroy_data);
-
-	if (!gkr_proto_encode_op_string (&op->send_buffer, GNOME_KEYRING_OP_LOCK_KEYRING,
-	                                 keyring)) {
-		schedule_op_failed (op, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-	}
-
-	op->reply_handler = standard_reply;
-	start_and_take_operation (op);
-	return op;
-#endif
-	g_assert (FALSE && "TODO");
-	return NULL;
+	/* TODO: What to do with password? */
+	return xlock_async ("Lock", keyring, callback, data, destroy_data);
 }
 
 /**
@@ -1006,36 +1146,8 @@ gnome_keyring_lock (const char                                  *keyring,
 GnomeKeyringResult
 gnome_keyring_lock_sync (const char *keyring)
 {
-#if 0
-	EggBuffer send, receive;
-	GnomeKeyringResult res;
-
-	egg_buffer_init_full (&send, 128, NORMAL_ALLOCATOR);
-
-	if (!gkr_proto_encode_op_string (&send, GNOME_KEYRING_OP_LOCK_KEYRING,
-	                                 keyring)) {
-		egg_buffer_uninit (&send);
-		return GNOME_KEYRING_RESULT_BAD_ARGUMENTS;
-	}
-
-	egg_buffer_init_full (&receive, 128, NORMAL_ALLOCATOR);
-	res = run_sync_operation (&send, &receive);
-	egg_buffer_uninit (&send);
-	if (res != GNOME_KEYRING_RESULT_OK) {
-		egg_buffer_uninit (&receive);
-		return res;
-	}
-
-	if (!gkr_proto_decode_result_reply (&receive, &res)) {
-		egg_buffer_uninit (&receive);
-		return GNOME_KEYRING_RESULT_IO_ERROR;
-	}
-	egg_buffer_uninit (&receive);
-
-	return res;
-#endif
-	g_assert (FALSE && "TODO");
-	return 0;
+	/* TODO: What to do with password? */
+	return xlock_sync ("Lock", keyring);
 }
 
 /**
