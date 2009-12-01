@@ -27,51 +27,55 @@
 
 #include "gnome-keyring.h"
 #include "gnome-keyring-private.h"
+#include "gkr-operation.h"
 
 #include "egg/egg-dbus.h"
-
-/**
- * SECTION:gnome-keyring-generic-callbacks
- * @title: Callbacks
- * @short_description: Different callbacks for retrieving async results
- */
-
 
 static DBusConnection *dbus_connection = NULL;
 G_LOCK_DEFINE_STATIC(dbus_connection);
 
-struct _Operation {
+enum {
+	INCOMPLETE = -1,
+};
+
+struct _GkrOperation {
 	/* First two only atomically accessed */
 	gint refs;
 	gint result;
 
-	/* Managed by operation calls */
 	DBusConnection *conn;
 	DBusPendingCall *pending;
-	gchar *prompt;
 
-	/* User callback information */
-	Callback callback;
-
-	/* May be set by others */
-	OperationHandler reply_handler;
-	gpointer reply_data;
-	GDestroyNotify destroy_reply_data;
+	GQueue callbacks;
+	GSList *completed;
 };
 
-Operation*
-operation_ref (gpointer data)
+GkrOperation*
+gkr_operation_ref (GkrOperation *op)
 {
-	Operation *op = data;
-	g_return_val_if_fail (op, NULL);
+	g_assert (op);
 	g_atomic_int_inc (&op->refs);
 	return op;
 }
 
-void
-operation_unref (gpointer data)
+static void
+operation_clear_callbacks (GkrOperation *op)
 {
-	Operation *op = data;
+	GSList *l;
+	g_assert (op);
+	while (!g_queue_is_empty (&op->callbacks))
+		gkr_callback_free (g_queue_pop_head (&op->callbacks));
+	g_queue_clear (&op->callbacks);
+	for (l = op->completed; l; l = g_slist_next (l))
+		gkr_callback_free (l->data);
+	g_slist_free (op->completed);
+	op->completed = NULL;
+}
+
+void
+gkr_operation_unref (gpointer data)
+{
+	GkrOperation *op = data;
 
 	if (!op)
 		return;
@@ -84,33 +88,60 @@ operation_unref (gpointer data)
 		dbus_pending_call_unref (op->pending);
 		op->pending = NULL;
 	}
-	callback_clear (&op->callback);
-	if (op->destroy_reply_data != NULL && op->reply_data != NULL)
-		(*op->destroy_reply_data) (op->reply_data);
-	g_free (op->prompt);
-	g_free (op);
+
+	if (op->conn) {
+		dbus_connection_unref (op->conn);
+		op->conn = NULL;
+	}
+
+	operation_clear_callbacks (op);
+	g_slice_free (GkrOperation, op);
 }
 
-Operation*
-operation_new (gpointer callback, CallbackType callback_type,
-               gpointer user_data, GDestroyNotify destroy_user_data)
+GkrOperation*
+gkr_operation_new (gpointer callback, GkrCallbackType callback_type,
+                   gpointer user_data, GDestroyNotify destroy_user_data)
 {
-	Operation *op;
+	GkrOperation *op;
 
-	op = g_new0 (Operation, 1);
+	op = g_slice_new0 (GkrOperation);
 
 	op->refs = 1;
 	op->result = INCOMPLETE;
-	op->callback.type = callback_type;
-	op->callback.callback = callback;
-	op->callback.user_data = user_data;
-	op->callback.destroy_func = destroy_user_data;
+	g_queue_init (&op->callbacks);
+	op->completed = NULL;
+
+	gkr_operation_push (op, callback, callback_type, user_data, destroy_user_data);
 
 	return op;
 }
 
-GnomeKeyringResult
-operation_get_result (Operation *op)
+GkrCallback*
+gkr_operation_push (GkrOperation *op, gpointer callback,
+                    GkrCallbackType callback_type,
+                    gpointer user_data, GDestroyNotify destroy_func)
+{
+	GkrCallback *cb = gkr_callback_new (callback, callback_type, user_data, destroy_func);
+	g_assert (op);
+	g_queue_push_head (&op->callbacks, cb);
+	return cb;
+}
+
+GkrCallback*
+gkr_operation_pop (GkrOperation *op)
+{
+	GkrCallback *cb;
+
+	g_assert (op);
+
+	cb = g_queue_pop_head (&op->callbacks);
+	g_assert (cb);
+	op->completed = g_slist_prepend (op->completed, cb);
+	return cb;
+}
+
+static GnomeKeyringResult
+operation_get_result (GkrOperation *op)
 {
 	GnomeKeyringResult res;
 	g_assert (op);
@@ -119,46 +150,47 @@ operation_get_result (Operation *op)
 	return res;
 }
 
-gboolean
-operation_set_result (Operation *op, GnomeKeyringResult res)
+static gboolean
+operation_set_result (GkrOperation *op, GnomeKeyringResult res)
 {
 	g_assert (op);
 	g_assert (res != INCOMPLETE);
 	return g_atomic_int_compare_and_exchange (&op->result, INCOMPLETE, res);
 }
 
-void
-operation_set_handler (Operation *op, OperationHandler handler)
-{
-	g_assert (op);
-	op->reply_handler = handler;
-}
-
-void
-operation_set_data (Operation *op, gpointer user_data, GDestroyNotify destroy_func)
-{
-	g_assert (op);
-	g_assert (!op->reply_data);
-	op->reply_data = user_data;
-	op->destroy_reply_data = destroy_func;
-}
-
 static gboolean
-on_scheduled_complete (gpointer data)
+on_complete (gpointer data)
 {
-	Operation *op = data;
-	callback_no_data (&op->callback, operation_get_result (op));
+	GkrOperation *op = data;
+	GkrCallback *cb;
 
-	/* Don't run idle handler again */
-	return FALSE;
+	g_assert (op);
+
+	cb = g_queue_pop_tail (&op->callbacks);
+	g_assert (cb);
+
+	/* Free all the other callbacks */
+	operation_clear_callbacks (op);
+
+	gkr_callback_invoke_res (cb, operation_get_result (op));
+	gkr_callback_free (cb);
+
+	return FALSE; /* Don't run idle handler again */
 }
 
 void
-operation_schedule_complete (Operation *op, GnomeKeyringResult result)
+gkr_operation_complete (GkrOperation *op, GnomeKeyringResult res)
 {
-	if (operation_set_result (op, result))
-		g_idle_add_full (G_PRIORITY_DEFAULT_IDLE, on_scheduled_complete,
-		                 operation_ref (op), operation_unref);
+	if (operation_set_result (op, res))
+		on_complete (op);
+}
+
+void
+gkr_operation_complete_later (GkrOperation *op, GnomeKeyringResult res)
+{
+	if (operation_set_result (op, res))
+		g_idle_add_full (G_PRIORITY_DEFAULT_IDLE, on_complete,
+		                 gkr_operation_ref (op), gkr_operation_unref);
 }
 
 static DBusConnection*
@@ -221,65 +253,28 @@ handle_error_to_result (DBusError *derr, const gchar *desc)
 }
 
 static void
-call_reply_handler (Operation *op, DBusMessage *message)
+callback_with_message (GkrOperation *op, DBusMessage *message)
 {
-	OperationHandler handler;
-	gpointer data;
-	GDestroyNotify destroy_func;
-
-	/*
-	 * Clear this one out, when used once. The reply handler
-	 * may set a new reply handler and data.
-	 */
-
-	if (operation_get_result (op) != INCOMPLETE)
-		return;
-
-	handler = op->reply_handler;
-	op->reply_handler = NULL;
-
-	data = op->reply_data;
-	op->reply_data = NULL;
-
-	destroy_func = op->destroy_reply_data;
-	op->destroy_reply_data = NULL;
-
-	if (handler)
-		(handler) (op, &op->callback, message, data);
-	else
-		callback_no_data (&op->callback, GNOME_KEYRING_RESULT_OK);
-
-	if (data && destroy_func)
-		(destroy_func) (data);
-}
-
-static DBusHandlerResult
-on_prompt_completed (DBusConnection *connection, DBusMessage *message, void *user_data)
-{
-	Operation *op = user_data;
+	GkrCallback *cb;
 
 	g_assert (op);
-	g_return_val_if_fail (op->prompt, DBUS_HANDLER_RESULT_NOT_YET_HANDLED);
+	g_assert (message);
 
-	if (dbus_message_is_signal (message, PROMPT_INTERFACE, "Completed") &&
-	    dbus_message_has_path (message, op->prompt)) {
+	cb = gkr_operation_pop (op);
 
-		g_free (op->prompt);
-		op->prompt = NULL;
-		dbus_connection_remove_filter (op->conn, on_prompt_completed, op);
-		call_reply_handler (op, message);
-		return DBUS_HANDLER_RESULT_HANDLED;
-	}
+	/* A handler that knows what to do with a DBusMessage */
+	if (cb->type == GKR_CALLBACK_OP_MSG)
+		gkr_callback_invoke_op_msg (cb, op, message);
 
-	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+	/* We hope this is a simple handler, invoke will check */
+	else if (!gkr_operation_handle_errors (op, message))
+		gkr_callback_invoke_res (cb, GNOME_KEYRING_RESULT_OK);
 }
 
 static void
 on_pending_call_notify (DBusPendingCall *pending, void *user_data)
 {
-	DBusError derr = DBUS_ERROR_INIT;
-	Operation *op = user_data;
-	GnomeKeyringResult res;
+	GkrOperation *op = user_data;
 	DBusMessage *reply;
 
 	g_assert (pending == op->pending);
@@ -287,78 +282,142 @@ on_pending_call_notify (DBusPendingCall *pending, void *user_data)
 	reply = dbus_pending_call_steal_reply (pending);
 	g_return_if_fail (reply);
 
+	gkr_operation_ref (op);
+
 	dbus_pending_call_unref (op->pending);
 	op->pending = NULL;
 
-	if (dbus_set_error_from_message (&derr, reply)) {
-
-		/* Are we prompting, if so cancel the completed */
-		if (op->prompt) {
-			g_free (op->prompt);
-			op->prompt = NULL;
-			dbus_connection_remove_filter (op->conn, on_prompt_completed, op);
-		}
-
-		/* Return the error result to the callback */
-		res = handle_error_to_result (&derr, NULL);
-		g_assert (res != GNOME_KEYRING_RESULT_OK);
-		if (operation_set_result (op, res))
-			callback_no_data (&op->callback, res);
-	} else {
-
-		/*
-		 * Are we prompting not prompting, mark as a reply.
-		 * When prompting, completed listener will handle reply.
-		 */
-		if (!op->prompt)
-			call_reply_handler (op, reply);
-	}
-
+	callback_with_message (op, reply);
 	dbus_message_unref (reply);
+
+	gkr_operation_unref (op);
 }
 
 void
-operation_start (Operation *op, DBusMessage *request)
+gkr_operation_request (GkrOperation *op, DBusMessage *req)
 {
 	g_assert (op);
+	g_assert (req);
 
 	if (!op->conn)
 		op->conn = connect_to_service ();
 
 	if (op->conn) {
-		if (!dbus_connection_send_with_reply (op->conn, request, &op->pending, -1))
+		g_assert (!op->pending);
+		if (!dbus_connection_send_with_reply (op->conn, req, &op->pending, -1))
 			g_return_if_reached ();
 	}
 
 	if (op->pending)
 		dbus_pending_call_set_notify (op->pending, on_pending_call_notify,
-		                              operation_ref (op), operation_unref);
+		                              gkr_operation_ref (op), gkr_operation_unref);
 	else
-		operation_schedule_complete (op, GNOME_KEYRING_RESULT_IO_ERROR);
+		gkr_operation_complete_later (op, GNOME_KEYRING_RESULT_IO_ERROR);
+}
+
+gboolean
+gkr_operation_handle_errors (GkrOperation *op, DBusMessage *reply)
+{
+	DBusError derr = DBUS_ERROR_INIT;
+	GnomeKeyringResult res;
+
+	g_assert (op);
+	g_assert (reply);
+
+	if (dbus_set_error_from_message (&derr, reply)) {
+		res = handle_error_to_result (&derr, NULL);
+		gkr_operation_complete (op, res);
+		return TRUE;
+	}
+
+	return FALSE;
+}
+
+typedef struct _on_prompt_args {
+	GkrOperation *op;
+	gchar *path;
+} on_prompt_args;
+
+static DBusHandlerResult
+on_prompt_completed (DBusConnection *connection, DBusMessage *message, void *user_data)
+{
+	on_prompt_args *args = user_data;
+	DBusMessageIter iter;
+	dbus_bool_t dismissed;
+
+	g_assert (args);
+
+	if (args->path && dbus_message_has_path (message, args->path) &&
+	    dbus_message_is_signal (message, PROMPT_INTERFACE, "Completed")) {
+
+		/* Only one call, even if daemon decides to be strange */
+		g_free (args->path);
+		args->path = NULL;
+
+		if (!dbus_message_iter_init (message, &iter) ||
+		    dbus_message_iter_get_arg_type (&iter) != DBUS_TYPE_BOOLEAN)
+			g_return_val_if_reached (BROKEN);
+		dbus_message_iter_get_basic (&iter, &dismissed);
+
+		/* Remember that invoking these callbacks, can free args */
+		if (dismissed)
+			gkr_operation_complete (args->op, GNOME_KEYRING_RESULT_CANCELLED);
+		else
+			callback_with_message (args->op, message);
+
+		return DBUS_HANDLER_RESULT_HANDLED;
+	}
+
+	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+}
+
+static void
+on_prompt_result (GkrOperation *op, DBusMessage *message, gpointer user_data)
+{
+	gkr_operation_handle_errors (op, message);
+}
+
+static void
+on_prompt_free (gpointer data)
+{
+	on_prompt_args *args = data;
+	g_assert (args);
+	g_assert (args->op);
+	dbus_connection_remove_filter (args->op->conn, on_prompt_completed, args);
+	g_free (args->path);
+	g_slice_free (on_prompt_args, args);
 }
 
 void
-operation_prompt (Operation *op, const gchar *prompt)
+gkr_operation_prompt (GkrOperation *op, const gchar *prompt)
 {
+	on_prompt_args *args;
 	DBusMessage *req;
 
 	g_assert (op != NULL);
 	g_assert (prompt != NULL);
 
-	/* Start waiting for a completed response to this prompt */
-	op->prompt = g_strdup (prompt);
-	dbus_connection_add_filter (op->conn, on_prompt_completed,
-	                            operation_ref (op), operation_unref);
+	/*
+	 * args becomes owned by the operation. In addition in its
+	 * destroy_func it disconnects the connection filter. So keep
+	 * that in mind with the lack of references below.
+	 */
+
+	args = g_slice_new (on_prompt_args);
+	args->path = g_strdup (prompt);
+	args->op = op;
+	dbus_connection_add_filter (op->conn, on_prompt_completed, args, NULL);
 
 	req = dbus_message_new_method_call (SECRETS_SERVICE, prompt,
 	                                    PROMPT_INTERFACE, "Prompt");
 
-	operation_start (op, req);
+	gkr_operation_push (op, on_prompt_result, GKR_CALLBACK_OP_MSG, args, on_prompt_free);
+	gkr_operation_request (op, req);
 	dbus_message_unref (req);
 }
 
 GnomeKeyringResult
-block_request (DBusMessage *req, DBusMessage **reply)
+gkr_operation_request_sync (DBusMessage *req, DBusMessage **reply)
 {
 	DBusConnection *conn;
 	DBusError derr = DBUS_ERROR_INIT;
@@ -373,7 +432,6 @@ block_request (DBusMessage *req, DBusMessage **reply)
 		return GNOME_KEYRING_RESULT_IO_ERROR;
 	}
 
-	/* TODO: Timeout here needs to be clarified */
 	*reply = dbus_connection_send_with_reply_and_block (conn, req, -1, &derr);
 	if (*reply == NULL)
 		res = handle_error_to_result (&derr, "couldn't communicate with daemon");
@@ -384,23 +442,24 @@ block_request (DBusMessage *req, DBusMessage **reply)
 	return res;
 }
 
-typedef struct _BlockingPrompt {
+typedef struct _on_prompt_sync_args {
 	const gchar *prompt;
 	DBusMessage **signal;
-} BlockingPrompt;
+} on_prompt_sync_args;
 
 static DBusHandlerResult
-on_blocking_prompt_completed (DBusConnection *connection, DBusMessage *message, void *user_data)
+on_prompt_sync_completed (DBusConnection *connection, DBusMessage *message, void *user_data)
 {
-	BlockingPrompt *cp = user_data;
+	on_prompt_sync_args *args = user_data;
 
-	g_assert (cp->signal);
-	g_assert (cp->prompt);
+	g_assert (args);
+	g_assert (args->signal);
+	g_assert (args->prompt);
 
 	if (dbus_message_is_signal (message, PROMPT_INTERFACE, "Completed") &&
-	    dbus_message_has_path (message, cp->prompt)) {
-		g_return_val_if_fail (*cp->signal == NULL, DBUS_HANDLER_RESULT_NOT_YET_HANDLED);
-		*cp->signal = dbus_message_ref (message);
+	    dbus_message_has_path (message, args->prompt)) {
+		g_return_val_if_fail (*args->signal == NULL, DBUS_HANDLER_RESULT_NOT_YET_HANDLED);
+		*args->signal = dbus_message_ref (message);
 		return DBUS_HANDLER_RESULT_HANDLED;
 	}
 
@@ -408,12 +467,12 @@ on_blocking_prompt_completed (DBusConnection *connection, DBusMessage *message, 
 }
 
 GnomeKeyringResult
-block_prompt (const gchar *prompt, DBusMessage **reply)
+gkr_operation_prompt_sync (const gchar *prompt, DBusMessage **reply)
 {
 	DBusError derr = DBUS_ERROR_INIT;
 	DBusMessage *req, *rep, *signal;
 	DBusConnection *conn;
-	BlockingPrompt cp = { prompt, &signal };
+	on_prompt_sync_args args = { prompt, &signal };
 	GnomeKeyringResult res;
 	DBusMessageIter iter;
 	dbus_bool_t dismissed;
@@ -428,7 +487,7 @@ block_prompt (const gchar *prompt, DBusMessage **reply)
 	}
 
 	/* Start waiting for a completed response to this prompt */
-	dbus_connection_add_filter (conn, on_blocking_prompt_completed, &cp, NULL);
+	dbus_connection_add_filter (conn, on_prompt_sync_completed, &args, NULL);
 
 	req = dbus_message_new_method_call (SECRETS_SERVICE, prompt,
 	                                    PROMPT_INTERFACE, "Prompt");
@@ -446,7 +505,7 @@ block_prompt (const gchar *prompt, DBusMessage **reply)
 		}
 	}
 
-	dbus_connection_remove_filter (conn, on_blocking_prompt_completed, &cp);
+	dbus_connection_remove_filter (conn, on_prompt_sync_completed, &args);
 	dbus_connection_unref (conn);
 
 	/* The prompt method failed for some reason */

@@ -13,12 +13,12 @@ INCLUDES= \
 	$(GLIB_CFLAGS)
 
 libgnome_keyring_la_SOURCES = \
+	gkr-callback.c gkr-callback.h \
+	gkr-operation.c gkr-operation.h \
 	gnome-keyring.c \
 	gnome-keyring.h \
-	gnome-keyring-callback.c \
 	gnome-keyring-memory.h \
 	gnome-keyring-memory.c \
-	gnome-keyring-op.c \
 	gnome-keyring-private.h \
 	gnome-keyring-result.h \
 	gnome-keyring-utils.c
