@@ -71,6 +71,11 @@ extern gboolean gnome_keyring_memory_warning;
 #define COLLECTION_PREFIX              "/org/freedesktop/secrets/collection/"
 #define COLLECTION_DEFAULT             "/org/freedesktop/secrets/collection/default"
 
+#define ERROR_ALREADY_EXISTS           "org.freedesktop.Secrets.Error.AlreadyExists"
+#define ERROR_IS_LOCKED                "org.freedesktop.Secrets.Error.IsLocked"
+#define ERROR_NOT_SUPPORTED            "org.freedesktop.Secrets.Error.NotSupported"
+#define ERROR_NO_SESSION               "org.freedesktop.Secrets.Error.NoSession"
+
 #define NORMAL_ALLOCATOR  ((EggBufferAllocator)g_realloc)
 #define SECURE_ALLOCATOR  ((EggBufferAllocator)gnome_keyring_memory_realloc)
 

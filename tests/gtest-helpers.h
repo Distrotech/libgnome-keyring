@@ -67,4 +67,9 @@ gchar* test_build_filename (const gchar *basename);
 #define DEFINE_STOP(x) \
 	void stop_##x(void)
 
+#ifndef g_assert_cmpsize
+#define g_assert_cmpsize(a, o, b) \
+	g_assert_cmpuint ((guint)(a), o, (guint)(b))
+#endif
+
 #endif /* GTEST_HELPERS_H_ */

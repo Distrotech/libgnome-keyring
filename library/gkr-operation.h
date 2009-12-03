@@ -26,6 +26,8 @@
 
 #include "gkr-callback.h"
 
+#include <glib.h>
+
 #include <dbus/dbus.h>
 
 GkrOperation*       gkr_operation_ref               (GkrOperation *op);

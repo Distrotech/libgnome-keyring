@@ -69,6 +69,19 @@ gkr_callback_invoke_op_msg (GkrCallback *cb, DBusMessage *msg)
 	((OpMsgCallback)(cb->callback)) (cb->operation, msg, cb->user_data);
 }
 
+typedef void (*OpSessionCallback) (GkrOperation*, GkrSession*, gpointer);
+
+void
+gkr_callback_invoke_op_session (GkrCallback *cb, GkrSession *session)
+{
+	g_assert (cb);
+	g_assert (cb->type == GKR_CALLBACK_OP_SESSION);
+	g_assert (cb->callback);
+	g_assert (cb->operation);
+	cb->type = 0;
+	((OpSessionCallback)(cb->callback)) (cb->operation, session, cb->user_data);
+}
+
 void
 gkr_callback_invoke_res (GkrCallback *cb, GnomeKeyringResult res)
 {

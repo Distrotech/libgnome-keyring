@@ -10,11 +10,13 @@ INCLUDES= \
 	-I$(top_srcdir) \
 	-I$(top_builddir) \
 	$(LIBRARY_CFLAGS) \
-	$(GLIB_CFLAGS)
+	$(GLIB_CFLAGS) \
+	$(LIBGCRYPT_CFLAGS)
 
 libgnome_keyring_la_SOURCES = \
 	gkr-callback.c gkr-callback.h \
 	gkr-operation.c gkr-operation.h \
+	gkr-session.c gkr-session.h \
 	gnome-keyring.c \
 	gnome-keyring.h \
 	gnome-keyring-memory.h \
@@ -31,7 +33,8 @@ libgnomekeyringinclude_HEADERS = \
 libgnome_keyring_la_LIBADD = \
 	$(top_builddir)/egg/libegg.la \
 	$(LIBRARY_LIBS) \
-	$(GLIB_LIBS)
+	$(GLIB_LIBS) \
+	$(LIBGCRYPT_LIBS)
 
 libgnome_keyring_la_LDFLAGS = \
 	-version-info $(LIB_GNOME_KEYRING_LT_VERSION) \

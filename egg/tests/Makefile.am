@@ -1,6 +1,7 @@
 
 # Test files should be listed in order they need to run
 UNIT_AUTO = \
+	test-dh.c \
 	unit-test-secmem.c
 
 UNIT_LIBS =  \

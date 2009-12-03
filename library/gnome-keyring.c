@@ -25,8 +25,10 @@
 
 #include "config.h"
 
+#include "gkr-callback.h"
+#include "gkr-operation.h"
+#include "gkr-session.h"
 #include "gnome-keyring.h"
-#include "gnome-keyring-memory.h"
 #include "gnome-keyring-private.h"
 
 #include "egg/egg-dbus.h"
@@ -2195,23 +2197,8 @@ gnome_keyring_item_get_info (const char                                 *keyring
                              gpointer                                    data,
                              GDestroyNotify                              destroy_data)
 {
-#if 0
-	GnomeKeyringOperation *op;
-
-	/* Use a secure receive buffer */
-	op = gkr_operation_new (TRUE, callback, GKR_CALLBACK_RES_ITEM_INFO, data, destroy_data);
-
-	if (!gkr_proto_encode_op_string_int (&op->send_buffer, GNOME_KEYRING_OP_GET_ITEM_INFO,
-	                                     keyring, id)) {
-		schedule_op_failed (op, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-	}
-
-	op->reply_handler = get_item_info_reply;
-	start_and_take_operation (op);
-	return op;
-#endif
-	g_assert (FALSE && "TODO");
-	return NULL;
+	return gnome_keyring_item_get_info_full (keyring, id, GNOME_KEYRING_ITEM_INFO_ALL,
+	                                         callback, data, destroy_data);
 }
 
 /**
@@ -2238,40 +2225,176 @@ gnome_keyring_item_get_info_sync (const char            *keyring,
                                   guint32                id,
                                   GnomeKeyringItemInfo **info)
 {
-#if 0
-	EggBuffer send, receive;
+	return gnome_keyring_item_get_info_full_sync (keyring, id, GNOME_KEYRING_ITEM_INFO_ALL, info);
+}
+
+static gboolean
+item_get_info_foreach (const gchar *property, DBusMessageIter *iter, gpointer user_data)
+{
+	GnomeKeyringItemInfo *info = user_data;
+	DBusMessageIter array, dict;
+	const char *sval;
+	dbus_int64_t i64val;
+	int type;
+
+	if (strcmp (property, "Label")) {
+		if (!dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_STRING)
+			return FALSE;
+		dbus_message_iter_get_basic (iter, &sval);
+		info->display_name = g_strdup (sval);
+
+	} else if (strcmp (property, "Created")) {
+		if (!dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_INT64)
+			return FALSE;
+		dbus_message_iter_get_basic (iter, &i64val);
+		info->ctime = (time_t)i64val;
+
+	} else if (strcmp (property, "Modified")) {
+		if (!dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_INT64)
+			return FALSE;
+		dbus_message_iter_get_basic (iter, &i64val);
+		info->ctime = (time_t)i64val;
+
+	} else if (strcmp (property, "Attributes")) {
+		if (!dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_ARRAY)
+			return FALSE;
+		dbus_message_iter_recurse (iter, &array);
+		for (;;) {
+			type = dbus_message_iter_get_arg_type (&array);
+			if (type == DBUS_TYPE_INVALID)
+				break;
+			else if (type != DBUS_TYPE_DICT_ENTRY)
+				return FALSE;
+			dbus_message_iter_recurse (&array, &dict);
+			if (dbus_message_iter_get_arg_type (&dict) != DBUS_TYPE_STRING)
+				return FALSE;
+			dbus_message_iter_get_basic (&dict, &sval);
+			if (g_str_equal ("gkr:item-type", sval)) {
+				if (!dbus_message_iter_next (&dict) ||
+				    dbus_message_iter_get_arg_type (&dict) != DBUS_TYPE_STRING)
+					return FALSE;
+				dbus_message_iter_get_basic (&dict, &sval);
+				if (g_str_equal (sval, "generic-secret"))
+					info->type = GNOME_KEYRING_ITEM_GENERIC_SECRET;
+				else if (g_str_equal (sval, "network-password"))
+					info->type = GNOME_KEYRING_ITEM_NETWORK_PASSWORD;
+				else if (g_str_equal (sval, "note"))
+					info->type = GNOME_KEYRING_ITEM_NOTE;
+				else if (g_str_equal (sval, "chained-keyring-password"))
+					info->type = GNOME_KEYRING_ITEM_CHAINED_KEYRING_PASSWORD;
+				else if (g_str_equal (sval, "encryption-key-password"))
+					info->type = GNOME_KEYRING_ITEM_ENCRYPTION_KEY_PASSWORD;
+				else if (g_str_equal (sval, "pk-storage"))
+					info->type = GNOME_KEYRING_ITEM_PK_STORAGE;
+			}
+
+			dbus_message_iter_next (&array);
+		}
+	}
+
+	return TRUE;
+}
+
+typedef struct _item_get_info_args {
+	gchar *path;
+	guint32 flags;
+	GkrSession *session;
+	GnomeKeyringItemInfo *info;
+} item_get_info_args;
+
+static void
+item_get_info_free (gpointer data)
+{
+	item_get_info_args *args = data;
+	g_assert (data);
+	g_free (args->path);
+	if (args->session)
+		gkr_session_unref (args->session);
+	gnome_keyring_item_info_free (args->info);
+	g_slice_free (item_get_info_args, args);
+}
+
+static void
+item_get_info_sync (GnomeKeyringResult res, GnomeKeyringItemInfo *info, gpointer user_data)
+{
+	GnomeKeyringItemInfo **result = user_data;
+	*result = info;
+}
+
+static void
+item_get_info_3_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
+{
+	item_get_info_args *args = data;
+	DBusMessageIter iter;
+	GkrCallback *cb;
+
+	if (gkr_operation_handle_errors (op, reply))
+		return;
+
+	if (!dbus_message_iter_init (reply, &iter))
+		g_return_if_reached ();
+
+	g_assert (args->info);
+	g_assert (args->session);
+	g_assert (!args->info->secret);
+
+	if (gkr_session_decode_secret (args->session, &iter, &args->info->secret)) {
+		cb = gkr_operation_pop (op);
+		gkr_callback_invoke_ok_item_info (cb, args->info);
+		if (cb->callback == item_get_info_sync)
+			args->info = NULL;
+	} else {
+		gkr_operation_complete (op, GNOME_KEYRING_RESULT_IO_ERROR);
+	}
+}
+
+static void
+item_get_info_2_reply (GkrOperation *op, GkrSession *session, gpointer data)
+{
+	item_get_info_args *args = data;
+	DBusMessage *req;
+
+	g_assert (!args->session);
+	args->session = gkr_session_ref (session);
+
+	req = dbus_message_new_method_call (SECRETS_SERVICE, args->path, ITEM_INTERFACE, "GetSecret");
+	if (!dbus_message_append_args (req, DBUS_TYPE_OBJECT_PATH, gkr_session_get_path (session), DBUS_TYPE_INVALID))
+		g_return_if_reached ();
+
+	gkr_operation_push (op, item_get_info_3_reply, GKR_CALLBACK_OP_MSG, args, NULL);
+	gkr_operation_request (op, req);
+	dbus_message_unref (req);
+}
+
+static void
+item_get_info_1_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
+{
+	item_get_info_args *args = data;
 	GnomeKeyringResult res;
+	GkrCallback *cb;
 
-	egg_buffer_init_full (&send, 128, NORMAL_ALLOCATOR);
+	if (gkr_operation_handle_errors (op, reply))
+		return;
 
-	*info = NULL;
-
-	if (!gkr_proto_encode_op_string_int (&send, GNOME_KEYRING_OP_GET_ITEM_INFO,
-	                                     keyring, id)) {
-		egg_buffer_uninit (&send);
-		return GNOME_KEYRING_RESULT_BAD_ARGUMENTS;
-	}
-
-	/* Use a secure buffer */
-	egg_buffer_init_full (&receive, 128, SECURE_ALLOCATOR);
-
-	res = run_sync_operation (&send, &receive);
-	egg_buffer_uninit (&send);
+	g_assert (args->info);
+	res = decode_property_dict (reply, item_get_info_foreach, args->info);
 	if (res != GNOME_KEYRING_RESULT_OK) {
-		egg_buffer_uninit (&receive);
-		return res;
+		gkr_operation_complete (op, res);
+		return;
 	}
 
-	if (!gkr_proto_decode_get_item_info_reply (&receive, &res, info)) {
-		egg_buffer_uninit (&receive);
-		return GNOME_KEYRING_RESULT_IO_ERROR;
-	}
-	egg_buffer_uninit (&receive);
+	/* Need to request the secret as well? */
+	if (args->flags & GNOME_KEYRING_ITEM_INFO_SECRET) {
+		gkr_operation_push (op, item_get_info_2_reply, GKR_CALLBACK_OP_SESSION, args, NULL);
+		gkr_session_negotiate (op);
 
-	return res;
-#endif
-	g_assert (FALSE && "TODO");
-	return 0;
+	/* No secret needed, all done */
+	} else {
+		cb = gkr_operation_pop (op);
+		gkr_callback_invoke_ok_item_info (cb, args->info);
+		if (cb->callback == item_get_info_sync)
+			args->info = NULL;
+	}
 }
 
 /**
@@ -2305,24 +2428,27 @@ gnome_keyring_item_get_info_full (const char                                 *ke
                                   gpointer                                    data,
                                   GDestroyNotify                              destroy_data)
 {
-#if 0
-	GnomeKeyringOperation *op;
+	item_get_info_args *args;
+	DBusMessage *req;
+	GkrOperation *op;
 
-	/* Use a secure receive buffer */
-	op = gkr_operation_new (TRUE, callback, GKR_CALLBACK_RES_ITEM_INFO, data, destroy_data);
+	args = g_slice_new0 (item_get_info_args);
+	args->info = g_new0 (GnomeKeyringItemInfo, 1);
+	args->flags = flags;
 
-	if (!gkr_proto_encode_op_string_int_int (&op->send_buffer,
-	                                         GNOME_KEYRING_OP_GET_ITEM_INFO_FULL,
-	                                         keyring, id, flags)) {
-		schedule_op_failed (op, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-	}
+	args->path = encode_keyring_item_id (keyring, id);
+	g_return_val_if_fail (args->path, NULL);
 
-	op->reply_handler = get_item_info_reply;
-	start_and_take_operation (op);
+	req = prepare_property_getall (args->path, ITEM_INTERFACE);
+	g_return_val_if_fail (req, NULL);
+
+	op = gkr_operation_new (callback, GKR_CALLBACK_RES_ITEM_INFO, data, destroy_data);
+	gkr_operation_push (op, item_get_info_1_reply, GKR_CALLBACK_OP_MSG, args, item_get_info_free);
+	gkr_operation_request (op, req);
+	gkr_operation_unref (op);
+
+	dbus_message_unref (req);
 	return op;
-#endif
-	g_assert (FALSE && "TODO");
-	return NULL;
 }
 
 /**
@@ -2353,40 +2479,76 @@ gnome_keyring_item_get_info_full_sync (const char              *keyring,
                                        guint32                  flags,
                                        GnomeKeyringItemInfo   **info)
 {
-#if 0
-	EggBuffer send, receive;
-	GnomeKeyringResult res;
+	gpointer op = gnome_keyring_item_get_info_full (keyring, id, flags, item_get_info_sync, info, NULL);
+	return gkr_operation_block (op);
+}
 
-	egg_buffer_init_full (&send, 128, NORMAL_ALLOCATOR);
+typedef struct _item_set_info_args {
+	gchar *path;
+	GkrSession *session;
+	GnomeKeyringItemInfo *info;
+} item_set_info_args;
 
-	*info = NULL;
+static void
+item_set_info_free (gpointer data)
+{
+	item_set_info_args *args = data;
+	g_assert (data);
+	g_free (args->path);
+	if (args->session)
+		gkr_session_unref (args->session);
+	gnome_keyring_item_info_free (args->info);
+	g_slice_free (item_set_info_args, args);
+}
 
-	if (!gkr_proto_encode_op_string_int_int (&send, GNOME_KEYRING_OP_GET_ITEM_INFO_FULL,
-	                                         keyring, id, flags)) {
-		egg_buffer_uninit (&send);
-		return GNOME_KEYRING_RESULT_BAD_ARGUMENTS;
+static void
+item_set_info_2_reply (GkrOperation *op, GkrSession *session, gpointer user_data)
+{
+	item_set_info_args *args = user_data;
+	DBusMessageIter iter;
+	DBusMessage *req;
+
+	g_assert (args);
+	g_assert (args->info);
+	g_assert (args->info->secret);
+
+	/* Sending a secret */
+	req = dbus_message_new_method_call (SECRETS_SERVICE, args->path,
+	                                    DBUS_INTERFACE_PROPERTIES, "SetSecret");
+	g_return_if_fail (req);
+
+	if (!dbus_message_iter_init (req, &iter))
+		g_return_if_reached ();
+	if (!gkr_session_encode_secret (session, &iter, args->info->secret)) {
+		dbus_message_unref (req);
+		gkr_operation_complete (op, GNOME_KEYRING_RESULT_IO_ERROR);
+		return;
 	}
 
-	/* Use a secure buffer */
-	egg_buffer_init_full (&receive, 128, SECURE_ALLOCATOR);
+	/* Calls the final result handler directly */
+	gkr_operation_request (op, req);
+	dbus_message_unref (req);
+}
 
-	res = run_sync_operation (&send, &receive);
-	egg_buffer_uninit (&send);
-	if (res != GNOME_KEYRING_RESULT_OK) {
-		egg_buffer_uninit (&receive);
-		return res;
+static void
+item_set_info_1_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data)
+{
+	item_set_info_args *args = user_data;
+
+	if (gkr_operation_handle_errors (op, reply))
+		return;
+
+	/* TODO: No way to set item 'type' easily, so we skip for now */
+
+	/* Need a session to send a secret */
+	if (args->info->secret) {
+		gkr_operation_push (op, item_set_info_2_reply, GKR_CALLBACK_OP_SESSION, args, NULL);
+		gkr_session_negotiate (op);
+
+	/* No secret? all done */
+	} else {
+		gkr_operation_complete (op, GNOME_KEYRING_RESULT_OK);
 	}
-
-	if (!gkr_proto_decode_get_item_info_reply (&receive, &res, info)) {
-		egg_buffer_uninit (&receive);
-		return GNOME_KEYRING_RESULT_IO_ERROR;
-	}
-	egg_buffer_uninit (&receive);
-
-	return res;
-#endif
-	g_assert (FALSE && "TODO");
-	return 0;
 }
 
 /**
@@ -2415,22 +2577,40 @@ gnome_keyring_item_set_info (const char                                 *keyring
                              gpointer                                    data,
                              GDestroyNotify                              destroy_data)
 {
-#if 0
-	GnomeKeyringOperation *op;
+	item_set_info_args *args;
+	DBusMessageIter iter, variant;
+	DBusMessage *req;
+	GkrOperation *op;
+	const char *string;
 
-	op = gkr_operation_new (FALSE, callback, GKR_CALLBACK_RES, data, destroy_data);
+	args = g_slice_new0 (item_set_info_args);
+	args->info = gnome_keyring_item_info_copy (info);
+	args->path = encode_keyring_item_id (keyring, id);
+	g_return_val_if_fail (args->path, NULL);
 
-	/* Automatically secures buffer */
-	if (!gkr_proto_encode_set_item_info (&op->send_buffer, keyring, id, info)) {
-		schedule_op_failed (op, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-	}
+	/* First set the label */
+	req = dbus_message_new_method_call (SECRETS_SERVICE, args->path,
+	                                    DBUS_INTERFACE_PROPERTIES, "Set");
+	g_return_val_if_fail (req, NULL);
 
-	op->reply_handler = standard_reply;
-	start_and_take_operation (op);
+	if (!dbus_message_iter_init (req, &iter))
+		g_return_val_if_reached (NULL);
+	string = "Label";
+	dbus_message_iter_append_basic (&iter, DBUS_TYPE_STRING, &string);
+	if (!dbus_message_iter_open_container (&iter, DBUS_TYPE_VARIANT, "s", &variant))
+		g_return_val_if_reached (NULL);
+	string = args->info->display_name ? args->info->display_name : "";
+	dbus_message_iter_append_basic (&iter, DBUS_TYPE_STRING, &string);
+	if (!dbus_message_iter_close_container (&iter, &variant))
+		g_return_val_if_reached (NULL);
+
+	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
+	gkr_operation_push (op, item_set_info_1_reply, GKR_CALLBACK_RES, args, item_set_info_free);
+	gkr_operation_request (op, req);
+	gkr_operation_unref (op);
+	dbus_message_unref (req);
+
 	return op;
-#endif
-	g_assert (FALSE && "TODO");
-	return NULL;
 }
 
 /**
@@ -2454,31 +2634,12 @@ gnome_keyring_item_set_info_sync (const char           *keyring,
                                   guint32               id,
                                   GnomeKeyringItemInfo *info)
 {
-#if 0
-	EggBuffer send, receive;
-	GnomeKeyringResult res;
-
-	/* Use a secure memory buffer */
-	egg_buffer_init_full (&send, 128, SECURE_ALLOCATOR);
-
-	if (!gkr_proto_encode_set_item_info (&send, keyring, id, info)) {
-		egg_buffer_uninit (&send);
-		return GNOME_KEYRING_RESULT_BAD_ARGUMENTS;
-	}
-
-	egg_buffer_init_full (&receive, 128, NORMAL_ALLOCATOR);
-	res = run_sync_operation (&send, &receive);
-	egg_buffer_uninit (&send);
-	egg_buffer_uninit (&receive);
-
-	return res;
-#endif
-	g_assert (FALSE && "TODO");
-	return 0;
+	gpointer op = gnome_keyring_item_set_info (keyring, id, info, gkr_callback_empty, NULL, NULL);
+	return gkr_operation_block (op);
 }
 
 static gboolean
-get_attributes_foreach (DBusMessageIter *iter, gpointer user_data)
+item_get_attributes_foreach (DBusMessageIter *iter, gpointer user_data)
 {
 	GHashTable *table = user_data;
 	DBusMessageIter dict;
@@ -2505,7 +2666,7 @@ get_attributes_foreach (DBusMessageIter *iter, gpointer user_data)
 }
 
 static GnomeKeyringResult
-get_attributes_decode (DBusMessage *reply, GnomeKeyringAttributeList *attrs)
+item_get_attributes_decode (DBusMessage *reply, GnomeKeyringAttributeList *attrs)
 {
 	GnomeKeyringResult res;
 	GHashTableIter iter;
@@ -2519,7 +2680,7 @@ get_attributes_decode (DBusMessage *reply, GnomeKeyringAttributeList *attrs)
 	g_assert (reply);
 
 	table = g_hash_table_new (g_str_hash, g_str_equal);
-	res = decode_property_variant_array (reply, get_attributes_foreach, table);
+	res = decode_property_variant_array (reply, item_get_attributes_foreach, table);
 	if (res == GNOME_KEYRING_RESULT_OK) {
 		g_hash_table_iter_init (&iter, table);
 		while (g_hash_table_iter_next (&iter, (gpointer*)&name, (gpointer*)&value)) {
@@ -2574,7 +2735,7 @@ item_get_attributes_reply (GkrOperation *op, DBusMessage *reply, gpointer user_d
 		return;
 
 	attrs = gnome_keyring_attribute_list_new ();
-	res = get_attributes_decode (reply, attrs);
+	res = item_get_attributes_decode (reply, attrs);
 	if (res == GNOME_KEYRING_RESULT_OK) {
 		cb = gkr_operation_pop (op);
 		gkr_callback_invoke_ok_attributes (cb, attrs);
@@ -2657,6 +2818,74 @@ gnome_keyring_item_get_attributes_sync (const char                 *keyring,
 	return gkr_operation_block (op);
 }
 
+static gboolean
+item_set_attributes_encode (DBusMessage *req, GnomeKeyringAttributeList *attrs)
+{
+	DBusMessageIter iter, variant, dict, array;
+	GnomeKeyringAttribute *attr;
+	const gchar *string;
+	gchar *value;
+	guint i;
+
+	if (!dbus_message_iter_init (req, &iter))
+		g_return_val_if_reached (FALSE);
+	string = "Attributes";
+	dbus_message_iter_append_basic (&iter, DBUS_TYPE_STRING, &string);
+	if (!dbus_message_iter_open_container (&iter, DBUS_TYPE_VARIANT, "a{ss}", &variant) ||
+	    !dbus_message_iter_open_container (&variant, DBUS_TYPE_ARRAY, NULL, &array))
+		g_return_val_if_reached (FALSE);
+
+	for (i = 0; i < attrs->len; ++i) {
+		attr = &gnome_keyring_attribute_list_index (attrs, i);
+		if (!dbus_message_iter_open_container (&array, DBUS_TYPE_DICT_ENTRY, NULL, &dict))
+			g_return_val_if_reached (FALSE);
+
+		/* Add in the attribute type */
+		string = attr->name ? attr->name : "";
+		dbus_message_iter_append_basic (&dict, DBUS_TYPE_STRING, &string);
+
+		/* String values */
+		if (attr->type == GNOME_KEYRING_ATTRIBUTE_TYPE_STRING) {
+			string = attr->value.string ? attr->value.string : "";
+			dbus_message_iter_append_basic (&dict, DBUS_TYPE_STRING, &string);
+
+		/* Integer values */
+		} else if (attr->type == GNOME_KEYRING_ATTRIBUTE_TYPE_UINT32) {
+			value = g_strdup_printf ("%u", attr->value.integer);
+			dbus_message_iter_append_basic (&dict, DBUS_TYPE_STRING, &value);
+			g_free (value);
+
+		} else {
+			g_warning ("received invalid attribute type");
+			return FALSE;
+		}
+
+		if (!dbus_message_iter_close_container (&array, &dict))
+			g_return_val_if_reached (FALSE);
+
+		/* Integer values get another compatibility marker */
+		if (attr->type == GNOME_KEYRING_ATTRIBUTE_TYPE_UINT32) {
+			if (!dbus_message_iter_open_container (&array, DBUS_TYPE_DICT_ENTRY, NULL, &dict))
+				g_return_val_if_reached (FALSE);
+
+			value = g_strdup_printf ("gkr:compat:uint32:%s", attr->name);
+			dbus_message_iter_append_basic (&dict, DBUS_TYPE_STRING, &value);
+			g_free (value);
+			string = "";
+			dbus_message_iter_append_basic (&dict, DBUS_TYPE_STRING, &string);
+
+			if (!dbus_message_iter_close_container (&array, &dict))
+				g_return_val_if_reached (FALSE);
+		}
+	}
+
+	if (!dbus_message_iter_close_container (&variant, &array) ||
+	    !dbus_message_iter_close_container (&iter, &variant))
+		g_return_val_if_reached (FALSE);
+
+	return TRUE;
+}
+
 /**
  * gnome_keyring_item_set_attributes:
  * @keyring: The name of the keyring in which the item exists, or NULL for the default keyring.
@@ -2681,22 +2910,29 @@ gnome_keyring_item_set_attributes (const char                                 *k
                                    gpointer                                    data,
                                    GDestroyNotify                              destroy_data)
 {
-#if 0
-	GnomeKeyringOperation *op;
+	DBusMessage *req;
+	GkrOperation *op;
+	gchar *path;
 
-	op = gkr_operation_new (FALSE, callback, GKR_CALLBACK_RES, data, destroy_data);
+	path = encode_keyring_item_id (keyring, id);
+	g_return_val_if_fail (path, NULL);
 
-	if (!gkr_proto_encode_set_attributes (&op->send_buffer, keyring, id,
-	                                      attributes)) {
-		schedule_op_failed (op, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-	}
+	/* First set the label */
+	req = dbus_message_new_method_call (SECRETS_SERVICE, path,
+					    DBUS_INTERFACE_PROPERTIES, "Set");
+	g_return_val_if_fail (req, NULL);
 
-	op->reply_handler = standard_reply;
-	start_and_take_operation (op);
+	g_free (path);
+
+	if (!item_set_attributes_encode (req, attributes))
+		g_return_val_if_reached (NULL);
+
+	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
+	gkr_operation_request (op, req);
+	gkr_operation_unref (op);
+	dbus_message_unref (req);
+
 	return op;
-#endif
-	g_assert (FALSE && "TODO");
-	return NULL;
 }
 
 /**
@@ -2718,27 +2954,8 @@ gnome_keyring_item_set_attributes_sync (const char                *keyring,
                                         guint32                    id,
                                         GnomeKeyringAttributeList *attributes)
 {
-#if 0
-	EggBuffer send, receive;
-	GnomeKeyringResult res;
-
-	egg_buffer_init_full (&send, 128, NORMAL_ALLOCATOR);
-
-	if (!gkr_proto_encode_set_attributes (&send, keyring, id, attributes)) {
-		egg_buffer_uninit (&send);
-		return GNOME_KEYRING_RESULT_BAD_ARGUMENTS;
-	}
-
-	egg_buffer_init_full (&receive, 128, NORMAL_ALLOCATOR);
-	res = run_sync_operation (&send, &receive);
-	egg_buffer_uninit (&send);
-	egg_buffer_uninit (&receive);
-
-	return res;
-#endif
-	g_assert (FALSE && "TODO");
-	return 0;
-
+	gpointer op = gnome_keyring_item_set_attributes (keyring, id, attributes, gkr_callback_empty, NULL, NULL);
+	return gkr_operation_block (op);
 }
 
 /**

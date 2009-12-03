@@ -24,12 +24,18 @@
 #ifndef GKR_CALLBACK_H
 #define GKR_CALLBACK_H
 
+#include "gnome-keyring.h"
+
+#include <glib.h>
+
 #include <dbus/dbus.h>
 
 typedef struct _GkrOperation GkrOperation;
+typedef struct _GkrSession GkrSession;
 
 typedef enum {
 	GKR_CALLBACK_OP_MSG = 1,
+	GKR_CALLBACK_OP_SESSION,
 	GKR_CALLBACK_RES,
 	GKR_CALLBACK_RES_STRING,
 	GKR_CALLBACK_RES_UINT,
@@ -60,6 +66,9 @@ void         gkr_callback_empty                   (GnomeKeyringResult res,
 
 void         gkr_callback_invoke_op_msg           (GkrCallback *cb,
                                                    DBusMessage *msg);
+
+void         gkr_callback_invoke_op_session       (GkrCallback *cb,
+                                                   GkrSession *session);
 
 void         gkr_callback_invoke_res              (GkrCallback *cb,
                                                    GnomeKeyringResult res);

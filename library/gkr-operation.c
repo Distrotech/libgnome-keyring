@@ -328,7 +328,7 @@ gkr_operation_request (GkrOperation *op, DBusMessage *req)
 GnomeKeyringResult
 gkr_operation_block (GkrOperation *op)
 {
-	g_assert (op);
+	g_return_val_if_fail (op, BROKEN);
 
 	gkr_operation_ref (op);
 
