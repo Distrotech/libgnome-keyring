@@ -393,18 +393,18 @@ decode_check_object_paths (DBusMessageIter *iter, const gchar *check)
 gboolean
 gnome_keyring_is_available (void)
 {
-	DBusMessage *req, *reply;
-	GnomeKeyringResult res;
+	GkrOperation *op;
+	DBusMessage *req;
 
 	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
 	                                    DBUS_INTERFACE_PEER, "Ping");
 	g_return_val_if_fail (req, FALSE);
 
-	res = gkr_operation_request_sync (req, &reply);
+	op = gkr_operation_new (gkr_callback_empty, GKR_CALLBACK_RES, NULL, NULL);
+	gkr_operation_request (op, req);
 	dbus_message_unref (req);
-	if (res == GNOME_KEYRING_RESULT_OK)
-		dbus_message_unref (reply);
-	return (res == GNOME_KEYRING_RESULT_OK);
+	gkr_operation_unref (op);
+	return gkr_operation_block (op);
 }
 
 /**
@@ -603,6 +603,13 @@ gnome_keyring_get_default_keyring_sync (char **keyring)
 	return 0;
 }
 
+static void
+list_keyring_names_sync (GnomeKeyringResult res, GList *names, gpointer user_data)
+{
+	GList **result = user_data;
+	*result = names;
+}
+
 static gboolean
 list_keyring_names_foreach (DBusMessageIter *iter, gpointer user_data)
 {
@@ -627,13 +634,22 @@ list_keyring_names_reply (GkrOperation *op, DBusMessage *reply,
                           gpointer user_data)
 {
 	GnomeKeyringResult res;
-	GList *names = NULL;
+	GList *names;
+	GkrCallback *cb;
 
 	if (gkr_operation_handle_errors (op, reply))
 		return;
 
 	res = decode_property_variant_array (reply, list_keyring_names_foreach, &names);
-	gkr_callback_invoke_res_list (gkr_operation_pop (op), res, names);
+	if (res == GNOME_KEYRING_RESULT_OK) {
+		cb = gkr_operation_pop (op);
+		gkr_callback_invoke_ok_list (cb, names);
+		if (cb->callback == list_keyring_names_sync)
+			names = NULL;
+	} else {
+		gkr_operation_complete (op, res);
+	}
+
 	gnome_keyring_string_list_free (names);
 }
 
@@ -690,21 +706,8 @@ gnome_keyring_list_keyring_names  (GnomeKeyringOperationGetListCallback    callb
 GnomeKeyringResult
 gnome_keyring_list_keyring_names_sync (GList **keyrings)
 {
-	DBusMessage *req, *reply;
-	GnomeKeyringResult res;
-
-	req = prepare_property_get (SERVICE_PATH, SERVICE_INTERFACE,
-	                            "Collections");
-	g_return_val_if_fail (req, BROKEN);
-
-	res = gkr_operation_request_sync (req, &reply);
-	dbus_message_unref (req);
-
-	if (res == GNOME_KEYRING_RESULT_OK)
-		res = decode_property_variant_array (reply, list_keyring_names_foreach, keyrings);
-
-	dbus_message_unref (reply);
-	return res;
+	gpointer op = gnome_keyring_list_keyring_names (list_keyring_names_sync, keyrings, NULL);
+	return gkr_operation_block (op);
 }
 
 /**
@@ -754,18 +757,8 @@ gnome_keyring_lock_all (GnomeKeyringOperationDoneCallback       callback,
 GnomeKeyringResult
 gnome_keyring_lock_all_sync (void)
 {
-	DBusMessage *req, *reply;
-	GnomeKeyringResult res;
-
-	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
-	                                    SERVICE_INTERFACE, "LockService");
-	g_return_val_if_fail (req, BROKEN);
-
-	res = gkr_operation_request_sync (req, &reply);
-	dbus_message_unref (req);
-	dbus_message_unref (reply);
-
-	return res;
+	gpointer op = gnome_keyring_lock_all (gkr_callback_empty, NULL, NULL);
+	return gkr_operation_block (op);
 }
 
 static void
@@ -788,7 +781,7 @@ create_keyring_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data)
 	/* No prompt, we're done */
 	g_return_if_fail (prompt);
 	if (g_str_equal (prompt, "/"))
-		gkr_callback_invoke_res (gkr_operation_pop (op), GNOME_KEYRING_RESULT_OK);
+		gkr_operation_complete (op, GNOME_KEYRING_RESULT_OK);
 
 	/* A prompt, display it, default handling for response */
 	else
@@ -876,36 +869,8 @@ GnomeKeyringResult
 gnome_keyring_create_sync (const char *keyring_name,
                            const char *password)
 {
-	DBusMessage *req, *reply;
-	GnomeKeyringResult res;
-	const char *collection;
-	const char *prompt;
-
-	req = create_keyring_prepare (keyring_name);
-	g_return_val_if_fail (req, BROKEN);
-
-	res = gkr_operation_request_sync (req, &reply);
-	dbus_message_unref (req);
-
-	if (res != GNOME_KEYRING_RESULT_OK)
-		return res;
-
-	/* Parse the response */
-	if (dbus_message_get_args (reply, NULL, DBUS_TYPE_OBJECT_PATH, &collection,
-	                           DBUS_TYPE_OBJECT_PATH, &prompt, DBUS_TYPE_INVALID)) {
-		g_return_val_if_fail (prompt, BROKEN);
-		if (!g_str_equal (prompt, "/")) {
-			dbus_message_unref (reply);
-			res = gkr_operation_prompt_sync (prompt, &reply);
-		}
-	} else {
-		g_warning ("bad response to CreateCollection from service");
-		res = GNOME_KEYRING_RESULT_IO_ERROR;
-	}
-
-	dbus_message_unref (reply);
-
-	return res;
+	gpointer op = gnome_keyring_create (keyring_name, password, gkr_callback_empty, NULL, NULL);
+	return gkr_operation_block (op);
 }
 
 
@@ -939,9 +904,9 @@ xlock_2_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data)
 		return;
 
 	if (decode_check_object_paths (&iter, path))
-		gkr_callback_invoke_res (gkr_operation_pop (op), GNOME_KEYRING_RESULT_OK);
+		gkr_operation_complete (op, GNOME_KEYRING_RESULT_OK);
 	else
-		gkr_callback_invoke_res (gkr_operation_pop (op), GNOME_KEYRING_RESULT_DENIED);
+		gkr_operation_complete (op, GNOME_KEYRING_RESULT_DENIED);
 }
 
 static void
@@ -1005,55 +970,8 @@ xlock_async (const gchar *method, const gchar *keyring,
 static GnomeKeyringResult
 xlock_sync (const gchar *method, const char *keyring)
 {
-	DBusMessage *req, *reply, *complete;
-	DBusMessageIter iter;
-	GnomeKeyringResult res;
-	const char *prompt;
-	gchar *path;
-
-	path = encode_keyring_name (keyring);
-	g_return_val_if_fail (path, BROKEN);
-
-	req = xlock_prepare (method, path);
-	g_return_val_if_fail (req, BROKEN);
-
-	res = gkr_operation_request_sync (req, &reply);
-	dbus_message_unref (req);
-
-	if (res != GNOME_KEYRING_RESULT_OK)
-		return res;
-
-	/* Parse the response */
-	if (res == GNOME_KEYRING_RESULT_OK) {
-		if (!dbus_message_has_signature (reply, "aoo"))
-			res = decode_invalid_response (reply);
-	}
-
-	if (res == GNOME_KEYRING_RESULT_OK) {
-		if (!dbus_message_iter_init (reply, &iter))
-			g_return_val_if_reached (BROKEN);
-
-		res = GNOME_KEYRING_RESULT_OK;
-		if (!decode_check_object_paths (&iter, path)) {
-			dbus_message_iter_next (&iter);
-			dbus_message_iter_get_basic (&iter, &prompt);
-			res = gkr_operation_prompt_sync (prompt, &complete);
-
-			if (res == GNOME_KEYRING_RESULT_OK) {
-				if (!decode_prompt_completed (reply, "ao", &iter))
-					res = GNOME_KEYRING_RESULT_IO_ERROR;
-				else if (decode_check_object_paths (&iter, path))
-					res = GNOME_KEYRING_RESULT_OK;
-				else
-					res = GNOME_KEYRING_RESULT_DENIED;
-			}
-		}
-	}
-
-	dbus_message_unref (reply);
-	g_free (path);
-
-	return res;
+	gpointer op = xlock_async (method, keyring, gkr_callback_empty, NULL, NULL);
+	return gkr_operation_block (op);
 }
 
 /**
@@ -1374,17 +1292,33 @@ get_keyring_info_foreach (const gchar *property, DBusMessageIter *iter, gpointer
 }
 
 static void
+get_keyring_info_sync (GnomeKeyringResult res, GnomeKeyringInfo *info, gpointer user_data)
+{
+	GnomeKeyringInfo **result = user_data;
+	*result = info;
+}
+
+static void
 get_keyring_info_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data)
 {
 	GnomeKeyringResult res;
 	GnomeKeyringInfo *info;
+	GkrCallback *cb;
 
 	if (gkr_operation_handle_errors (op, reply))
 		return;
 
 	info = g_new0 (GnomeKeyringInfo, 1);
 	res = decode_property_dict (reply, get_keyring_info_foreach, info);
-	gkr_callback_invoke_res_keyring_info (gkr_operation_pop (op), res, info);
+	if (res == GNOME_KEYRING_RESULT_OK) {
+		cb = gkr_operation_pop (op);
+		gkr_callback_invoke_ok_keyring_info (cb, info);
+		if (cb->callback == get_keyring_info_sync)
+			info = NULL;
+	} else {
+		gkr_operation_complete (op, res);
+	}
+
 	gnome_keyring_info_free (info);
 }
 
@@ -1447,33 +1381,8 @@ GnomeKeyringResult
 gnome_keyring_get_info_sync (const char        *keyring,
                              GnomeKeyringInfo **info)
 {
-	DBusMessage *req, *reply;
-	GnomeKeyringResult res;
-	GnomeKeyringInfo *inf;
-	gchar *path;
-
-	g_return_val_if_fail (info, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-
-	path = encode_keyring_name (keyring);
-	g_return_val_if_fail (path, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-	req = prepare_property_getall (path, COLLECTION_INTERFACE);
-	g_return_val_if_fail (req, BROKEN);
-	g_free (path);
-
-	res = gkr_operation_request_sync (req, &reply);
-	dbus_message_unref (req);
-
-	if (res == GNOME_KEYRING_RESULT_OK) {
-		inf = g_new (GnomeKeyringInfo, 1);
-		res = decode_property_dict (reply, get_keyring_info_foreach, info);
-		if (res != GNOME_KEYRING_RESULT_OK)
-			*info = inf;
-		else
-			gnome_keyring_info_free (inf);
-	}
-
-	dbus_message_unref (reply);
-	return res;
+	gpointer op = gnome_keyring_get_info (keyring, get_keyring_info_sync, info, NULL);
+	return gkr_operation_block (op);
 }
 
 /**
@@ -1554,6 +1463,13 @@ gnome_keyring_set_info_sync (const char       *keyring,
 	return GNOME_KEYRING_RESULT_OK;
 }
 
+static void
+list_item_ids_sync (GnomeKeyringResult res, GList *ids, gpointer user_data)
+{
+	GList **result = user_data;
+	*result = ids;
+}
+
 static gboolean
 list_item_ids_foreach (DBusMessageIter *iter, gpointer data)
 {
@@ -1579,12 +1495,21 @@ list_item_ids_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data)
 {
 	GnomeKeyringResult res;
 	GList *ids = NULL;
+	GkrCallback *cb;
 
 	if (gkr_operation_handle_errors (op, reply))
 		return;
 
 	res = decode_property_variant_array (reply, list_item_ids_foreach, &ids);
-	gkr_callback_invoke_res_list (gkr_operation_pop (op), res, ids);
+	if (res == GNOME_KEYRING_RESULT_OK) {
+		cb = gkr_operation_pop (op);
+		gkr_callback_invoke_ok_list (cb, ids);
+		if (cb->callback == list_item_ids_sync)
+			ids = NULL;
+	} else {
+		gkr_operation_complete (op, res);
+	}
+
 	g_list_free (ids);
 }
 
@@ -1653,27 +1578,8 @@ GnomeKeyringResult
 gnome_keyring_list_item_ids_sync (const char  *keyring,
                                   GList      **ids)
 {
-	DBusMessage *req, *reply;
-	GnomeKeyringResult res;
-	gchar *path;
-
-	g_return_val_if_fail (ids, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-
-	path = encode_keyring_name (keyring);
-	g_return_val_if_fail (path, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-
-	req = prepare_property_get (path, COLLECTION_INTERFACE, "Items");
-	g_return_val_if_fail (req, BROKEN);
-	g_free (path);
-
-	res = gkr_operation_request_sync (req, &reply);
-	dbus_message_unref (req);
-
-	if (res == GNOME_KEYRING_RESULT_OK)
-		res = decode_property_variant_array (reply, list_item_ids_foreach, ids);
-
-	dbus_message_unref (reply);
-	return res;
+	gpointer op = gnome_keyring_list_item_ids (keyring, list_item_ids_sync, ids, NULL);
+	return gkr_operation_block (op);
 }
 
 /**
@@ -2651,17 +2557,33 @@ get_attributes_decode (DBusMessage *reply, GnomeKeyringAttributeList *attrs)
 }
 
 static void
-get_attributes_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data)
+item_get_attributes_sync (GnomeKeyringResult res, GnomeKeyringAttributeList *attrs, gpointer user_data)
+{
+	GnomeKeyringAttributeList **result = user_data;
+	*result = attrs;
+}
+
+static void
+item_get_attributes_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data)
 {
 	GnomeKeyringResult res;
 	GnomeKeyringAttributeList *attrs;
+	GkrCallback *cb;
 
 	if (gkr_operation_handle_errors (op, reply))
 		return;
 
 	attrs = gnome_keyring_attribute_list_new ();
 	res = get_attributes_decode (reply, attrs);
-	gkr_callback_invoke_res_attributes (gkr_operation_pop (op), res, attrs);
+	if (res == GNOME_KEYRING_RESULT_OK) {
+		cb = gkr_operation_pop (op);
+		gkr_callback_invoke_ok_attributes (cb, attrs);
+		if (cb->callback == item_get_attributes_sync)
+			attrs = NULL;
+	} else {
+		gkr_operation_complete (op, res);
+	}
+
 	gnome_keyring_attribute_list_free (attrs);
 }
 
@@ -2700,7 +2622,7 @@ gnome_keyring_item_get_attributes (const char                                 *k
 	g_return_val_if_fail (req, NULL);
 
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES_ATTRIBUTES, data, destroy_data);
-	gkr_operation_push (op, get_attributes_reply, GKR_CALLBACK_OP_MSG, NULL, NULL);
+	gkr_operation_push (op, item_get_attributes_reply, GKR_CALLBACK_OP_MSG, NULL, NULL);
 	gkr_operation_request (op, req);
 	gkr_operation_unref (op);
 
@@ -2731,33 +2653,8 @@ gnome_keyring_item_get_attributes_sync (const char                 *keyring,
                                         guint32                     id,
                                         GnomeKeyringAttributeList **attributes)
 {
-	GnomeKeyringAttributeList *attrs;
-	DBusMessage *req, *reply;
-	GnomeKeyringResult res;
-	gchar *path;
-
-	g_return_val_if_fail (attributes, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-
-	path = encode_keyring_item_id (keyring, id);
-	g_return_val_if_fail (path, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-	req = prepare_property_get (path, ITEM_INTERFACE, "Attributes");
-	g_return_val_if_fail (req, BROKEN);
-	g_free (path);
-
-	res = gkr_operation_request_sync (req, &reply);
-	dbus_message_unref (req);
-
-	if (res == GNOME_KEYRING_RESULT_OK) {
-		attrs = gnome_keyring_attribute_list_new ();
-		res = get_attributes_decode (reply, attrs);
-		if (res != GNOME_KEYRING_RESULT_OK)
-			*attributes = attrs;
-		else
-			gnome_keyring_attribute_list_free (attrs);
-	}
-
-	dbus_message_unref (reply);
-	return res;
+	gpointer op = gnome_keyring_item_get_attributes (keyring, id, item_get_attributes_sync, attributes, NULL);
+	return gkr_operation_block (op);
 }
 
 /**

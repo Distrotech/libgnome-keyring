@@ -40,48 +40,46 @@ typedef enum {
 } GkrCallbackType;
 
 typedef struct _GkrCallback {
+	GkrOperation *operation;
 	GkrCallbackType type;
 	gpointer callback;
 	gpointer user_data;
 	GDestroyNotify destroy_func;
 } GkrCallback;
 
-GkrCallback* gkr_callback_new                     (gpointer callback,
+GkrCallback* gkr_callback_new                     (GkrOperation *op,
+                                                   gpointer callback,
                                                    GkrCallbackType callback_type,
                                                    gpointer user_data,
                                                    GDestroyNotify destroy_func);
 
 void         gkr_callback_free                    (gpointer data);
 
+void         gkr_callback_empty                   (GnomeKeyringResult res,
+                                                   gpointer user_data);
+
 void         gkr_callback_invoke_op_msg           (GkrCallback *cb,
-                                                   GkrOperation *op,
                                                    DBusMessage *msg);
 
 void         gkr_callback_invoke_res              (GkrCallback *cb,
                                                    GnomeKeyringResult res);
 
-void         gkr_callback_invoke_res_string       (GkrCallback *cb,
-                                                   GnomeKeyringResult res,
+void         gkr_callback_invoke_ok_string        (GkrCallback *cb,
                                                    const gchar *value);
 
-void         gkr_callback_invoke_res_uint         (GkrCallback *cb,
-                                                   GnomeKeyringResult res,
+void         gkr_callback_invoke_ok_uint          (GkrCallback *cb,
                                                    guint32 value);
 
-void         gkr_callback_invoke_res_list         (GkrCallback *cb,
-                                                   GnomeKeyringResult res,
+void         gkr_callback_invoke_ok_list          (GkrCallback *cb,
                                                    GList *value);
 
-void         gkr_callback_invoke_res_keyring_info (GkrCallback *cb,
-                                                   GnomeKeyringResult res,
+void         gkr_callback_invoke_ok_keyring_info  (GkrCallback *cb,
                                                    GnomeKeyringInfo *value);
 
-void         gkr_callback_invoke_res_item_info    (GkrCallback *cb,
-                                                   GnomeKeyringResult res,
+void         gkr_callback_invoke_ok_item_info     (GkrCallback *cb,
                                                    GnomeKeyringItemInfo *value);
 
-void         gkr_callback_invoke_res_attributes   (GkrCallback *cb,
-                                                   GnomeKeyringResult res,
+void         gkr_callback_invoke_ok_attributes    (GkrCallback *cb,
                                                    GnomeKeyringAttributeList *value);
 
 #endif /* GKR_CALLBACK_H */

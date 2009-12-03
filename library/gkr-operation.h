@@ -32,10 +32,17 @@ GkrOperation*       gkr_operation_ref               (GkrOperation *op);
 
 void                gkr_operation_unref             (gpointer data);
 
+GnomeKeyringResult  gkr_operation_unref_get_result  (GkrOperation *op);
+
 GkrOperation*       gkr_operation_new               (gpointer callback,
                                                      GkrCallbackType callback_type,
                                                      gpointer user_data,
                                                      GDestroyNotify destroy_func);
+
+GnomeKeyringResult  gkr_operation_get_result        (GkrOperation *op);
+
+gboolean            gkr_operation_set_result        (GkrOperation *op,
+                                                     GnomeKeyringResult res);
 
 GkrCallback*        gkr_operation_push              (GkrOperation *op,
                                                      gpointer callback,
@@ -51,6 +58,8 @@ void                gkr_operation_complete          (GkrOperation *op,
 void                gkr_operation_complete_later    (GkrOperation *op,
                                                      GnomeKeyringResult res);
 
+GnomeKeyringResult  gkr_operation_block             (GkrOperation *op);
+
 void                gkr_operation_request           (GkrOperation *op,
                                                      DBusMessage *request);
 
@@ -59,11 +68,5 @@ gboolean            gkr_operation_handle_errors     (GkrOperation *op,
 
 void                gkr_operation_prompt            (GkrOperation *op,
                                                      const gchar *prompt);
-
-GnomeKeyringResult  gkr_operation_request_sync      (DBusMessage *request,
-                                                     DBusMessage **reply);
-
-GnomeKeyringResult  gkr_operation_prompt_sync       (const gchar *prompt,
-                                                     DBusMessage **reply);
 
 #endif /* GKR_OPERATION_H */
