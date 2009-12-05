@@ -1100,22 +1100,22 @@ gnome_keyring_delete (const char                                  *keyring,
                       gpointer                                     data,
                       GDestroyNotify                               destroy_data)
 {
-#if 0
-	GnomeKeyringOperation *op;
+	DBusMessage *req;
+	GkrOperation *op;
+	gchar *path;
 
-	op = gkr_operation_new (FALSE, callback, GKR_CALLBACK_RES, data, destroy_data);
+	path = encode_keyring_name (keyring);
+	g_return_val_if_fail (path, NULL);
 
-	if (!gkr_proto_encode_op_string (&op->send_buffer, GNOME_KEYRING_OP_DELETE_KEYRING,
-	                                 keyring)) {
-		schedule_op_failed (op, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-	}
+	req = dbus_message_new_method_call (SECRETS_SERVICE, path,
+	                                    COLLECTION_INTERFACE, "Delete");
+	g_return_val_if_fail (req, NULL);
 
-	op->reply_handler = standard_reply;
-	start_and_take_operation (op);
+	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
+	gkr_operation_request (op, req);
+	gkr_operation_unref (op);
+	dbus_message_unref (req);
 	return op;
-#endif
-	g_assert (FALSE && "TODO");
-	return NULL;
 }
 
 /**
@@ -1133,36 +1133,8 @@ gnome_keyring_delete (const char                                  *keyring,
 GnomeKeyringResult
 gnome_keyring_delete_sync (const char *keyring)
 {
-#if 0
-	EggBuffer send, receive;
-	GnomeKeyringResult res;
-
-	egg_buffer_init_full (&send, 128, NORMAL_ALLOCATOR);
-
-	if (!gkr_proto_encode_op_string (&send, GNOME_KEYRING_OP_DELETE_KEYRING,
-	                                 keyring)) {
-		egg_buffer_uninit (&send);
-		return GNOME_KEYRING_RESULT_BAD_ARGUMENTS;
-	}
-
-	egg_buffer_init_full (&receive, 128, NORMAL_ALLOCATOR);
-	res = run_sync_operation (&send, &receive);
-	egg_buffer_uninit (&send);
-	if (res != GNOME_KEYRING_RESULT_OK) {
-		egg_buffer_uninit (&receive);
-		return res;
-	}
-
-	if (!gkr_proto_decode_result_reply (&receive, &res)) {
-		egg_buffer_uninit (&receive);
-		return GNOME_KEYRING_RESULT_IO_ERROR;
-	}
-	egg_buffer_uninit (&receive);
-
-	return res;
-#endif
-	g_assert (FALSE && "TODO");
-	return 0;
+	gpointer op = gnome_keyring_delete (keyring, gkr_callback_empty, NULL, NULL);
+	return gkr_operation_block (op);
 }
 
 /**
@@ -2088,22 +2060,22 @@ gnome_keyring_item_delete (const char                                 *keyring,
                            gpointer                                    data,
                            GDestroyNotify                              destroy_data)
 {
-#if 0
-	GnomeKeyringOperation *op;
+	DBusMessage *req;
+	GkrOperation *op;
+	gchar *path;
 
-	op = gkr_operation_new (FALSE, callback, GKR_CALLBACK_RES, data, destroy_data);
+	path = encode_keyring_item_id(keyring, id);
+	g_return_val_if_fail (path, NULL);
 
-	if (!gkr_proto_encode_op_string_int (&op->send_buffer, GNOME_KEYRING_OP_DELETE_ITEM,
-	                                     keyring, id)) {
-		schedule_op_failed (op, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-	}
+	req = dbus_message_new_method_call (SECRETS_SERVICE, path,
+	                                    ITEM_INTERFACE, "Delete");
+	g_return_val_if_fail (req, NULL);
 
-	op->reply_handler = standard_reply;
-	start_and_take_operation (op);
+	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
+	gkr_operation_request (op, req);
+	gkr_operation_unref (op);
+	dbus_message_unref (req);
 	return op;
-#endif
-	g_assert (FALSE && "TODO");
-	return NULL;
 }
 
 /**
@@ -2125,50 +2097,9 @@ GnomeKeyringResult
 gnome_keyring_item_delete_sync (const char *keyring,
                                 guint32     id)
 {
-#if 0
-	EggBuffer send, receive;
-	GnomeKeyringResult res;
-
-	egg_buffer_init_full (&send, 128, NORMAL_ALLOCATOR);
-
-	if (!gkr_proto_encode_op_string_int (&send, GNOME_KEYRING_OP_DELETE_ITEM,
-	                                     keyring, id)) {
-		egg_buffer_uninit (&send);
-		return GNOME_KEYRING_RESULT_BAD_ARGUMENTS;
-	}
-
-	egg_buffer_init_full (&receive, 128, NORMAL_ALLOCATOR);
-	res = run_sync_operation (&send, &receive);
-	egg_buffer_uninit (&send);
-	egg_buffer_uninit (&receive);
-
-	return res;
-#endif
-	g_assert (FALSE && "TODO");
-	return 0;
+	gpointer op = gnome_keyring_item_delete (keyring, id, gkr_callback_empty, NULL, NULL);
+	return gkr_operation_block (op);
 }
-
-#if 0
-static gboolean
-get_item_info_reply (GnomeKeyringOperation *op)
-{
-	GnomeKeyringResult result;
-	GnomeKeyringOperationGetItemInfoCallback callback;
-	GnomeKeyringItemInfo *info;
-
-	callback = op->user_callback;
-
-	if (!gkr_proto_decode_get_item_info_reply (&op->receive_buffer, &result, &info)) {
-		(*callback) (GNOME_KEYRING_RESULT_IO_ERROR, NULL, op->user_data);
-	} else {
-		(*callback) (result, info, op->user_data);
-		gnome_keyring_item_info_free (info);
-	}
-
-	/* GkrOperation is done */
-	return TRUE;
-}
-#endif
 
 /**
  * gnome_keyring_item_get_info:
