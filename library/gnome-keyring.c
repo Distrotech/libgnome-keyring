@@ -93,6 +93,26 @@ prepare_property_getall (const gchar *path, const gchar *interface)
 	return req;
 }
 
+static DBusMessage*
+prepare_get_secrets (GkrSession *session, char **paths, int n_paths)
+{
+	DBusMessage *req;
+	const char *spath;
+
+	g_assert (session);
+
+	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
+	                                    SERVICE_INTERFACE, "GetSecrets");
+	g_return_val_if_fail (req, NULL);
+
+	spath = gkr_session_get_path (session);
+	if (!dbus_message_append_args (req, DBUS_TYPE_ARRAY, DBUS_TYPE_OBJECT_PATH, &paths, n_paths,
+	                               DBUS_TYPE_OBJECT_PATH, &spath, DBUS_TYPE_INVALID))
+		g_return_val_if_reached (NULL);
+
+	return req;
+}
+
 static void
 encode_object_identifier (GString *string, const gchar* name, gssize length)
 {
@@ -209,7 +229,7 @@ decode_item_id (const char *path, guint32 *id)
 	g_return_val_if_fail (path, FALSE);
 	g_assert (id);
 
-	part = strchr (path, '/');
+	part = strrchr (path, '/');
 	if (part == NULL || part[1] == '\0') {
 		g_message ("response from daemon contained a bad item path: %s", path);
 		return FALSE;
@@ -217,12 +237,50 @@ decode_item_id (const char *path, guint32 *id)
 
 	*id = strtoul (part, &end, 10);
 	if (!end || end[0] != '\0') {
-		g_message ("item has unsupported non-mumeric item identifier: %s", path);
+		g_message ("item has unsupported non-numeric item identifier: %s", path);
 		return FALSE;
 	}
 
 	return TRUE;
 }
+
+static gchar*
+decode_keyring_item_id (const char *path, guint32* id)
+{
+	const gchar *part;
+	gchar *result;
+	gchar *end;
+
+	g_return_val_if_fail (path, NULL);
+
+	if (!g_str_has_prefix (path, COLLECTION_PREFIX)) {
+		g_message ("response from daemon contained an bad collection path: %s", path);
+		return NULL;
+	}
+
+	path += strlen (COLLECTION_PREFIX);
+
+	part = strrchr (path, '/');
+	if (part == NULL || part[1] == '\0') {
+		g_message ("response from daemon contained a bad item path: %s", path);
+		return FALSE;
+	}
+
+	*id = strtoul (part, &end, 10);
+	if (!end || end[0] != '\0') {
+		g_message ("item has unsupported non-numeric item identifier: %s", path);
+		return FALSE;
+	}
+
+	result = decode_object_identifier (path, (part - 1) - path);
+	if (result == NULL) {
+		g_message ("response from daemon contained an bad collection path: %s", path);
+		return NULL;
+	}
+
+	return result;
+}
+
 
 typedef gboolean (*DecodeCallback) (DBusMessageIter *, gpointer);
 typedef gboolean (*DecodeDictCallback) (const gchar *, DBusMessageIter *, gpointer);
@@ -350,6 +408,84 @@ decode_prompt_completed (DBusMessage* reply, const gchar *signature, DBusMessage
 }
 
 static gboolean
+decode_get_attributes_foreach (DBusMessageIter *iter, gpointer user_data)
+{
+	GHashTable *table = user_data;
+	DBusMessageIter dict;
+	const char *name;
+	const char *value;
+
+	if (!dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_DICT_ENTRY)
+		return FALSE;
+
+	dbus_message_iter_recurse (iter, &dict);
+	if (!dbus_message_iter_get_arg_type (&dict) != DBUS_TYPE_STRING)
+		return FALSE;
+	dbus_message_iter_get_basic (&dict, &name);
+
+	dbus_message_iter_next (&dict);
+	if (!dbus_message_iter_get_arg_type (&dict) != DBUS_TYPE_STRING)
+		return FALSE;
+	dbus_message_iter_get_basic (&dict, &value);
+
+	/* These strings will last as long as the message, so no need to dup */
+	g_return_val_if_fail (name && value, FALSE);
+	g_hash_table_insert (table, (char*)name, (char*)value);
+	return TRUE;
+}
+
+static GnomeKeyringResult
+decode_get_attributes (DBusMessage *reply, GnomeKeyringAttributeList *attrs)
+{
+	GnomeKeyringResult res;
+	GHashTableIter iter;
+	GHashTable *table;
+	const char *name;
+	const char *value;
+	guint32 number;
+	gchar *check, *end;
+	gboolean is_uint32;
+
+	g_assert (reply);
+
+	table = g_hash_table_new (g_str_hash, g_str_equal);
+	res = decode_property_variant_array (reply, decode_get_attributes_foreach, table);
+	if (res == GNOME_KEYRING_RESULT_OK) {
+		g_hash_table_iter_init (&iter, table);
+		while (g_hash_table_iter_next (&iter, (gpointer*)&name, (gpointer*)&value)) {
+			g_assert (name && value);
+
+			/* Hide these gnome-keyring internal attributes */
+			if (g_str_has_prefix (name, "gkr:"))
+				continue;
+
+			/*
+			 * Figure out the attribute type. In the secrets service
+			 * all attributes have string values. The daemon will
+			 * set a special compat attribute to indicate to us
+			 * whether this was a uint32
+			 */
+			check = g_strdup_printf ("gkr:compat:uint32:%s", name);
+			is_uint32 = g_hash_table_lookup (table, check) != NULL;
+			g_free (check);
+
+			if (is_uint32) {
+				number = strtoul (value, &end, 10);
+				if (end && end[0] == '\0')
+					gnome_keyring_attribute_list_append_uint32 (attrs, name, number);
+				else
+					is_uint32 = FALSE;
+			}
+
+			if (!is_uint32)
+				gnome_keyring_attribute_list_append_string (attrs, name, value);
+		}
+	}
+
+	g_hash_table_destroy (table);
+	return res;
+}
+static gboolean
 decode_check_object_paths (DBusMessageIter *iter, const gchar *check)
 {
 	DBusMessageIter array;
@@ -376,6 +512,68 @@ decode_check_object_paths (DBusMessageIter *iter, const gchar *check)
 	}
 
 	return FALSE;
+}
+
+static gboolean
+encode_attribute_list (DBusMessageIter *iter, GnomeKeyringAttributeList *attrs)
+{
+	DBusMessageIter dict, array;
+	GnomeKeyringAttribute *attr;
+	const gchar *string;
+	gchar *value;
+	guint i;
+
+	if (!dbus_message_iter_open_container (iter, DBUS_TYPE_ARRAY, NULL, &array))
+		g_return_val_if_reached (FALSE);
+
+	for (i = 0; i < attrs->len; ++i) {
+		attr = &gnome_keyring_attribute_list_index (attrs, i);
+		if (!dbus_message_iter_open_container (&array, DBUS_TYPE_DICT_ENTRY, NULL, &dict))
+			g_return_val_if_reached (FALSE);
+
+		/* Add in the attribute type */
+		string = attr->name ? attr->name : "";
+		dbus_message_iter_append_basic (&dict, DBUS_TYPE_STRING, &string);
+
+		/* String values */
+		if (attr->type == GNOME_KEYRING_ATTRIBUTE_TYPE_STRING) {
+			string = attr->value.string ? attr->value.string : "";
+			dbus_message_iter_append_basic (&dict, DBUS_TYPE_STRING, &string);
+
+		/* Integer values */
+		} else if (attr->type == GNOME_KEYRING_ATTRIBUTE_TYPE_UINT32) {
+			value = g_strdup_printf ("%u", attr->value.integer);
+			dbus_message_iter_append_basic (&dict, DBUS_TYPE_STRING, &value);
+			g_free (value);
+
+		} else {
+			g_warning ("received invalid attribute type");
+			return FALSE;
+		}
+
+		if (!dbus_message_iter_close_container (&array, &dict))
+			g_return_val_if_reached (FALSE);
+
+		/* Integer values get another compatibility marker */
+		if (attr->type == GNOME_KEYRING_ATTRIBUTE_TYPE_UINT32) {
+			if (!dbus_message_iter_open_container (&array, DBUS_TYPE_DICT_ENTRY, NULL, &dict))
+				g_return_val_if_reached (FALSE);
+
+			value = g_strdup_printf ("gkr:compat:uint32:%s", attr->name);
+			dbus_message_iter_append_basic (&dict, DBUS_TYPE_STRING, &value);
+			g_free (value);
+			string = "";
+			dbus_message_iter_append_basic (&dict, DBUS_TYPE_STRING, &string);
+
+			if (!dbus_message_iter_close_container (&array, &dict))
+				g_return_val_if_reached (FALSE);
+		}
+	}
+
+	if (!dbus_message_iter_close_container (iter, &array))
+		g_return_val_if_reached (FALSE);
+
+	return TRUE;
 }
 
 /**
@@ -1588,28 +1786,309 @@ gnome_keyring_daemon_prepare_environment_sync (void)
 	return GNOME_KEYRING_RESULT_OK;
 }
 
+typedef struct _find_items_args {
+	GList *found;
+	GList *queued;
+	GkrSession *session;
+	GPtrArray *paths;
+} find_items_args;
 
-#if 0
-static gboolean
-find_items_reply (GnomeKeyringOperation *op)
+static void
+find_items_free (gpointer data)
 {
-	GnomeKeyringResult result;
-	GnomeKeyringOperationGetListCallback callback;
-	GList *found_items;
+	find_items_args *args = data;
+	guint i;
 
-	callback = op->user_callback;
+	gnome_keyring_found_list_free (args->queued);
+	gnome_keyring_found_list_free (args->found);
+	gkr_session_unref (args->session);
+	for (i = 0; i < args->paths->len; ++i)
+		g_free (g_ptr_array_index(args->paths, i));
+	g_ptr_array_free (args->paths, TRUE);
 
-	if (!gkr_proto_decode_find_reply (&op->receive_buffer, &result, &found_items)) {
-		(*callback) (GNOME_KEYRING_RESULT_IO_ERROR, NULL, op->user_data);
-	} else {
-		(*callback) (result, found_items, op->user_data);
-		gnome_keyring_found_list_free (found_items);
+	g_slice_free (find_items_args, args);
+}
+
+static void
+find_items_sync (GnomeKeyringResult res, GList *found, gpointer user_data)
+{
+	GList **result = user_data;
+	*result = found;
+}
+
+static gboolean
+find_items_decode_secrets (DBusMessageIter *iter, find_items_args *args)
+{
+	DBusMessageIter array, dict;
+	GnomeKeyringFound *found;
+	const char *path;
+	gchar *keyring;
+	gchar *secret;
+	guint32 item_id;
+	int type;
+
+	if (dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_ARRAY ||
+	    dbus_message_iter_get_element_type (iter) != DBUS_TYPE_STRUCT)
+		return FALSE;
+
+	dbus_message_iter_recurse (iter, &array);
+
+	for (;;) {
+		type = dbus_message_iter_get_arg_type (&array);
+		if (type == DBUS_TYPE_INVALID)
+			break;
+		else if (type != DBUS_TYPE_DICT_ENTRY)
+			return FALSE;
+		dbus_message_iter_recurse (&array, &dict);
+		if (dbus_message_iter_get_arg_type (&dict) != DBUS_TYPE_OBJECT_PATH)
+			return FALSE;
+
+		/* The item path */
+		dbus_message_iter_get_basic (&dict, &path);
+		if (!dbus_message_iter_next (&dict))
+			return FALSE;
+
+		keyring = decode_keyring_item_id (path, &item_id);
+		if (keyring == NULL)
+			return FALSE;
+
+		/* The secret */
+		if (!gkr_session_decode_secret (args->session, &dict, &secret)) {
+			g_free (keyring);
+			return FALSE;
+		}
+
+		found = g_new0 (GnomeKeyringFound, 1);
+		found->item_id = item_id;
+		found->keyring = keyring;
+		found->secret = secret;
+		args->queued = g_list_prepend (args->queued, found);
+
+		dbus_message_iter_next (&array);
 	}
 
-	/* GkrOperation is done */
 	return TRUE;
 }
-#endif
+
+static void
+find_items_6_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
+{
+	GnomeKeyringFound *found;
+	find_items_args *args = data;
+	GnomeKeyringResult res;
+	DBusMessage *req;
+	gchar *path;
+	GkrCallback *cb;
+
+	if (reply != NULL) {
+
+		/* At this point we have a response to GetProperty("Attributes") */
+
+		if (gkr_operation_handle_errors (op, reply))
+			return;
+
+		found = args->queued->data;
+		args->queued = g_list_remove (args->queued, args->queued->data);
+		args->found = g_list_prepend (args->found, found);
+
+		found->attributes = gnome_keyring_attribute_list_new ();
+		res = decode_get_attributes (reply, found->attributes);
+		if (res != GNOME_KEYRING_RESULT_OK) {
+			gkr_operation_complete (op, res);
+			return;
+		}
+	}
+
+	/* Do we have any more items? */
+	if (!args->queued) {
+		cb = gkr_operation_pop (op);
+		gkr_callback_invoke_ok_list (cb, args->found);
+		if (cb->callback == find_items_sync)
+			args->found = NULL;
+		return;
+	}
+
+	/* Next item in the queue */
+	found = args->queued->data;
+	g_assert (found);
+
+	/* Request the next set of attributes */
+	path = encode_keyring_item_id (found->keyring, found->item_id);
+	req = prepare_property_get (path, ITEM_INTERFACE, "Attributes");
+	g_return_if_fail (req);
+	g_free (path);
+
+	gkr_operation_push (op, find_items_6_reply, GKR_CALLBACK_OP_MSG, args, NULL);
+	gkr_operation_request (op, req);
+	dbus_message_unref (req);
+}
+
+static void
+find_items_5_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
+{
+	find_items_args *args = data;
+	DBusMessageIter iter;
+
+	/* At this point we got back all the secrets */
+
+	if (gkr_operation_handle_errors (op, reply))
+		return;
+
+	/* Decode the unlocked secrets received */
+	if (!dbus_message_iter_init (reply, &iter))
+		g_return_if_reached ();
+	if (!find_items_decode_secrets (&iter, args)) {
+		gkr_operation_complete (op, decode_invalid_response (reply));
+		return;
+	}
+
+	/* Start retrieving attributes */
+	find_items_6_reply (op, NULL, args);
+}
+
+static void
+find_items_4_reply (GkrOperation *op, GkrSession *session, gpointer data)
+{
+	find_items_args *args = data;
+	DBusMessage *req;
+	char **paths;
+	int n_paths;
+
+	/* At this point we have a session, and can get secrets */
+
+	g_assert (!args->session);
+
+	paths = (char**)args->paths->pdata;
+	n_paths = args->paths->len;
+
+	/* Retrieve any unlocked secrets */
+	req = prepare_get_secrets (session, paths, n_paths);
+	g_return_if_fail (req);
+
+	gkr_operation_push (op, find_items_5_reply, GKR_CALLBACK_OP_MSG, args, NULL);
+	gkr_operation_request (op, req);
+	dbus_message_unref (req);
+}
+
+static void
+find_items_3_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
+{
+	find_items_args *args = data;
+	DBusMessageIter iter, array;
+	const char *path;
+
+	/* At this point Prompt has Completed, and should contain a list of unlocked items */
+
+	if (gkr_operation_handle_errors (op, reply))
+		return;
+
+	if (!decode_prompt_completed (reply, "ao", &iter))
+		return;
+
+	/* Go through the object paths, and add to our list */
+	g_return_if_fail (dbus_message_iter_get_arg_type (&iter) == DBUS_TYPE_ARRAY);
+	g_return_if_fail (dbus_message_iter_get_element_type (&iter) == DBUS_TYPE_OBJECT_PATH);
+
+	dbus_message_iter_recurse (&iter, &array);
+	while (dbus_message_iter_get_arg_type (&array) == DBUS_TYPE_OBJECT_PATH) {
+		dbus_message_iter_get_basic (&array, &path);
+		g_ptr_array_add (args->paths, g_strdup (path));
+		dbus_message_iter_next (&array);
+	}
+
+	/* Well we're going to be transferring secrets, so need a session */
+	gkr_operation_push (op, find_items_4_reply, GKR_CALLBACK_OP_SESSION, args, NULL);
+	gkr_session_negotiate (op);
+}
+
+static void
+find_items_2_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
+{
+	find_items_args *args = data;
+	const char *prompt;
+	char **unlocked;
+	int n_unlocked, i;
+
+	/* At this point Unlock has returned a list of unlocked items, plus prompt? */
+
+	if (gkr_operation_handle_errors (op, reply))
+		return;
+
+	if (!dbus_message_get_args (reply, NULL, DBUS_TYPE_ARRAY, DBUS_TYPE_OBJECT_PATH, &unlocked, &n_unlocked,
+	                            DBUS_TYPE_OBJECT_PATH, &prompt, DBUS_TYPE_INVALID)) {
+		gkr_operation_complete (op, decode_invalid_response (reply));
+		return;
+	}
+
+	/* These are ready to retrieve */
+	for (i = 0; i < n_unlocked; ++i)
+		g_ptr_array_add (args->paths, g_strdup (unlocked[i]));
+
+	/* Do we have a prompt to display? */
+	if (prompt && !g_str_equal (prompt, "/")) {
+		gkr_operation_push (op, find_items_3_reply, GKR_CALLBACK_OP_MSG, args, NULL);
+		gkr_operation_prompt (op, prompt);
+
+	/* Well we're going to be transferring secrets, so need a session */
+	} else {
+		gkr_operation_push (op, find_items_4_reply, GKR_CALLBACK_OP_SESSION, args, NULL);
+		gkr_session_negotiate (op);
+	}
+
+	dbus_free_string_array (unlocked);
+}
+
+static void
+find_items_1_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
+{
+	find_items_args *args = data;
+	char **unlocked, **locked;
+	int n_unlocked, n_locked, i;
+	DBusMessage *req;
+
+	/* At this point SearchItems has returned two lists of locked/unlocked items */
+
+	if (gkr_operation_handle_errors (op, reply))
+		return;
+
+	if (!dbus_message_get_args (reply, NULL,
+	                            DBUS_TYPE_ARRAY, DBUS_TYPE_OBJECT_PATH, &unlocked, &n_unlocked,
+	                            DBUS_TYPE_ARRAY, DBUS_TYPE_OBJECT_PATH, &locked, &n_locked)) {
+		gkr_operation_complete (op, decode_invalid_response (reply));
+		return;
+	}
+
+	/* Did we find anything? */
+	if (!n_unlocked && !n_locked) {
+		gkr_operation_complete (op, GNOME_KEYRING_RESULT_OK);
+		return;
+	}
+
+	/* These are ready to retrieve */
+	for (i = 0; i < n_unlocked; ++i)
+		g_ptr_array_add (args->paths, g_strdup (unlocked[i]));
+
+	/* Do we have any to unlock? */
+	if (n_locked) {
+		req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
+		                                    SERVICE_INTERFACE, "Unlock");
+		g_return_if_fail (req);
+		if (!dbus_message_append_args (req, DBUS_TYPE_ARRAY, DBUS_TYPE_OBJECT_PATH, &locked, n_locked,
+		                               DBUS_TYPE_INVALID))
+			g_return_if_reached ();
+
+		gkr_operation_push (op, find_items_2_reply, GKR_CALLBACK_OP_MSG, args, NULL);
+		gkr_operation_request (op, req);
+
+	/* Well we're going to be transferring secrets, so need a session */
+	} else {
+		gkr_operation_push (op, find_items_4_reply, GKR_CALLBACK_OP_SESSION, args, NULL);
+		gkr_session_negotiate (op);
+	}
+
+	dbus_free_string_array (locked);
+	dbus_free_string_array (unlocked);
+}
 
 /**
  * SECTION:gnome-keyring-find
@@ -1651,25 +2130,33 @@ gnome_keyring_find_items  (GnomeKeyringItemType                  type,
                            gpointer                              data,
                            GDestroyNotify                        destroy_data)
 {
-#if 0
-	GnomeKeyringOperation *op;
+	DBusMessageIter iter;
+	find_items_args *args;
+	DBusMessage *req;
+	GkrOperation *op;
 
-	/* Use a secure receive buffer */
-	op = gkr_operation_new (TRUE, callback, GKR_CALLBACK_RES_LIST, data, destroy_data);
+	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
+	                                    SERVICE_INTERFACE, "SearchItems");
+	g_return_val_if_fail (req, NULL);
 
-	if (!gkr_proto_encode_find (&op->send_buffer, type, attributes)) {
-		schedule_op_failed (op, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-	}
+	/* Encode the attribute list */
+	dbus_message_iter_init_append (req, &iter);
+	if (!encode_attribute_list (&iter, attributes))
+		g_return_val_if_reached (NULL);
 
-	op->reply_handler = find_items_reply;
-	start_and_take_operation (op);
+	args = g_slice_new0 (find_items_args);
+	args->paths = g_ptr_array_new ();
+
+	op = gkr_operation_new (callback, GKR_CALLBACK_RES_LIST, data, destroy_data);
+	gkr_operation_push (op, find_items_1_reply, GKR_CALLBACK_OP_MSG, args, find_items_free);
+	gkr_operation_request (op, req);
+	gkr_operation_unref (op);
+
+	dbus_message_unref (req);
+
 	return op;
-#endif
-	g_assert (FALSE && "TODO");
-	return NULL;
 }
 
-#if 0
 static GnomeKeyringAttributeList *
 make_attribute_list_va (va_list args)
 {
@@ -1701,7 +2188,6 @@ make_attribute_list_va (va_list args)
 	}
 	return attributes;
 }
-#endif
 
 /**
  * gnome_keyring_find_itemsv:
@@ -1736,33 +2222,14 @@ gnome_keyring_find_itemsv (GnomeKeyringItemType                  type,
                            GDestroyNotify                        destroy_data,
                            ...)
 {
-#if 0
-	GnomeKeyringOperation *op;
 	GnomeKeyringAttributeList *attributes;
 	va_list args;
-
-	/* Use a secure receive buffer */
-	op = gkr_operation_new (TRUE, callback, GKR_CALLBACK_RES_LIST, data, destroy_data);
 
 	va_start (args, destroy_data);
 	attributes = make_attribute_list_va (args);
 	va_end (args);
-	if (attributes == NULL) {
-		schedule_op_failed (op, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-		return op;
-	}
 
-	if (!gkr_proto_encode_find (&op->send_buffer, type, attributes))  {
-		schedule_op_failed (op, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-	}
-	g_array_free (attributes, TRUE);
-
-	op->reply_handler = find_items_reply;
-	start_and_take_operation (op);
-	return op;
-#endif
-	g_assert (FALSE && "TODO");
-	return NULL;
+	return gnome_keyring_find_items (type, attributes, callback, data, destroy_data);
 }
 
 /**
@@ -1791,39 +2258,8 @@ gnome_keyring_find_items_sync (GnomeKeyringItemType        type,
                                GnomeKeyringAttributeList  *attributes,
                                GList                     **found)
 {
-#if 0
-	EggBuffer send, receive;
-	GnomeKeyringResult res;
-
-	egg_buffer_init_full (&send, 128, NORMAL_ALLOCATOR);
-
-	*found = NULL;
-
-	if (!gkr_proto_encode_find (&send, type, attributes)) {
-		egg_buffer_uninit (&send);
-		return GNOME_KEYRING_RESULT_BAD_ARGUMENTS;
-	}
-
-	/* Use a secure receive buffer */
-	egg_buffer_init_full (&receive, 128, SECURE_ALLOCATOR);
-
-	res = run_sync_operation (&send, &receive);
-	egg_buffer_uninit (&send);
-	if (res != GNOME_KEYRING_RESULT_OK) {
-		egg_buffer_uninit (&receive);
-		return res;
-	}
-
-	if (!gkr_proto_decode_find_reply (&receive, &res, found)) {
-		egg_buffer_uninit (&receive);
-		return GNOME_KEYRING_RESULT_IO_ERROR;
-	}
-	egg_buffer_uninit (&receive);
-
-	return res;
-#endif
-	g_assert (FALSE && "TODO");
-	return 0;
+	gpointer op = gnome_keyring_find_items (type, attributes, find_items_sync, found, NULL);
+	return gkr_operation_block (op);
 }
 
 /**
@@ -1857,24 +2293,14 @@ gnome_keyring_find_itemsv_sync  (GnomeKeyringItemType        type,
                                  GList                     **found,
                                  ...)
 {
-#if 0
 	GnomeKeyringAttributeList *attributes;
-	GnomeKeyringResult res;
 	va_list args;
 
 	va_start (args, found);
 	attributes = make_attribute_list_va (args);
 	va_end (args);
-	if (attributes == NULL) {
-		return  GNOME_KEYRING_RESULT_BAD_ARGUMENTS;
-	}
 
-	res = gnome_keyring_find_items_sync (type, attributes, found);
-	g_array_free (attributes, TRUE);
-	return res;
-#endif
-	g_assert (FALSE && "TODO");
-	return 0;
+	return gnome_keyring_find_items_sync (type, attributes, found);
 }
 
 /**
@@ -2569,85 +2995,6 @@ gnome_keyring_item_set_info_sync (const char           *keyring,
 	return gkr_operation_block (op);
 }
 
-static gboolean
-item_get_attributes_foreach (DBusMessageIter *iter, gpointer user_data)
-{
-	GHashTable *table = user_data;
-	DBusMessageIter dict;
-	const char *name;
-	const char *value;
-
-	if (!dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_DICT_ENTRY)
-		return FALSE;
-
-	dbus_message_iter_recurse (iter, &dict);
-	if (!dbus_message_iter_get_arg_type (&dict) != DBUS_TYPE_STRING)
-		return FALSE;
-	dbus_message_iter_get_basic (&dict, &name);
-
-	dbus_message_iter_next (&dict);
-	if (!dbus_message_iter_get_arg_type (&dict) != DBUS_TYPE_STRING)
-		return FALSE;
-	dbus_message_iter_get_basic (&dict, &value);
-
-	/* These strings will last as long as the message, so no need to dup */
-	g_return_val_if_fail (name && value, FALSE);
-	g_hash_table_insert (table, (char*)name, (char*)value);
-	return TRUE;
-}
-
-static GnomeKeyringResult
-item_get_attributes_decode (DBusMessage *reply, GnomeKeyringAttributeList *attrs)
-{
-	GnomeKeyringResult res;
-	GHashTableIter iter;
-	GHashTable *table;
-	const char *name;
-	const char *value;
-	guint32 number;
-	gchar *check, *end;
-	gboolean is_uint32;
-
-	g_assert (reply);
-
-	table = g_hash_table_new (g_str_hash, g_str_equal);
-	res = decode_property_variant_array (reply, item_get_attributes_foreach, table);
-	if (res == GNOME_KEYRING_RESULT_OK) {
-		g_hash_table_iter_init (&iter, table);
-		while (g_hash_table_iter_next (&iter, (gpointer*)&name, (gpointer*)&value)) {
-			g_assert (name && value);
-
-			/* Hide these gnome-keyring internal attributes */
-			if (g_str_has_prefix (name, "gkr:"))
-				continue;
-
-			/*
-			 * Figure out the attribute type. In the secrets service
-			 * all attributes have string values. The daemon will
-			 * set a special compat attribute to indicate to us
-			 * whether this was a uint32
-			 */
-			check = g_strdup_printf ("gkr:compat:uint32:%s", name);
-			is_uint32 = g_hash_table_lookup (table, check) != NULL;
-			g_free (check);
-
-			if (is_uint32) {
-				number = strtoul (value, &end, 10);
-				if (end && end[0] == '\0')
-					gnome_keyring_attribute_list_append_uint32 (attrs, name, number);
-				else
-					is_uint32 = FALSE;
-			}
-
-			if (!is_uint32)
-				gnome_keyring_attribute_list_append_string (attrs, name, value);
-		}
-	}
-
-	g_hash_table_destroy (table);
-	return res;
-}
-
 static void
 item_get_attributes_sync (GnomeKeyringResult res, GnomeKeyringAttributeList *attrs, gpointer user_data)
 {
@@ -2666,7 +3013,7 @@ item_get_attributes_reply (GkrOperation *op, DBusMessage *reply, gpointer user_d
 		return;
 
 	attrs = gnome_keyring_attribute_list_new ();
-	res = item_get_attributes_decode (reply, attrs);
+	res = decode_get_attributes (reply, attrs);
 	if (res == GNOME_KEYRING_RESULT_OK) {
 		cb = gkr_operation_pop (op);
 		gkr_callback_invoke_ok_attributes (cb, attrs);
@@ -2749,72 +3096,33 @@ gnome_keyring_item_get_attributes_sync (const char                 *keyring,
 	return gkr_operation_block (op);
 }
 
-static gboolean
-item_set_attributes_encode (DBusMessage *req, GnomeKeyringAttributeList *attrs)
+static DBusMessage*
+item_set_attributes_prepare (const gchar *path, GnomeKeyringAttributeList *attrs)
 {
-	DBusMessageIter iter, variant, dict, array;
-	GnomeKeyringAttribute *attr;
+	DBusMessageIter iter, variant;
+	DBusMessage *req;
 	const gchar *string;
-	gchar *value;
-	guint i;
+
+	req = dbus_message_new_method_call (SECRETS_SERVICE, path,
+	                                    DBUS_INTERFACE_PROPERTIES, "Set");
+	g_return_val_if_fail (req, NULL);
 
 	if (!dbus_message_iter_init (req, &iter))
-		g_return_val_if_reached (FALSE);
+		g_return_val_if_reached (NULL);
 	string = "Attributes";
 	dbus_message_iter_append_basic (&iter, DBUS_TYPE_STRING, &string);
-	if (!dbus_message_iter_open_container (&iter, DBUS_TYPE_VARIANT, "a{ss}", &variant) ||
-	    !dbus_message_iter_open_container (&variant, DBUS_TYPE_ARRAY, NULL, &array))
-		g_return_val_if_reached (FALSE);
+	if (!dbus_message_iter_open_container (&iter, DBUS_TYPE_VARIANT, "a{ss}", &variant))
+		g_return_val_if_reached (NULL);
 
-	for (i = 0; i < attrs->len; ++i) {
-		attr = &gnome_keyring_attribute_list_index (attrs, i);
-		if (!dbus_message_iter_open_container (&array, DBUS_TYPE_DICT_ENTRY, NULL, &dict))
-			g_return_val_if_reached (FALSE);
-
-		/* Add in the attribute type */
-		string = attr->name ? attr->name : "";
-		dbus_message_iter_append_basic (&dict, DBUS_TYPE_STRING, &string);
-
-		/* String values */
-		if (attr->type == GNOME_KEYRING_ATTRIBUTE_TYPE_STRING) {
-			string = attr->value.string ? attr->value.string : "";
-			dbus_message_iter_append_basic (&dict, DBUS_TYPE_STRING, &string);
-
-		/* Integer values */
-		} else if (attr->type == GNOME_KEYRING_ATTRIBUTE_TYPE_UINT32) {
-			value = g_strdup_printf ("%u", attr->value.integer);
-			dbus_message_iter_append_basic (&dict, DBUS_TYPE_STRING, &value);
-			g_free (value);
-
-		} else {
-			g_warning ("received invalid attribute type");
-			return FALSE;
-		}
-
-		if (!dbus_message_iter_close_container (&array, &dict))
-			g_return_val_if_reached (FALSE);
-
-		/* Integer values get another compatibility marker */
-		if (attr->type == GNOME_KEYRING_ATTRIBUTE_TYPE_UINT32) {
-			if (!dbus_message_iter_open_container (&array, DBUS_TYPE_DICT_ENTRY, NULL, &dict))
-				g_return_val_if_reached (FALSE);
-
-			value = g_strdup_printf ("gkr:compat:uint32:%s", attr->name);
-			dbus_message_iter_append_basic (&dict, DBUS_TYPE_STRING, &value);
-			g_free (value);
-			string = "";
-			dbus_message_iter_append_basic (&dict, DBUS_TYPE_STRING, &string);
-
-			if (!dbus_message_iter_close_container (&array, &dict))
-				g_return_val_if_reached (FALSE);
-		}
+	if (!encode_attribute_list (&variant, attrs)) {
+		dbus_message_unref (req);
+		return FALSE;
 	}
 
-	if (!dbus_message_iter_close_container (&variant, &array) ||
-	    !dbus_message_iter_close_container (&iter, &variant))
-		g_return_val_if_reached (FALSE);
+	if (!dbus_message_iter_close_container (&iter, &variant))
+		g_return_val_if_reached (NULL);
 
-	return TRUE;
+	return req;
 }
 
 /**
@@ -2849,14 +3157,10 @@ gnome_keyring_item_set_attributes (const char                                 *k
 	g_return_val_if_fail (path, NULL);
 
 	/* First set the label */
-	req = dbus_message_new_method_call (SECRETS_SERVICE, path,
-					    DBUS_INTERFACE_PROPERTIES, "Set");
+	req = item_set_attributes_prepare (path, attributes);
 	g_return_val_if_fail (req, NULL);
 
 	g_free (path);
-
-	if (!item_set_attributes_encode (req, attributes))
-		g_return_val_if_reached (NULL);
 
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
 	gkr_operation_request (op, req);
