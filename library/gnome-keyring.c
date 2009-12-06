@@ -731,21 +731,32 @@ gnome_keyring_set_default_keyring (const gchar                             *keyr
                                    gpointer                                data,
                                    GDestroyNotify                          destroy_data)
 {
-#if 0
-	GnomeKeyringOperation *op;
+	DBusMessage *req;
+	const char *string;
+	GkrOperation *op;
+	gchar *path;
 
-	op = gkr_operation_new (FALSE, callback, GKR_CALLBACK_RES, data, destroy_data);
-	if (!gkr_proto_encode_op_string (&op->send_buffer, GNOME_KEYRING_OP_SET_DEFAULT_KEYRING,
-	                                 keyring)) {
-		schedule_op_failed (op, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-	}
+	g_return_val_if_fail (keyring, NULL);
 
-	op->reply_handler = standard_reply;
-	start_and_take_operation (op);
+	path = encode_keyring_name (keyring);
+	g_return_val_if_fail (path, NULL);
+
+	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
+	                                    SERVICE_INTERFACE, "SetWellKnownCollection");
+	g_return_val_if_fail (req, NULL);
+
+	string = "default";
+	dbus_message_append_args (req, DBUS_TYPE_STRING, &string,
+	                          DBUS_TYPE_STRING, &path, DBUS_TYPE_INVALID);
+
+	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
+	gkr_operation_request (op, req);
+	gkr_operation_unref (op);
+
+	dbus_message_unref (req);
+	g_free (path);
+
 	return op;
-#endif
-	g_assert (FALSE && "TODO");
-	return NULL;
 }
 
 /**
@@ -762,36 +773,43 @@ gnome_keyring_set_default_keyring (const gchar                             *keyr
 GnomeKeyringResult
 gnome_keyring_set_default_keyring_sync (const char *keyring)
 {
-#if 0
-	EggBuffer send, receive;
-	GnomeKeyringResult res;
+	GkrOperation *op = gnome_keyring_set_default_keyring (keyring, gkr_callback_empty, NULL, NULL);
+	return gkr_operation_block (op);
+}
 
-	egg_buffer_init_full (&send, 128, NORMAL_ALLOCATOR);
+static void
+get_default_keyring_sync (GnomeKeyringResult res, const gchar *name, gpointer user_data)
+{
+	gchar **result = user_data;
+	*result = (gchar*)name;
+}
 
-	if (!gkr_proto_encode_op_string (&send, GNOME_KEYRING_OP_SET_DEFAULT_KEYRING,
-	                                 keyring)) {
-		egg_buffer_uninit (&send);
-		return GNOME_KEYRING_RESULT_BAD_ARGUMENTS;
+static void
+get_default_keyring_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data)
+{
+	GkrCallback *cb;
+	const char *path;
+	gchar *name;
+
+	if (!gkr_operation_handle_errors (op, reply))
+		return;
+
+	if (!dbus_message_get_args (reply, NULL, DBUS_TYPE_OBJECT_PATH, &path,
+	                            DBUS_TYPE_INVALID)) {
+		gkr_operation_complete (op, decode_invalid_response (reply));
+		return;
 	}
 
-	egg_buffer_init_full (&receive, 128, NORMAL_ALLOCATOR);
-	res = run_sync_operation (&send, &receive);
-	egg_buffer_uninit (&send);
-	if (res != GNOME_KEYRING_RESULT_OK) {
-		egg_buffer_uninit (&receive);
-		return res;
+	name = decode_keyring_name (path);
+	if (name == NULL) {
+		gkr_operation_complete (op, decode_invalid_response (reply));
+		return;
 	}
 
-	if (!gkr_proto_decode_result_reply (&receive, &res)) {
-		egg_buffer_uninit (&receive);
-		return GNOME_KEYRING_RESULT_IO_ERROR;
-	}
-	egg_buffer_uninit (&receive);
-
-	return res;
-#endif
-	g_assert (FALSE && "TODO");
-	return 0;
+	cb = gkr_operation_pop (op);
+	gkr_callback_invoke_ok_string (cb, name);
+	if (cb->callback != get_default_keyring_sync)
+		g_free (name);
 }
 
 /**
@@ -813,20 +831,25 @@ gnome_keyring_get_default_keyring (GnomeKeyringOperationGetStringCallback  callb
                                    gpointer                                data,
                                    GDestroyNotify                          destroy_data)
 {
-#if 0
-	GnomeKeyringOperation *op;
+	DBusMessage *req;
+	const char *string;
+	GkrOperation *op;
 
-	op = gkr_operation_new (FALSE, callback, GKR_CALLBACK_RES_STRING, data, destroy_data);
-	if (!gkr_proto_encode_op_only (&op->send_buffer, GNOME_KEYRING_OP_GET_DEFAULT_KEYRING)) {
-		schedule_op_failed (op, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-	}
+	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
+	                                    SERVICE_INTERFACE, "SetWellKnownCollection");
+	g_return_val_if_fail (req, NULL);
 
-	op->reply_handler = string_reply;
-	start_and_take_operation (op);
+	string = "default";
+	dbus_message_append_args (req, DBUS_TYPE_STRING, &string, DBUS_TYPE_INVALID);
+
+	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
+	gkr_operation_push (op, get_default_keyring_reply, GKR_CALLBACK_OP_MSG, NULL, NULL);
+	gkr_operation_request (op, req);
+	gkr_operation_unref (op);
+
+	dbus_message_unref (req);
+
 	return op;
-#endif
-	g_assert (FALSE && "TODO");
-	return NULL;
 }
 
 /**
@@ -845,38 +868,8 @@ gnome_keyring_get_default_keyring (GnomeKeyringOperationGetStringCallback  callb
 GnomeKeyringResult
 gnome_keyring_get_default_keyring_sync (char **keyring)
 {
-#if 0
-	EggBuffer send, receive;
-	GnomeKeyringResult res;
-
-	egg_buffer_init_full (&send, 128, NORMAL_ALLOCATOR);
-
-	*keyring = NULL;
-
-	if (!gkr_proto_encode_op_only (&send, GNOME_KEYRING_OP_GET_DEFAULT_KEYRING)) {
-		egg_buffer_uninit (&send);
-		return GNOME_KEYRING_RESULT_BAD_ARGUMENTS;
-	}
-
-	egg_buffer_init_full (&receive, 128, NORMAL_ALLOCATOR);
-
-	res = run_sync_operation (&send, &receive);
-	egg_buffer_uninit (&send);
-	if (res != GNOME_KEYRING_RESULT_OK) {
-		egg_buffer_uninit (&receive);
-		return res;
-	}
-
-	if (!gkr_proto_decode_result_string_reply (&receive, &res, keyring)) {
-		egg_buffer_uninit (&receive);
-		return GNOME_KEYRING_RESULT_IO_ERROR;
-	}
-	egg_buffer_uninit (&receive);
-
-	return res;
-#endif
-	g_assert (FALSE && "TODO");
-	return 0;
+	GkrOperation *op = gnome_keyring_get_default_keyring (get_default_keyring_sync, keyring, NULL);
+	return gkr_operation_block (op);
 }
 
 static void
@@ -4152,33 +4145,6 @@ gnome_keyring_store_password_sync (const GnomeKeyringPasswordSchema* schema, con
 	g_array_free (attributes, TRUE);
 	return res;
 }
-
-#if 0
-static gboolean
-find_password_reply (GnomeKeyringOperation *op)
-{
-	GnomeKeyringResult result;
-	GnomeKeyringOperationGetStringCallback callback;
-	GList *found_items;
-	const gchar *password;
-
-	g_assert (op->user_callback_type == GKR_CALLBACK_RES_STRING);
-	callback = op->user_callback;
-
-	if (!gkr_proto_decode_find_reply (&op->receive_buffer, &result, &found_items)) {
-		(*callback) (GNOME_KEYRING_RESULT_IO_ERROR, NULL, op->user_data);
-	} else {
-		password = NULL;
-		if (found_items)
-			password = ((GnomeKeyringFound*)(found_items->data))->secret;
-		(*callback) (result, password, op->user_data);
-		gnome_keyring_found_list_free (found_items);
-	}
-
-	/* GkrOperation is done */
-	return TRUE;
-}
-#endif
 
 static gboolean
 find_unlocked_first (const char *path, gpointer user_data)
