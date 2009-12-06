@@ -52,6 +52,10 @@ GkrCallback*        gkr_operation_push              (GkrOperation *op,
                                                      gpointer user_data,
                                                      GDestroyNotify destroy_func);
 
+GkrCallback*        gkr_operation_filter            (GkrOperation *op,
+                                                     gpointer callback,
+                                                     GkrCallbackType callback_type);
+
 GkrCallback*        gkr_operation_pop               (GkrOperation *op);
 
 void                gkr_operation_complete          (GkrOperation *op,
