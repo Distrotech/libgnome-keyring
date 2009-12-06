@@ -36,6 +36,7 @@ typedef struct _GkrSession GkrSession;
 typedef enum {
 	GKR_CALLBACK_OP_MSG = 1,
 	GKR_CALLBACK_OP_SESSION,
+	GKR_CALLBACK_OP_STRING,
 	GKR_CALLBACK_RES,
 	GKR_CALLBACK_RES_STRING,
 	GKR_CALLBACK_RES_UINT,
@@ -69,6 +70,9 @@ void         gkr_callback_invoke_op_msg           (GkrCallback *cb,
 
 void         gkr_callback_invoke_op_session       (GkrCallback *cb,
                                                    GkrSession *session);
+
+void         gkr_callback_invoke_op_string        (GkrCallback *cb,
+                                                   const gchar *value);
 
 void         gkr_callback_invoke_res              (GkrCallback *cb,
                                                    GnomeKeyringResult res);

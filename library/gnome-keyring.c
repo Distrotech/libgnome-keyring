@@ -101,6 +101,26 @@ prepare_property_getall (const gchar *path, const gchar *interface)
 }
 
 static DBusMessage*
+prepare_get_secret (GkrSession *session, const char *path)
+{
+	DBusMessage *req;
+	const gchar *spath;
+
+	g_assert (session);
+	g_assert (path);
+
+	req = dbus_message_new_method_call (SECRETS_SERVICE, path,
+	                                    ITEM_INTERFACE, "GetSecret");
+	g_return_val_if_fail (req, NULL);
+
+	spath = gkr_session_get_path (session);
+	if (!dbus_message_append_args (req, DBUS_TYPE_OBJECT_PATH, &spath, DBUS_TYPE_INVALID))
+		g_return_val_if_reached (NULL);
+
+	return req;
+}
+
+static DBusMessage*
 prepare_get_secrets (GkrSession *session, char **paths, int n_paths)
 {
 	DBusMessage *req;
@@ -131,6 +151,18 @@ prepare_xlock (const char *action, char **objects, int n_objects)
 
 	dbus_message_append_args (req, DBUS_TYPE_ARRAY, DBUS_TYPE_OBJECT_PATH, &objects, n_objects,
 	                          DBUS_TYPE_INVALID);
+
+	return req;
+}
+
+static DBusMessage*
+prepare_delete (const char *path)
+{
+	DBusMessage *req;
+
+	req = dbus_message_new_method_call (SECRETS_SERVICE, path,
+	                                    COLLECTION_INTERFACE, "Delete");
+	g_return_val_if_fail (req, NULL);
 
 	return req;
 }
@@ -3540,13 +3572,17 @@ find_network_password_sync (GnomeKeyringResult res, GList *list, gpointer user_d
 static void
 find_network_password_filter (GnomeKeyringResult res, GList *found_list, gpointer user_data)
 {
-	GkrOperation *op = user_data;
+	GkrCallback *cb = user_data;
 	GnomeKeyringNetworkPasswordData *data;
 	GnomeKeyringFound *found;
 	GnomeKeyringAttribute *attributes;
 	GList *result, *l;
-	GkrCallback *cb;
 	int i;
+
+	if (res != GNOME_KEYRING_RESULT_OK) {
+		gkr_callback_invoke_res (cb, res);
+		return;
+	}
 
 	result = NULL;
 	for (l = found_list; l != NULL; l = l->next) {
@@ -3589,7 +3625,6 @@ find_network_password_filter (GnomeKeyringResult res, GList *found_list, gpointe
 	}
 
 	result = g_list_reverse (result);
-	cb = gkr_operation_pop (op);
 	gkr_callback_invoke_ok_list (cb, result);
 	if (cb->callback != find_network_password_sync)
 		gnome_keyring_network_password_list_free (result);
@@ -3664,13 +3699,14 @@ gnome_keyring_find_network_password      (const char                            
 {
 	GnomeKeyringAttributeList *attributes;
 	GkrOperation *op;
+	GkrCallback *cb;
 
 	attributes = make_attribute_list_for_network_password (user, domain, server, object,
 	                                                       protocol, authtype, port);
 
+	cb = gkr_callback_new (NULL, callback, GKR_CALLBACK_RES_LIST, user_data, destroy_data);
 	op = gnome_keyring_find_items (GNOME_KEYRING_ITEM_NETWORK_PASSWORD, attributes,
-	                               callback, user_data, destroy_data);
-	gkr_operation_filter (op, find_network_password_filter, GKR_CALLBACK_RES_LIST);
+	                               find_network_password_filter, cb, gkr_callback_free);
 	gnome_keyring_attribute_list_free (attributes);
 
 	return op;
@@ -3953,7 +3989,6 @@ const GnomeKeyringPasswordSchema *GNOME_KEYRING_NETWORK_PASSWORD = &network_pass
  * </para>
  **/
 
-#if 0
 static GnomeKeyringAttributeList*
 schema_attribute_list_va (const GnomeKeyringPasswordSchema *schema, va_list args)
 {
@@ -4006,7 +4041,13 @@ schema_attribute_list_va (const GnomeKeyringPasswordSchema *schema, va_list args
 
 	return attributes;
 }
-#endif
+
+static void
+store_password_filter (GnomeKeyringResult res, guint32 item_id, gpointer user_data)
+{
+	GkrCallback *cb = user_data;
+	gkr_callback_invoke_res (cb, res);
+}
 
 /**
  * gnome_keyring_store_password:
@@ -4042,30 +4083,21 @@ gnome_keyring_store_password (const GnomeKeyringPasswordSchema* schema, const gc
                               GnomeKeyringOperationDoneCallback callback,
                               gpointer data, GDestroyNotify destroy_data, ...)
 {
-#if 0
 	GnomeKeyringAttributeList *attributes;
-	GnomeKeyringOperation *op;
+	GkrOperation *op;
+	GkrCallback *cb;
 	va_list args;
 
 	va_start (args, destroy_data);
 	attributes = schema_attribute_list_va (schema, args);
 	va_end (args);
 
-	op = gkr_operation_new (FALSE, callback, GKR_CALLBACK_RES, data, destroy_data);
+	cb = gkr_callback_new (NULL, callback, GKR_CALLBACK_RES, data, destroy_data);
+	op = gnome_keyring_item_create (keyring, schema->item_type, display_name, attributes,
+	                                password, TRUE, store_password_filter, cb, gkr_callback_free);
 
-	/* Automatically secures buffer */
-	if (!attributes || !attributes->len ||
-	    !gkr_proto_encode_create_item (&op->send_buffer, keyring, display_name,
-	                                   attributes, password, schema->item_type, TRUE))
-		schedule_op_failed (op, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-
-	op->reply_handler = standard_reply;
-	g_array_free (attributes, TRUE);
-	start_and_take_operation (op);
+	gnome_keyring_attribute_list_free (attributes);
 	return op;
-#endif
-	g_assert (FALSE && "TODO");
-	return NULL;
 }
 
 /**
@@ -4102,7 +4134,6 @@ GnomeKeyringResult
 gnome_keyring_store_password_sync (const GnomeKeyringPasswordSchema* schema, const gchar *keyring,
                                    const gchar *display_name, const gchar *password, ...)
 {
-#if 0
 	GnomeKeyringAttributeList *attributes;
 	GnomeKeyringResult res;
 	guint32 item_id;
@@ -4120,9 +4151,6 @@ gnome_keyring_store_password_sync (const GnomeKeyringPasswordSchema* schema, con
 
 	g_array_free (attributes, TRUE);
 	return res;
-#endif
-	g_assert (FALSE && "TODO");
-	return 0;
 }
 
 #if 0
@@ -4151,6 +4179,188 @@ find_password_reply (GnomeKeyringOperation *op)
 	return TRUE;
 }
 #endif
+
+static gboolean
+find_unlocked_first (const char *path, gpointer user_data)
+{
+	const char **result = user_data;
+	*result = path;
+	return FALSE;
+}
+
+static void
+find_unlocked_3_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
+{
+	gboolean dismissed;
+	const char *item = NULL;
+
+	/* At this point Prompt has Completed, and should contain a list of unlocked items */
+
+	if (gkr_operation_handle_errors (op, reply))
+		return;
+
+	if (!decode_xlock_completed (reply, &dismissed, find_unlocked_first, &item)) {
+		gkr_operation_complete (op, decode_invalid_response (reply));
+		return;
+	}
+
+	gkr_callback_invoke_ok_string (gkr_operation_pop (op), item);
+}
+
+static void
+find_unlocked_2_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
+{
+	const char *prompt;
+	const char *item = NULL;
+
+	/* At this point Unlock has returned a list of unlocked items, plus prompt? */
+
+	if (gkr_operation_handle_errors (op, reply))
+		return;
+
+	if (!decode_xlock_reply (reply, &prompt, find_unlocked_first, &item)) {
+		gkr_operation_complete (op, decode_invalid_response (reply));
+		return;
+	}
+
+	/* Need to show prompt to find an unlocked item */
+	if (!item && !g_str_equal (prompt, "/")) {
+		gkr_operation_push (op, find_unlocked_3_reply, GKR_CALLBACK_OP_MSG, NULL, NULL);
+		gkr_operation_prompt (op, prompt);
+		return;
+	}
+
+	gkr_callback_invoke_ok_string (gkr_operation_pop (op), item);
+}
+
+static void
+find_unlocked_1_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
+{
+	char **unlocked, **locked;
+	int n_unlocked, n_locked;
+	DBusMessage *req;
+
+	/* At this point SearchItems has returned two lists of locked/unlocked items */
+
+	if (gkr_operation_handle_errors (op, reply))
+		return;
+
+	if (!dbus_message_get_args (reply, NULL,
+	                            DBUS_TYPE_ARRAY, DBUS_TYPE_OBJECT_PATH, &unlocked, &n_unlocked,
+	                            DBUS_TYPE_ARRAY, DBUS_TYPE_OBJECT_PATH, &locked, &n_locked)) {
+		gkr_operation_complete (op, decode_invalid_response (reply));
+		return;
+	}
+
+	/* Do we have an unlocked item? */
+	if (n_unlocked) {
+		gkr_callback_invoke_ok_string (gkr_operation_pop (op), unlocked[0]);
+
+	/* Do we have any to unlock? */
+	} else if (n_locked) {
+		req = prepare_xlock ("Unlock", locked, n_locked);
+		g_return_if_fail (req);
+		gkr_operation_push (op, find_unlocked_2_reply, GKR_CALLBACK_OP_MSG, NULL, NULL);
+		gkr_operation_request (op, req);
+
+	/* No passwords at all, complete */
+	} else {
+		gkr_callback_invoke_ok_string (gkr_operation_pop (op), NULL);
+	}
+
+	dbus_free_string_array (locked);
+	dbus_free_string_array (unlocked);
+}
+
+static void
+find_unlocked (GkrOperation *op, GnomeKeyringAttributeList *attributes)
+{
+	DBusMessageIter iter;
+	DBusMessage *req;
+
+	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
+	                                    SERVICE_INTERFACE, "SearchItems");
+	g_return_if_fail (req);
+
+	/* Encode the attribute list */
+	dbus_message_iter_init_append (req, &iter);
+	encode_attribute_list (&iter, attributes);
+
+	gkr_operation_push (op, find_unlocked_1_reply, GKR_CALLBACK_OP_MSG, NULL, NULL);
+	gkr_operation_request (op, req);
+	dbus_message_unref (req);
+}
+
+static void
+find_password_sync (GnomeKeyringResult res, const gchar *secret, gpointer user_data)
+{
+	gchar **result = user_data;
+	*result = (gchar*)secret;
+}
+
+static void
+find_password_3_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data)
+{
+	GkrSession *session = user_data;
+	DBusMessageIter iter;
+	GkrCallback *cb;
+	gchar *secret;
+
+	if (!gkr_operation_handle_errors (op, reply))
+		return;
+
+	if (!dbus_message_iter_init (reply, &iter) ||
+	    !gkr_session_decode_secret (session, &iter, &secret)) {
+		gkr_operation_complete (op, decode_invalid_response (reply));
+		return;
+	}
+
+	cb = gkr_operation_pop (op);
+	gkr_callback_invoke_ok_string (cb, secret);
+	if (cb->callback != find_password_sync)
+		egg_secure_strfree (secret);
+}
+
+static void
+find_password_2_reply (GkrOperation *op, GkrSession *session, gpointer user_data)
+{
+	gchar *path = user_data;
+	DBusMessage *req;
+
+	req = prepare_get_secret (session, path);
+	g_return_if_fail (req);
+
+	gkr_operation_push (op, find_password_3_reply, GKR_CALLBACK_OP_MSG,
+	                    gkr_session_ref (session), gkr_session_unref);
+	gkr_operation_request (op, req);
+	dbus_message_unref (req);
+}
+
+static void
+find_password_1_reply (GkrOperation *op, const char *path, gpointer user_data)
+{
+	/* We need a session to get the secret for this item */
+	gkr_operation_push (op, find_password_2_reply, GKR_CALLBACK_OP_SESSION,
+	                    g_strdup (path), g_free);
+	gkr_session_negotiate (op);
+}
+
+static GkrOperation*
+find_password_va (const GnomeKeyringPasswordSchema* schema, va_list va,
+                  GnomeKeyringOperationGetStringCallback callback,
+                  gpointer data, GDestroyNotify destroy_data)
+{
+	GnomeKeyringAttributeList *attributes;
+	GkrOperation *op;
+
+	attributes = schema_attribute_list_va (schema, va);
+
+	op = gkr_operation_new (callback, GKR_CALLBACK_RES_STRING, data, destroy_data);
+	gkr_operation_push (op, find_password_1_reply, GKR_CALLBACK_OP_STRING, NULL, NULL);
+	find_unlocked (op, attributes);
+	gkr_operation_unref (op);
+	return op;
+}
 
 /**
  * gnome_keyring_find_password:
@@ -4182,29 +4392,14 @@ gnome_keyring_find_password (const GnomeKeyringPasswordSchema* schema,
                              GnomeKeyringOperationGetStringCallback callback,
                              gpointer data, GDestroyNotify destroy_data, ...)
 {
-#if 0
-	GnomeKeyringOperation *op;
-	GnomeKeyringAttributeList *attributes;
-	va_list args;
+	GkrOperation *op;
+	va_list va;
 
-	op = gkr_operation_new (TRUE, callback, GKR_CALLBACK_RES_STRING, data, destroy_data);
+	va_start (va, destroy_data);
+	op = find_password_va (schema, va, callback, data, destroy_data);
+	va_end (va);
 
-	va_start (args, destroy_data);
-	attributes = schema_attribute_list_va (schema, args);
-	va_end (args);
-
-	if (!attributes || !attributes->len ||
-	    !gkr_proto_encode_find (&op->send_buffer, schema->item_type, attributes))
-		schedule_op_failed (op, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-
-	g_array_free (attributes, TRUE);
-
-	op->reply_handler = find_password_reply;
-	start_and_take_operation (op);
 	return op;
-#endif
-	g_assert (FALSE && "TODO");
-	return NULL;
 }
 
 /**
@@ -4235,137 +4430,44 @@ gnome_keyring_find_password (const GnomeKeyringPasswordSchema* schema,
 GnomeKeyringResult
 gnome_keyring_find_password_sync(const GnomeKeyringPasswordSchema* schema, gchar **password, ...)
 {
-#if 0
-	GnomeKeyringAttributeList *attributes;
-	GnomeKeyringResult res;
-	GnomeKeyringFound *f;
-	GList* found = NULL;
-	va_list args;
+	GkrOperation *op;
+	va_list va;
 
-	va_start (args, password);
-	attributes = schema_attribute_list_va (schema, args);
-	va_end (args);
+	va_start (va, password);
+	op = find_password_va (schema, va, find_password_sync, password, NULL);
+	va_end (va);
 
-	if (!attributes || !attributes->len)
-		res = GNOME_KEYRING_RESULT_BAD_ARGUMENTS;
-	else
-		res = gnome_keyring_find_items_sync (schema->item_type, attributes, &found);
-
-	g_array_free (attributes, TRUE);
-
-	if (password && res == GNOME_KEYRING_RESULT_OK) {
-		*password = NULL;
-		if (g_list_length (found) > 0) {
-			f = (GnomeKeyringFound*)(found->data);
-			*password = f->secret;
-			f->secret = NULL;
-		}
-	}
-
-	gnome_keyring_found_list_free (found);
-	return res;
-#endif
-	g_assert (FALSE && "TODO");
-	return 0;
+	return gkr_operation_block (op);
 }
-
-#if 0
-typedef struct _DeletePassword {
-	GList *found;
-	GList *at;
-	guint non_session;
-	guint deleted;
-} DeletePassword;
 
 static void
-delete_password_destroy (gpointer data)
+delete_password_reply (GkrOperation *op, const char *path, gpointer user_data)
 {
-	DeletePassword *dp = (DeletePassword*)data;
-	gnome_keyring_found_list_free (dp->found);
-	g_free (dp);
+	DBusMessage *req;
+
+	req = prepare_delete (path);
+	g_return_if_fail (req);
+
+	gkr_operation_request (op, req);
+	dbus_message_unref (req);
 }
 
-static gboolean
-delete_password_reply (GnomeKeyringOperation *op)
+static GkrOperation*
+delete_password_va (const GnomeKeyringPasswordSchema* schema, va_list va,
+                    GnomeKeyringOperationDoneCallback callback,
+                    gpointer data, GDestroyNotify destroy_data)
 {
-	GnomeKeyringResult result;
-	GnomeKeyringOperationDoneCallback callback;
-	GnomeKeyringFound *f;
-	DeletePassword *dp;
+	GnomeKeyringAttributeList *attributes;
+	GkrOperation *op;
 
-	g_assert (op->user_callback_type == GKR_CALLBACK_RES);
-	callback = op->user_callback;
+	attributes = schema_attribute_list_va (schema, va);
 
-	dp = op->reply_data;
-	g_assert (dp);
-
-	/* The result of the find */
-	if (!dp->found) {
-		if (!gkr_proto_decode_find_reply (&op->receive_buffer, &result, &dp->found))
-			result = GNOME_KEYRING_RESULT_IO_ERROR;
-
-		/* On the first item */
-		dp->at = dp->found;
-
-	/* The result of a delete */
-	} else {
-		if (!gkr_proto_decode_find_reply (&op->receive_buffer, &result, &dp->found))
-			result = GNOME_KEYRING_RESULT_IO_ERROR;
-
-		++dp->deleted;
-	}
-
-	/* Stop on any failure */
-	if (result != GNOME_KEYRING_RESULT_OK) {
-		(*callback) (result, op->user_data);
-		return TRUE; /* GkrOperation is done */
-	}
-
-	/* Iterate over list and find next item to delete */
-	while (dp->at) {
-		f = (GnomeKeyringFound*)(dp->at->data);
-		dp->at = g_list_next (dp->at);
-
-		/* If not an item in the session keyring ... */
-		if (!f->keyring || strcmp (f->keyring, GNOME_KEYRING_SESSION) != 0) {
-
-			++dp->non_session;
-
-			/* ... then we only delete one of those */
-			if (dp->non_session > 1)
-				continue;
-		}
-
-		/* Reset the operation into a delete */
-		start_and_take_operation (op);
-
-		egg_buffer_reset (&op->send_buffer);
-		if (!gkr_proto_encode_op_string_int (&op->send_buffer, GNOME_KEYRING_OP_DELETE_ITEM,
-		                                     f->keyring, f->item_id)) {
-			/*
-			 * This would happen if the server somehow sent us an invalid
-			 * keyring and item_id. Very unlikely, and it seems this is
-			 * the best error code in this case.
-			 */
-			(*callback) (GNOME_KEYRING_RESULT_IO_ERROR, op->user_data);
-			return TRUE;
-		}
-
-		/*
-		 * The delete operation is ready for processing, by returning
-		 * FALSE we indicate that the operation is not complete.
-		 */
-		return FALSE;
-	}
-
-	/* Nothing more to find */
-	g_assert (!dp->at);
-
-	/* GkrOperation is done */
-	(*callback) (dp->deleted > 0 ? GNOME_KEYRING_RESULT_OK : GNOME_KEYRING_RESULT_NO_MATCH, op->user_data);
-	return TRUE;
+	op = gkr_operation_new (callback, GKR_CALLBACK_RES_STRING, data, destroy_data);
+	gkr_operation_push (op, delete_password_reply, GKR_CALLBACK_OP_STRING, NULL, NULL);
+	find_unlocked (op, attributes);
+	gkr_operation_unref (op);
+	return op;
 }
-#endif
 
 /**
  * gnome_keyring_delete_password:
@@ -4394,31 +4496,14 @@ gnome_keyring_delete_password (const GnomeKeyringPasswordSchema* schema,
                                GnomeKeyringOperationDoneCallback callback,
                                gpointer data, GDestroyNotify destroy_data, ...)
 {
-#if 0
-	GnomeKeyringOperation *op;
-	GnomeKeyringAttributeList *attributes;
-	va_list args;
+	GkrOperation *op;
+	va_list va;
 
-	op = gkr_operation_new (TRUE, callback, GKR_CALLBACK_RES, data, destroy_data);
+	va_start (va, destroy_data);
+	op = delete_password_va (schema, va, callback, data, destroy_data);
+	va_end (va);
 
-	va_start (args, destroy_data);
-	attributes = schema_attribute_list_va (schema, args);
-	va_end (args);
-	if (!attributes || !attributes->len ||
-	    !gkr_proto_encode_find (&op->send_buffer, schema->item_type, attributes))
-		schedule_op_failed (op, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
-
-	g_array_free (attributes, TRUE);
-
-	op->reply_handler = delete_password_reply;
-	op->reply_data = g_new0 (DeletePassword, 1);
-	op->destroy_reply_data = delete_password_destroy;
-
-	start_and_take_operation (op);
 	return op;
-#endif
-	g_assert (FALSE && "TODO");
-	return NULL;
 }
 
 /**
@@ -4447,51 +4532,12 @@ gnome_keyring_delete_password (const GnomeKeyringPasswordSchema* schema,
 GnomeKeyringResult
 gnome_keyring_delete_password_sync (const GnomeKeyringPasswordSchema* schema, ...)
 {
-#if 0
-	GnomeKeyringAttributeList *attributes;
-	GnomeKeyringResult res;
-	GnomeKeyringFound *f;
-	GList *found, *l;
-	va_list args;
-	guint non_session;
+	GkrOperation *op;
+	va_list va;
 
-	va_start (args, schema);
-	attributes = schema_attribute_list_va (schema, args);
-	va_end (args);
+	va_start (va, schema);
+	op = delete_password_va (schema, va, gkr_callback_empty, NULL, NULL);
+	va_end (va);
 
-	if (!attributes || !attributes->len)
-		res = GNOME_KEYRING_RESULT_BAD_ARGUMENTS;
-
-	/* Find the item(s) in question */
-	else
-		res = gnome_keyring_find_items_sync (schema->item_type, attributes, &found);
-
-	g_array_free (attributes, TRUE);
-	if (res != GNOME_KEYRING_RESULT_OK)
-		return res;
-
-	non_session = 0;
-	for (l = found; l; l = g_list_next (l)) {
-		f = (GnomeKeyringFound*)(l->data);
-
-		/* If not an item in the session keyring ... */
-		if (!f->keyring || strcmp (f->keyring, GNOME_KEYRING_SESSION) != 0) {
-
-			++non_session;
-
-			/* ... then we only delete one of those */
-			if (non_session > 1)
-				continue;
-		}
-
-		res = gnome_keyring_item_delete_sync (f->keyring, f->item_id);
-		if (res != GNOME_KEYRING_RESULT_OK)
-			break;
-	}
-
-	gnome_keyring_found_list_free (found);
-	return res;
-#endif
-	g_assert (FALSE && "TODO");
-	return 0;
+	return gkr_operation_block (op);
 }

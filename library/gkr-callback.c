@@ -82,6 +82,19 @@ gkr_callback_invoke_op_session (GkrCallback *cb, GkrSession *session)
 	((OpSessionCallback)(cb->callback)) (cb->operation, session, cb->user_data);
 }
 
+typedef void (*OpStringCallback) (GkrOperation*, const gchar*, gpointer);
+
+void
+gkr_callback_invoke_op_string (GkrCallback *cb, const gchar *value)
+{
+	g_assert (cb);
+	g_assert (cb->type == GKR_CALLBACK_OP_SESSION);
+	g_assert (cb->callback);
+	g_assert (cb->operation);
+	cb->type = 0;
+	((OpStringCallback)(cb->callback)) (cb->operation, value, cb->user_data);
+}
+
 void
 gkr_callback_invoke_res (GkrCallback *cb, GnomeKeyringResult res)
 {
@@ -89,9 +102,8 @@ gkr_callback_invoke_res (GkrCallback *cb, GnomeKeyringResult res)
 
 	g_assert (cb);
 	g_assert (cb->callback);
-	g_assert (cb->operation);
 
-	if (!gkr_operation_set_result (cb->operation, res))
+	if (cb->operation && !gkr_operation_set_result (cb->operation, res))
 		return;
 
 	/* When successful can only call one kind of callback */
@@ -134,9 +146,8 @@ gkr_callback_invoke_ok_string (GkrCallback *cb, const gchar *value)
 {
 	g_assert (cb);
 	g_assert (cb->type == GKR_CALLBACK_RES_STRING);
-	g_assert (cb->operation);
 	cb->type = 0;
-	if (gkr_operation_set_result (cb->operation, GNOME_KEYRING_RESULT_OK))
+	if (!cb->operation || gkr_operation_set_result (cb->operation, GNOME_KEYRING_RESULT_OK))
 		((GnomeKeyringOperationGetStringCallback)cb->callback) (GNOME_KEYRING_RESULT_OK, value, cb->user_data);
 }
 
@@ -147,9 +158,8 @@ gkr_callback_invoke_ok_uint (GkrCallback *cb, guint32 value)
 	g_assert (cb);
 	g_assert (cb->type == GKR_CALLBACK_RES_UINT);
 	g_assert (cb->callback);
-	g_assert (cb->operation);
 	cb->type = 0;
-	if (gkr_operation_set_result (cb->operation, GNOME_KEYRING_RESULT_OK))
+	if (!cb->operation || gkr_operation_set_result (cb->operation, GNOME_KEYRING_RESULT_OK))
 		((GnomeKeyringOperationGetIntCallback)cb->callback) (GNOME_KEYRING_RESULT_OK, value, cb->user_data);
 }
 
@@ -159,9 +169,8 @@ gkr_callback_invoke_ok_list (GkrCallback *cb, GList *value)
 	g_assert (cb);
 	g_assert (cb->type == GKR_CALLBACK_RES_LIST);
 	g_assert (cb->callback);
-	g_assert (cb->operation);
 	cb->type = 0;
-	if (gkr_operation_set_result (cb->operation, GNOME_KEYRING_RESULT_OK))
+	if (!cb->operation || gkr_operation_set_result (cb->operation, GNOME_KEYRING_RESULT_OK))
 		((GnomeKeyringOperationGetListCallback)cb->callback) (GNOME_KEYRING_RESULT_OK, value, cb->user_data);
 }
 
@@ -171,9 +180,8 @@ gkr_callback_invoke_ok_keyring_info (GkrCallback *cb, GnomeKeyringInfo *value)
 	g_assert (cb);
 	g_assert (cb->type == GKR_CALLBACK_RES_KEYRING_INFO);
 	g_assert (cb->callback);
-	g_assert (cb->operation);
 	cb->type = 0;
-	if (gkr_operation_set_result (cb->operation, GNOME_KEYRING_RESULT_OK))
+	if (!cb->operation || gkr_operation_set_result (cb->operation, GNOME_KEYRING_RESULT_OK))
 		((GnomeKeyringOperationGetKeyringInfoCallback)cb->callback) (GNOME_KEYRING_RESULT_OK, value, cb->user_data);
 }
 
@@ -183,9 +191,8 @@ gkr_callback_invoke_ok_item_info (GkrCallback *cb, GnomeKeyringItemInfo *value)
 	g_assert (cb);
 	g_assert (cb->type == GKR_CALLBACK_RES_ITEM_INFO);
 	g_assert (cb->callback);
-	g_assert (cb->operation);
 	cb->type = 0;
-	if (gkr_operation_set_result (cb->operation, GNOME_KEYRING_RESULT_OK))
+	if (!cb->operation || gkr_operation_set_result (cb->operation, GNOME_KEYRING_RESULT_OK))
 		((GnomeKeyringOperationGetItemInfoCallback)cb->callback) (GNOME_KEYRING_RESULT_OK, value, cb->user_data);
 }
 
@@ -195,8 +202,7 @@ gkr_callback_invoke_ok_attributes (GkrCallback *cb, GnomeKeyringAttributeList *v
 	g_assert (cb);
 	g_assert (cb->type == GKR_CALLBACK_RES_ATTRIBUTES);
 	g_assert (cb->callback);
-	g_assert (cb->operation);
 	cb->type = 0;
-	if (gkr_operation_set_result (cb->operation, GNOME_KEYRING_RESULT_OK))
+	if (!cb->operation || gkr_operation_set_result (cb->operation, GNOME_KEYRING_RESULT_OK))
 		((GnomeKeyringOperationGetAttributesCallback)cb->callback) (GNOME_KEYRING_RESULT_OK, value, cb->user_data);
 }
