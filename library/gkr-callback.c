@@ -116,7 +116,10 @@ gkr_callback_invoke_res (GkrCallback *cb, GnomeKeyringResult res)
 	} else {
 		type = cb->type;
 		cb->type = 0;
-		switch (cb->type) {
+		switch (type) {
+		case GKR_CALLBACK_RES:
+			((GnomeKeyringOperationDoneCallback)cb->callback) (res, cb->user_data);
+			break;
 		case GKR_CALLBACK_RES_STRING:
 			((GnomeKeyringOperationGetStringCallback)cb->callback) (res, NULL, cb->user_data);
 			break;

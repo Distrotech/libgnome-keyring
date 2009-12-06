@@ -269,15 +269,16 @@ callback_with_message (GkrOperation *op, DBusMessage *message)
 	g_assert (op);
 	g_assert (message);
 
-	cb = gkr_operation_pop (op);
+	cb = g_queue_peek_head (&op->callbacks);
+	g_assert (cb);
 
 	/* A handler that knows what to do with a DBusMessage */
 	if (cb->type == GKR_CALLBACK_OP_MSG)
-		gkr_callback_invoke_op_msg (cb, message);
+		gkr_callback_invoke_op_msg (gkr_operation_pop (op), message);
 
 	/* We hope this is a simple handler, invoke will check */
 	else if (!gkr_operation_handle_errors (op, message))
-		gkr_callback_invoke_res (cb, GNOME_KEYRING_RESULT_OK);
+		gkr_callback_invoke_res (gkr_operation_pop (op), GNOME_KEYRING_RESULT_OK);
 }
 
 static void
