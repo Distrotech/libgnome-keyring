@@ -14,7 +14,6 @@ libegg_la_CFLAGS = \
 libegg_la_SOURCES = \
 	egg-dbus.c egg-dbus.h \
 	egg-dh.c egg-dh.h \
-	egg-unix-credentials.c egg-unix-credentials.h \
 	egg-secure-memory.c egg-secure-memory.h
 
 # -------------------------------------------------------------------
