@@ -152,11 +152,8 @@ gkr_operation_pop (GkrOperation *op)
 GnomeKeyringResult
 gkr_operation_get_result (GkrOperation *op)
 {
-	GnomeKeyringResult res;
 	g_assert (op);
-	res = g_atomic_int_get (&op->result);
-	g_assert (res != INCOMPLETE);
-	return res;
+	return g_atomic_int_get (&op->result);
 }
 
 gboolean
@@ -191,6 +188,7 @@ on_complete (gpointer data)
 void
 gkr_operation_complete (GkrOperation *op, GnomeKeyringResult res)
 {
+	g_return_if_fail (op);
 	if (gkr_operation_set_result (op, res))
 		on_complete (op);
 }
@@ -198,6 +196,7 @@ gkr_operation_complete (GkrOperation *op, GnomeKeyringResult res)
 void
 gkr_operation_complete_later (GkrOperation *op, GnomeKeyringResult res)
 {
+	g_return_if_fail (op);
 	if (gkr_operation_set_result (op, res))
 		g_idle_add_full (G_PRIORITY_DEFAULT_IDLE, on_complete,
 		                 gkr_operation_ref (op), gkr_operation_unref);
@@ -253,7 +252,7 @@ handle_error_to_result (DBusError *derr, const gchar *desc)
 	g_assert (dbus_error_is_set (derr));
 
 	if (!desc)
-		desc = "secrets service operation failed";
+		desc = "secret service operation failed";
 
 	g_message ("%s: %s", desc, derr->message);
 	dbus_error_free (derr);
@@ -306,8 +305,8 @@ on_pending_call_notify (DBusPendingCall *pending, void *user_data)
 void
 gkr_operation_request (GkrOperation *op, DBusMessage *req)
 {
+	g_return_if_fail (req);
 	g_assert (op);
-	g_assert (req);
 
 	if (!op->conn)
 		op->conn = connect_to_service ();
@@ -438,8 +437,8 @@ gkr_operation_prompt (GkrOperation *op, const gchar *prompt)
 	on_prompt_args *args;
 	DBusMessage *req;
 
-	g_assert (op != NULL);
-	g_assert (prompt != NULL);
+	g_return_if_fail (prompt);
+	g_assert (op);
 
 	/*
 	 * args becomes owned by the operation. In addition in its

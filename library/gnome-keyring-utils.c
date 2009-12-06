@@ -135,6 +135,8 @@ gnome_keyring_result_to_message (GnomeKeyringResult res)
 void
 gnome_keyring_found_free (GnomeKeyringFound *found)
 {
+	if (found == NULL)
+		return;
 	g_free (found->keyring);
 	gnome_keyring_free_password (found->secret);
 	gnome_keyring_attribute_list_free (found->attributes);
@@ -180,6 +182,9 @@ gnome_keyring_attribute_list_append_string (GnomeKeyringAttributeList *attribute
 {
 	GnomeKeyringAttribute attribute;
 
+	g_return_if_fail (attributes);
+	g_return_if_fail (name);
+
 	attribute.name = g_strdup (name);
 	attribute.type = GNOME_KEYRING_ATTRIBUTE_TYPE_STRING;
 	attribute.value.string = g_strdup (value);
@@ -201,6 +206,9 @@ gnome_keyring_attribute_list_append_uint32 (GnomeKeyringAttributeList *attribute
 {
 	GnomeKeyringAttribute attribute;
 
+	g_return_if_fail (attributes);
+	g_return_if_fail (name);
+
 	attribute.name = g_strdup (name);
 	attribute.type = GNOME_KEYRING_ATTRIBUTE_TYPE_UINT32;
 	attribute.value.integer = value;
@@ -221,9 +229,8 @@ gnome_keyring_attribute_list_free (GnomeKeyringAttributeList *attributes)
 	GnomeKeyringAttribute *array;
 	int i;
 
-	if (attributes == NULL) {
+	if (attributes == NULL)
 		return;
-	}
 
 	array = (GnomeKeyringAttribute *)attributes->data;
 	for (i = 0; i < attributes->len; i++) {
@@ -251,9 +258,8 @@ gnome_keyring_attribute_list_copy (GnomeKeyringAttributeList *attributes)
 	GnomeKeyringAttributeList *copy;
 	int i;
 
-	if (attributes == NULL) {
+	if (attributes == NULL)
 		return NULL;
-	}
 
 	copy = g_array_sized_new (FALSE, FALSE, sizeof (GnomeKeyringAttribute), attributes->len);
 
@@ -315,6 +321,9 @@ gnome_keyring_info_copy (GnomeKeyringInfo *keyring_info)
 {
 	GnomeKeyringInfo *copy;
 
+	if (keyring_info == NULL)
+		return NULL;
+
 	copy = g_new (GnomeKeyringInfo, 1);
 	memcpy (copy, keyring_info, sizeof (GnomeKeyringInfo));
 
@@ -372,6 +381,9 @@ gnome_keyring_item_info_copy (GnomeKeyringItemInfo *item_info)
 {
 	GnomeKeyringItemInfo *copy;
 
+	if (item_info == NULL)
+		return NULL;
+
 	copy = g_new (GnomeKeyringItemInfo, 1);
 	memcpy (copy, item_info, sizeof (GnomeKeyringItemInfo));
 
@@ -427,6 +439,9 @@ gnome_keyring_application_ref_copy (const GnomeKeyringApplicationRef *app)
 {
 	GnomeKeyringApplicationRef *copy;
 
+	if (app == NULL)
+		return NULL;
+
 	copy = g_new (GnomeKeyringApplicationRef, 1);
 	copy->display_name = g_strdup (app->display_name);
 	copy->pathname = g_strdup (app->pathname);
@@ -467,6 +482,8 @@ gnome_keyring_access_control_new (const GnomeKeyringApplicationRef *application,
 void
 gnome_keyring_access_control_free (GnomeKeyringAccessControl *ac)
 {
+	if (ac == NULL)
+		return;
 	gnome_keyring_application_ref_free (ac->application);
 	g_free (ac);
 }
@@ -484,6 +501,9 @@ GnomeKeyringAccessControl *
 gnome_keyring_access_control_copy (GnomeKeyringAccessControl *ac)
 {
 	GnomeKeyringAccessControl *ret;
+
+	if (ac == NULL)
+		return NULL;
 
 	ret = gnome_keyring_access_control_new (gnome_keyring_application_ref_copy (ac->application), ac->types_allowed);
 
@@ -538,6 +558,7 @@ void
 gnome_keyring_info_set_lock_on_idle (GnomeKeyringInfo *keyring_info,
                                      gboolean          value)
 {
+	g_return_if_fail (keyring_info);
 	keyring_info->lock_on_idle = value;
 }
 
@@ -554,6 +575,7 @@ gnome_keyring_info_set_lock_on_idle (GnomeKeyringInfo *keyring_info,
 gboolean
 gnome_keyring_info_get_lock_on_idle (GnomeKeyringInfo *keyring_info)
 {
+	g_return_val_if_fail (keyring_info, FALSE);
 	return keyring_info->lock_on_idle;
 }
 
@@ -570,6 +592,7 @@ void
 gnome_keyring_info_set_lock_timeout (GnomeKeyringInfo *keyring_info,
                                      guint32           value)
 {
+	g_return_if_fail (keyring_info);
 	keyring_info->lock_timeout = value;
 }
 
@@ -586,6 +609,7 @@ gnome_keyring_info_set_lock_timeout (GnomeKeyringInfo *keyring_info,
 guint32
 gnome_keyring_info_get_lock_timeout (GnomeKeyringInfo *keyring_info)
 {
+	g_return_val_if_fail (keyring_info, 0);
 	return keyring_info->lock_timeout;
 }
 
@@ -600,6 +624,7 @@ gnome_keyring_info_get_lock_timeout (GnomeKeyringInfo *keyring_info)
 time_t
 gnome_keyring_info_get_mtime (GnomeKeyringInfo *keyring_info)
 {
+	g_return_val_if_fail (keyring_info, 0);
 	return keyring_info->mtime;
 }
 
@@ -614,6 +639,7 @@ gnome_keyring_info_get_mtime (GnomeKeyringInfo *keyring_info)
 time_t
 gnome_keyring_info_get_ctime (GnomeKeyringInfo *keyring_info)
 {
+	g_return_val_if_fail (keyring_info, 0);
 	return keyring_info->ctime;
 }
 
@@ -628,6 +654,7 @@ gnome_keyring_info_get_ctime (GnomeKeyringInfo *keyring_info)
 gboolean
 gnome_keyring_info_get_is_locked (GnomeKeyringInfo *keyring_info)
 {
+	g_return_val_if_fail (keyring_info, FALSE);
 	return keyring_info->is_locked;
 }
 
@@ -642,6 +669,7 @@ gnome_keyring_info_get_is_locked (GnomeKeyringInfo *keyring_info)
 GnomeKeyringItemType
 gnome_keyring_item_info_get_type (GnomeKeyringItemInfo *item_info)
 {
+	g_return_val_if_fail (item_info, 0);
 	return item_info->type;
 }
 
@@ -656,6 +684,7 @@ void
 gnome_keyring_item_info_set_type (GnomeKeyringItemInfo *item_info,
                                   GnomeKeyringItemType  type)
 {
+	g_return_if_fail (item_info);
 	item_info->type = type;
 }
 
@@ -671,6 +700,7 @@ char *
 gnome_keyring_item_info_get_secret (GnomeKeyringItemInfo *item_info)
 {
 	/* XXXX For compatibility reasons we can't use secure memory here */
+	g_return_val_if_fail (item_info, NULL);
 	return g_strdup (item_info->secret);
 }
 
@@ -685,6 +715,7 @@ void
 gnome_keyring_item_info_set_secret (GnomeKeyringItemInfo *item_info,
                                     const char           *value)
 {
+	g_return_if_fail (item_info);
 	gnome_keyring_free_password (item_info->secret);
 	item_info->secret = gnome_keyring_memory_strdup (value);
 }
@@ -700,6 +731,7 @@ gnome_keyring_item_info_set_secret (GnomeKeyringItemInfo *item_info,
 char *
 gnome_keyring_item_info_get_display_name (GnomeKeyringItemInfo *item_info)
 {
+	g_return_val_if_fail (item_info, NULL);
 	return g_strdup (item_info->display_name);
 }
 
@@ -714,6 +746,7 @@ void
 gnome_keyring_item_info_set_display_name (GnomeKeyringItemInfo *item_info,
                                           const char           *value)
 {
+	g_return_if_fail (item_info);
 	g_free (item_info->display_name);
 	item_info->display_name = g_strdup (value);
 }
@@ -729,6 +762,7 @@ gnome_keyring_item_info_set_display_name (GnomeKeyringItemInfo *item_info,
 time_t
 gnome_keyring_item_info_get_mtime (GnomeKeyringItemInfo *item_info)
 {
+	g_return_val_if_fail (item_info, 0);
 	return item_info->mtime;
 }
 
@@ -743,6 +777,7 @@ gnome_keyring_item_info_get_mtime (GnomeKeyringItemInfo *item_info)
 time_t
 gnome_keyring_item_info_get_ctime (GnomeKeyringItemInfo *item_info)
 {
+	g_return_val_if_fail (item_info, 0);
 	return item_info->ctime;
 }
 
@@ -768,6 +803,7 @@ gnome_keyring_item_info_get_ctime (GnomeKeyringItemInfo *item_info)
 char *
 gnome_keyring_item_ac_get_display_name (GnomeKeyringAccessControl *ac)
 {
+	g_return_val_if_fail (ac, NULL);
 	return g_strdup (ac->application->display_name);
 }
 
@@ -782,6 +818,7 @@ void
 gnome_keyring_item_ac_set_display_name (GnomeKeyringAccessControl *ac,
                                         const char                *value)
 {
+	g_return_if_fail (ac);
 	g_free (ac->application->display_name);
 	ac->application->display_name = g_strdup (value);
 }
@@ -797,6 +834,7 @@ gnome_keyring_item_ac_set_display_name (GnomeKeyringAccessControl *ac,
 char *
 gnome_keyring_item_ac_get_path_name (GnomeKeyringAccessControl *ac)
 {
+	g_return_val_if_fail (ac, NULL);
 	return g_strdup (ac->application->pathname);
 }
 
@@ -811,6 +849,7 @@ void
 gnome_keyring_item_ac_set_path_name (GnomeKeyringAccessControl *ac,
                                      const char                *value)
 {
+	g_return_if_fail (ac);
 	g_free (ac->application->pathname);
 	ac->application->pathname = g_strdup (value);
 }
@@ -826,6 +865,7 @@ gnome_keyring_item_ac_set_path_name (GnomeKeyringAccessControl *ac,
 GnomeKeyringAccessType
 gnome_keyring_item_ac_get_access_type (GnomeKeyringAccessControl *ac)
 {
+	g_return_val_if_fail (ac, 0);
 	return ac->types_allowed;
 }
 
@@ -840,5 +880,6 @@ void
 gnome_keyring_item_ac_set_access_type (GnomeKeyringAccessControl *ac,
                                        const GnomeKeyringAccessType value)
 {
+	g_return_if_fail (ac);
 	ac->types_allowed = value;
 }

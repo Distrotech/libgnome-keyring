@@ -31,10 +31,13 @@
 
 #include "library/gnome-keyring.h"
 
+#if 0
 static GPid daemon_pid;
+#endif
 
 DEFINE_START(setup_daemon)
 {
+#if 0
 	GError *err = NULL;
 	gchar *args[3];
 	const gchar *outside, *path;
@@ -70,11 +73,14 @@ DEFINE_START(setup_daemon)
 
 	/* Let it startup properly */
 	sleep (2);
+#endif
 }
 
 DEFINE_STOP(setup_daemon)
 {
+#if 0
 	if (daemon_pid)
 		kill (daemon_pid, SIGTERM);
 	/* We're exiting soon anyway, no need to wait */
+#endif
 }
