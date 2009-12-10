@@ -26,6 +26,7 @@
 #include "config.h"
 
 #include "gkr-callback.h"
+#include "gkr-misc.h"
 #include "gkr-operation.h"
 #include "gkr-session.h"
 #include "gnome-keyring.h"
@@ -39,7 +40,6 @@
 #include <time.h>
 #include <unistd.h>
 #include <errno.h>
-#include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 #include <sys/types.h>
@@ -150,174 +150,6 @@ prepare_delete (const char *path)
 {
 	return dbus_message_new_method_call (SECRETS_SERVICE, path,
 	                                     COLLECTION_INTERFACE, "Delete");
-}
-
-static void
-encode_object_identifier (GString *string, const gchar* name, gssize length)
-{
-	g_assert (name);
-
-	if (length < 0)
-		length = strlen (name);
-
-	while (length > 0) {
-		char ch = *(name++);
-		--length;
-
-		/* Normal characters can go right through */
-		if (G_LIKELY ((ch >= 'A' && ch <= 'Z') ||
-		              (ch >= 'a' && ch <= 'z') ||
-		              (ch >= '0' && ch <= '9'))) {
-			g_string_append_c_inline (string, ch);
-
-		/* Special characters are encoded with a _ */
-		} else {
-			g_string_append_printf (string, "_%02x", (unsigned int)ch);
-		}
-	}
-}
-
-static void
-encode_keyring_string (GString *string, const gchar *keyring)
-{
-	if (!keyring) {
-		g_string_append (string, COLLECTION_DEFAULT);
-	} else {
-		g_string_append (string, COLLECTION_PREFIX);
-		encode_object_identifier (string, keyring, -1);
-	}
-}
-
-static gchar*
-encode_keyring_name (const gchar *keyring)
-{
-	GString *result = g_string_sized_new (128);
-	encode_keyring_string (result, keyring);
-	return g_string_free (result, FALSE);
-}
-
-static gchar*
-encode_keyring_item_id (const gchar *keyring, guint32 id)
-{
-	GString *result = g_string_sized_new (128);
-	encode_keyring_string (result, keyring);
-	g_string_append_c (result, '/');
-	g_string_append_printf (result, "%lu", (unsigned long)id);
-	return g_string_free (result, FALSE);
-}
-
-static gchar*
-decode_object_identifier (const gchar* enc, gssize length)
-{
-	GString *result;
-
-	g_assert (enc);
-
-	if (length < 0)
-		length = strlen (enc);
-
-	result = g_string_sized_new (length);
-	while (length > 0) {
-		char ch = *(enc++);
-		--length;
-
-		/* Underscores get special handling */
-		if (G_UNLIKELY (ch == '_' &&
-		                g_ascii_isxdigit(enc[0]) &&
-		                g_ascii_isxdigit (enc[1]))) {
-			ch = (g_ascii_xdigit_value (enc[0]) * 16) +
-			     (g_ascii_xdigit_value (enc[1]));
-			enc += 2;
-			length -= 2;
-		}
-
-		g_string_append_c_inline (result, ch);
-	}
-
-	return g_string_free (result, FALSE);
-}
-
-static gchar*
-decode_keyring_name (const char *path)
-{
-	gchar *result;
-
-	g_return_val_if_fail (path, NULL);
-
-	if (!g_str_has_prefix (path, COLLECTION_PREFIX)) {
-		g_message ("response from daemon contained an bad collection path: %s", path);
-		return NULL;
-	}
-
-	path += strlen (COLLECTION_PREFIX);
-	result = decode_object_identifier (path, -1);
-	if (result == NULL) {
-		g_message ("response from daemon contained an bad collection path: %s", path);
-		return NULL;
-	}
-
-	return result;
-}
-
-static gboolean
-decode_item_id (const char *path, guint32 *id)
-{
-	const gchar *part;
-	gchar *end;
-
-	g_return_val_if_fail (path, FALSE);
-	g_assert (id);
-
-	part = strrchr (path, '/');
-	if (part == NULL || part[1] == '\0') {
-		g_message ("response from daemon contained a bad item path: %s", path);
-		return FALSE;
-	}
-
-	*id = strtoul (part, &end, 10);
-	if (!end || end[0] != '\0') {
-		g_message ("item has unsupported non-numeric item identifier: %s", path);
-		return FALSE;
-	}
-
-	return TRUE;
-}
-
-static gchar*
-decode_keyring_item_id (const char *path, guint32* id)
-{
-	const gchar *part;
-	gchar *result;
-	gchar *end;
-
-	g_return_val_if_fail (path, NULL);
-
-	if (!g_str_has_prefix (path, COLLECTION_PREFIX)) {
-		g_message ("response from daemon contained an bad collection path: %s", path);
-		return NULL;
-	}
-
-	path += strlen (COLLECTION_PREFIX);
-
-	part = strrchr (path, '/');
-	if (part == NULL || part[1] == '\0') {
-		g_message ("response from daemon contained a bad item path: %s", path);
-		return FALSE;
-	}
-
-	*id = strtoul (part, &end, 10);
-	if (!end || end[0] != '\0') {
-		g_message ("item has unsupported non-numeric item identifier: %s", path);
-		return FALSE;
-	}
-
-	result = decode_object_identifier (path, (part - 1) - path);
-	if (result == NULL) {
-		g_message ("response from daemon contained an bad collection path: %s", path);
-		return NULL;
-	}
-
-	return result;
 }
 
 static GnomeKeyringResult
@@ -723,7 +555,7 @@ gnome_keyring_set_default_keyring (const gchar                             *keyr
 	g_return_val_if_fail (keyring, NULL);
 	g_return_val_if_fail (callback, NULL);
 
-	path = encode_keyring_name (keyring);
+	path = gkr_encode_keyring_name (keyring);
 	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
 	                                    SERVICE_INTERFACE, "SetWellKnownCollection");
 
@@ -786,7 +618,7 @@ get_default_keyring_reply (GkrOperation *op, DBusMessage *reply, gpointer user_d
 		return;
 	}
 
-	name = decode_keyring_name (path);
+	name = gkr_decode_keyring_name (path);
 	if (name == NULL) {
 		gkr_operation_complete (op, decode_invalid_response (reply));
 		return;
@@ -882,7 +714,7 @@ list_keyring_names_foreach (DBusMessageIter *iter, gpointer user_data)
 
 	/* The object path, gets converted into a name */
 	dbus_message_iter_get_basic (iter, &path);
-	name = decode_keyring_name (path);
+	name = gkr_decode_keyring_name (path);
 	if (name != NULL)
 		*names = g_list_prepend (*names, name);
 
@@ -1213,7 +1045,7 @@ xlock_async (const gchar *method, const gchar *keyring,
 	GkrOperation *op;
 	gchar *path;
 
-	path = encode_keyring_name (keyring);
+	path = gkr_encode_keyring_name (keyring);
 	req = prepare_xlock (method, &path, 1);
 
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
@@ -1365,7 +1197,7 @@ gnome_keyring_delete (const char                                  *keyring,
 
 	g_return_val_if_fail (callback, NULL);
 
-	path = encode_keyring_name (keyring);
+	path = gkr_encode_keyring_name (keyring);
 	req = dbus_message_new_method_call (SECRETS_SERVICE, path,
 	                                    COLLECTION_INTERFACE, "Delete");
 
@@ -1582,7 +1414,7 @@ gnome_keyring_get_info (const char                                  *keyring,
 
 	g_return_val_if_fail (callback, NULL);
 
-	path = encode_keyring_name (keyring);
+	path = gkr_encode_keyring_name (keyring);
 	req = prepare_property_getall (path, COLLECTION_INTERFACE);
 
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES_KEYRING_INFO, data, destroy_data);
@@ -1650,7 +1482,7 @@ gnome_keyring_set_info (const char                                  *keyring,
 	g_return_val_if_fail (info, NULL);
 	g_return_val_if_fail (callback, NULL);
 
-	path = encode_keyring_name (keyring);
+	path = gkr_encode_keyring_name (keyring);
 
 	/*
 	 * TODO: Currently nothing to do. lock_on_idle and lock_timeout are not
@@ -1687,7 +1519,7 @@ gnome_keyring_set_info_sync (const char       *keyring,
 
 	g_return_val_if_fail (info, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
 
-	path = encode_keyring_name (keyring);
+	path = gkr_encode_keyring_name (keyring);
 
 	/*
 	 * TODO: Currently nothing to do. lock_on_idle and lock_timeout are not
@@ -1718,7 +1550,7 @@ list_item_ids_foreach (DBusMessageIter *iter, gpointer data)
 
 	/* The object path, gets converted into a name */
 	dbus_message_iter_get_basic (iter, &path);
-	if (decode_item_id (path, &id))
+	if (gkr_decode_item_id (path, &id))
 		*ids = g_list_prepend (*ids, GUINT_TO_POINTER (id));
 	else
 		g_message ("unsupported item. identifier is not an integer: %s", path);
@@ -1780,7 +1612,7 @@ gnome_keyring_list_item_ids (const char                                  *keyrin
 
 	g_return_val_if_fail (callback, NULL);
 
-	path = encode_keyring_name (keyring);
+	path = gkr_encode_keyring_name (keyring);
 	req = prepare_property_get (path, COLLECTION_INTERFACE, "Items");
 
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES_LIST, data, destroy_data);
@@ -1923,7 +1755,7 @@ find_items_decode_secrets (DBusMessageIter *iter, find_items_args *args)
 		if (!dbus_message_iter_next (&dict))
 			return FALSE;
 
-		keyring = decode_keyring_item_id (path, &item_id);
+		keyring = gkr_decode_keyring_item_id (path, &item_id);
 		if (keyring == NULL)
 			return FALSE;
 
@@ -1988,7 +1820,7 @@ find_items_6_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
 	g_assert (found);
 
 	/* Request the next set of attributes */
-	path = encode_keyring_item_id (found->keyring, found->item_id);
+	path = gkr_encode_keyring_item_id (found->keyring, found->item_id);
 	req = prepare_property_get (path, ITEM_INTERFACE, "Attributes");
 	g_free (path);
 
@@ -2576,7 +2408,7 @@ gnome_keyring_item_create (const char                          *keyring,
 	args = g_slice_new (item_create_args);
 	args->update_if_exists = update_if_exists;
 
-	path = encode_keyring_name (keyring);
+	path = gkr_encode_keyring_name (keyring);
 	args->request = item_create_prepare (path, type, display_name, attributes, &args->iter);
 	g_return_val_if_fail (args->request, NULL);
 
@@ -2664,7 +2496,7 @@ gnome_keyring_item_delete (const char                                 *keyring,
 	GkrOperation *op;
 	gchar *path;
 
-	path = encode_keyring_item_id(keyring, id);
+	path = gkr_encode_keyring_item_id (keyring, id);
 	req = dbus_message_new_method_call (SECRETS_SERVICE, path,
 	                                    ITEM_INTERFACE, "Delete");
 
@@ -2963,7 +2795,7 @@ gnome_keyring_item_get_info_full (const char                                 *ke
 	args->info = g_new0 (GnomeKeyringItemInfo, 1);
 	args->flags = flags;
 
-	args->path = encode_keyring_item_id (keyring, id);
+	args->path = gkr_encode_keyring_item_id (keyring, id);
 	req = prepare_property_getall (args->path, ITEM_INTERFACE);
 
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES_ITEM_INFO, data, destroy_data);
@@ -3107,7 +2939,7 @@ gnome_keyring_item_set_info (const char                                 *keyring
 
 	args = g_slice_new0 (item_set_info_args);
 	args->info = gnome_keyring_item_info_copy (info);
-	args->path = encode_keyring_item_id (keyring, id);
+	args->path = gkr_encode_keyring_item_id (keyring, id);
 
 	/* First set the label */
 	req = dbus_message_new_method_call (SECRETS_SERVICE, args->path,
@@ -3214,7 +3046,7 @@ gnome_keyring_item_get_attributes (const char                                 *k
 	GkrOperation *op;
 	gchar *path;
 
-	path = encode_keyring_item_id (keyring, id);
+	path = gkr_encode_keyring_item_id (keyring, id);
 	req = prepare_property_get (path, ITEM_INTERFACE, "Attributes");
 
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES_ATTRIBUTES, data, destroy_data);
@@ -3301,7 +3133,7 @@ gnome_keyring_item_set_attributes (const char                                 *k
 	GkrOperation *op;
 	gchar *path;
 
-	path = encode_keyring_item_id (keyring, id);
+	path = gkr_encode_keyring_item_id (keyring, id);
 
 	/* First set the label */
 	req = item_set_attributes_prepare (path, attributes);

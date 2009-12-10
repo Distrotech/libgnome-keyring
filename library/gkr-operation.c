@@ -25,9 +25,10 @@
 
 #include "config.h"
 
+#include "gkr-misc.h"
+#include "gkr-operation.h"
 #include "gnome-keyring.h"
 #include "gnome-keyring-private.h"
-#include "gkr-operation.h"
 
 #include "egg/egg-dbus.h"
 
@@ -46,6 +47,9 @@ struct _GkrOperation {
 	DBusConnection *conn;
 	DBusPendingCall *pending;
 	gboolean prompting;
+
+	/* Some strange status fields */
+	gboolean was_keyring;
 
 	GQueue callbacks;
 	GSList *completed;
@@ -245,22 +249,6 @@ connect_to_service (void)
 	return dbus_connection_ref (dbus_connection);
 }
 
-static GnomeKeyringResult
-handle_error_to_result (DBusError *derr, const gchar *desc)
-{
-	g_assert (derr);
-	g_assert (dbus_error_is_set (derr));
-
-	if (!desc)
-		desc = "secret service operation failed";
-
-	g_message ("%s: %s", desc, derr->message);
-	dbus_error_free (derr);
-
-	/* TODO: Need to be more specific about errors */
-	return GNOME_KEYRING_RESULT_IO_ERROR;
-}
-
 static void
 callback_with_message (GkrOperation *op, DBusMessage *message)
 {
@@ -318,11 +306,13 @@ gkr_operation_request (GkrOperation *op, DBusMessage *req)
 			g_return_if_reached ();
 	}
 
-	if (op->pending)
+	if (op->pending) {
+		op->was_keyring = gkr_decode_is_keyring (dbus_message_get_path (req));
 		dbus_pending_call_set_notify (op->pending, on_pending_call_notify,
 		                              gkr_operation_ref (op), gkr_operation_unref);
-	else
+	} else {
 		gkr_operation_complete_later (op, GNOME_KEYRING_RESULT_IO_ERROR);
+	}
 }
 
 GnomeKeyringResult
@@ -358,12 +348,27 @@ gkr_operation_handle_errors (GkrOperation *op, DBusMessage *reply)
 {
 	DBusError derr = DBUS_ERROR_INIT;
 	GnomeKeyringResult res;
+	gboolean was_keyring;
 
 	g_assert (op);
 	g_assert (reply);
 
+	was_keyring = op->was_keyring;
+	op->was_keyring = FALSE;
+
 	if (dbus_set_error_from_message (&derr, reply)) {
-		res = handle_error_to_result (&derr, NULL);
+		g_message ("secret service operation failed: %s", derr.message);
+
+		if (dbus_error_has_name (&derr, ERROR_NO_SUCH_OBJECT)) {
+			if (was_keyring)
+				res = GNOME_KEYRING_RESULT_NO_SUCH_KEYRING;
+			else
+				res = GNOME_KEYRING_RESULT_BAD_ARGUMENTS;
+		} else {
+			res = GNOME_KEYRING_RESULT_IO_ERROR;
+		}
+
+		dbus_error_free (&derr);
 		gkr_operation_complete (op, res);
 		return TRUE;
 	}

@@ -15,6 +15,7 @@ INCLUDES= \
 
 libgnome_keyring_la_SOURCES = \
 	gkr-callback.c gkr-callback.h \
+	gkr-misc.c gkr-misc.h \
 	gkr-operation.c gkr-operation.h \
 	gkr-session.c gkr-session.h \
 	gnome-keyring.c \
