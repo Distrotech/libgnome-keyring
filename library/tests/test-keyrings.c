@@ -52,9 +52,6 @@ DEFINE_TEST(create_keyring)
 
 	res = gnome_keyring_create_sync (KEYRING_NAME, PASSWORD);
 	g_assert_cmpint (GNOME_KEYRING_RESULT_OK, ==, res);
-
-	res = gnome_keyring_create_sync (KEYRING_NAME, PASSWORD);
-	g_assert_cmpint (GNOME_KEYRING_RESULT_ALREADY_EXISTS, ==, res);
 }
 
 DEFINE_TEST(set_default_keyring)
