@@ -619,10 +619,14 @@ get_default_keyring_reply (GkrOperation *op, DBusMessage *reply, gpointer user_d
 		return;
 	}
 
-	name = gkr_decode_keyring_name (path);
-	if (name == NULL) {
-		gkr_operation_complete (op, decode_invalid_response (reply));
-		return;
+	if (g_str_equal (path, "/")) {
+		name = NULL;
+	} else {
+		name = gkr_decode_keyring_name (path);
+		if (name == NULL) {
+			gkr_operation_complete (op, decode_invalid_response (reply));
+			return;
+		}
 	}
 
 	cb = gkr_operation_pop (op);
@@ -662,7 +666,7 @@ gnome_keyring_get_default_keyring (GnomeKeyringOperationGetStringCallback  callb
 	string = "default";
 	dbus_message_append_args (req, DBUS_TYPE_STRING, &string, DBUS_TYPE_INVALID);
 
-	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
+	op = gkr_operation_new (callback, GKR_CALLBACK_RES_STRING, data, destroy_data);
 	gkr_operation_push (op, get_default_keyring_reply, GKR_CALLBACK_OP_MSG, NULL, NULL);
 	gkr_operation_request (op, req);
 	gkr_operation_unref (op);
@@ -2419,6 +2423,7 @@ gnome_keyring_item_create (const char                          *keyring,
 
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
 	gkr_operation_push (op, item_create_1_reply, GKR_CALLBACK_OP_MSG, args, item_create_free);
+	gkr_operation_set_keyring_hint (op);
 	gkr_operation_request (op, req);
 	gkr_operation_unref (op);
 	dbus_message_unref (req);
