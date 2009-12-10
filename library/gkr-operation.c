@@ -442,6 +442,7 @@ gkr_operation_prompt (GkrOperation *op, const gchar *prompt)
 {
 	on_prompt_args *args;
 	DBusMessage *req;
+	const char *window_id;
 
 	g_return_if_fail (prompt);
 	g_assert (op);
@@ -460,6 +461,9 @@ gkr_operation_prompt (GkrOperation *op, const gchar *prompt)
 
 	req = dbus_message_new_method_call (SECRETS_SERVICE, prompt,
 	                                    PROMPT_INTERFACE, "Prompt");
+
+	window_id = "";
+	dbus_message_append_args (req, DBUS_TYPE_STRING, &window_id, DBUS_TYPE_INVALID);
 
 	gkr_operation_push (op, on_prompt_result, GKR_CALLBACK_OP_MSG, args, on_prompt_free);
 	gkr_operation_request (op, req);
