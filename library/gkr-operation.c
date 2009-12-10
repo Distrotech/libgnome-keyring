@@ -308,7 +308,8 @@ gkr_operation_request (GkrOperation *op, DBusMessage *req)
 	}
 
 	if (op->pending) {
-		op->was_keyring = gkr_decode_is_keyring (dbus_message_get_path (req));
+		if (gkr_decode_is_keyring (dbus_message_get_path (req)))
+			gkr_operation_set_keyring_hint (op);
 		dbus_pending_call_set_notify (op->pending, on_pending_call_notify,
 		                              gkr_operation_ref (op), gkr_operation_unref);
 	} else {
@@ -342,6 +343,12 @@ gkr_operation_block (GkrOperation *op)
 		on_complete (op);
 
 	return gkr_operation_unref_get_result (op);
+}
+
+void
+gkr_operation_set_keyring_hint (GkrOperation *op)
+{
+	op->was_keyring = TRUE;
 }
 
 gboolean

@@ -69,6 +69,8 @@ GnomeKeyringResult  gkr_operation_block             (GkrOperation *op);
 void                gkr_operation_request           (GkrOperation *op,
                                                      DBusMessage *request);
 
+void                gkr_operation_set_keyring_hint  (GkrOperation *op);
+
 gboolean            gkr_operation_handle_errors     (GkrOperation *op,
                                                      DBusMessage *reply);
 

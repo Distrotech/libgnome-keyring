@@ -564,6 +564,7 @@ gnome_keyring_set_default_keyring (const gchar                             *keyr
 	                          DBUS_TYPE_OBJECT_PATH, &path, DBUS_TYPE_INVALID);
 
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
+	gkr_operation_set_keyring_hint (op);
 	gkr_operation_request (op, req);
 	gkr_operation_unref (op);
 
@@ -609,7 +610,7 @@ get_default_keyring_reply (GkrOperation *op, DBusMessage *reply, gpointer user_d
 	const char *path;
 	gchar *name;
 
-	if (!gkr_operation_handle_errors (op, reply))
+	if (gkr_operation_handle_errors (op, reply))
 		return;
 
 	if (!dbus_message_get_args (reply, NULL, DBUS_TYPE_OBJECT_PATH, &path,
@@ -4091,7 +4092,7 @@ find_password_3_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data)
 	GkrCallback *cb;
 	gchar *secret;
 
-	if (!gkr_operation_handle_errors (op, reply))
+	if (gkr_operation_handle_errors (op, reply))
 		return;
 
 	if (!dbus_message_iter_init (reply, &iter) ||
