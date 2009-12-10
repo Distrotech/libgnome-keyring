@@ -94,12 +94,13 @@ gkr_operation_unref (gpointer data)
 		op->pending = NULL;
 	}
 
+	operation_clear_callbacks (op);
+
 	if (op->conn) {
 		dbus_connection_unref (op->conn);
 		op->conn = NULL;
 	}
 
-	operation_clear_callbacks (op);
 	g_slice_free (GkrOperation, op);
 }
 
