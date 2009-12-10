@@ -2259,14 +2259,14 @@ item_create_prepare (const gchar *path, GnomeKeyringItemType type, const gchar *
 	                                    COLLECTION_INTERFACE, "CreateItem");
 
 	dbus_message_iter_init_append (req, iter);
-	dbus_message_iter_open_container (iter, DBUS_TYPE_ARRAY, NULL, &array);
+	dbus_message_iter_open_container (iter, DBUS_TYPE_ARRAY, "{sv}", &array);
 
 	/* Set the label */
 	string = "Label";
 	dbus_message_iter_open_container (&array, DBUS_TYPE_DICT_ENTRY, NULL, &dict);
 	dbus_message_iter_append_basic (&dict, DBUS_TYPE_STRING, &string);
 	dbus_message_iter_open_container (&dict, DBUS_TYPE_VARIANT, "s", &variant);
-	dbus_message_iter_append_basic (&dict, DBUS_TYPE_STRING, &label);
+	dbus_message_iter_append_basic (&variant, DBUS_TYPE_STRING, &label);
 	dbus_message_iter_close_container (&dict, &variant);
 	dbus_message_iter_close_container (&array, &dict);
 
@@ -2407,7 +2407,7 @@ gnome_keyring_item_create (const char                          *keyring,
 	GkrOperation *op;
 	gchar *path;
 
-	if (display_name)
+	if (!display_name)
 		display_name = "";
 
 	args = g_slice_new (item_create_args);
