@@ -64,18 +64,18 @@ extern gboolean gnome_keyring_memory_warning;
 
 #define SECRETS_SERVICE                "org.freedesktop.secrets"
 #define SERVICE_PATH                   "/org/freedesktop/secrets"
-#define COLLECTION_INTERFACE           "org.freedesktop.Secrets.Collection"
-#define ITEM_INTERFACE                 "org.freedesktop.Secrets.Item"
-#define PROMPT_INTERFACE               "org.freedesktop.Secrets.Prompt"
-#define SERVICE_INTERFACE              "org.freedesktop.Secrets.Service"
+#define COLLECTION_INTERFACE           "org.freedesktop.Secret.Collection"
+#define ITEM_INTERFACE                 "org.freedesktop.Secret.Item"
+#define PROMPT_INTERFACE               "org.freedesktop.Secret.Prompt"
+#define SERVICE_INTERFACE              "org.freedesktop.Secret.Service"
 #define COLLECTION_PREFIX              "/org/freedesktop/secrets/collection/"
 #define COLLECTION_DEFAULT             "/org/freedesktop/secrets/collection/default"
 
-#define ERROR_ALREADY_EXISTS           "org.freedesktop.Secrets.Error.AlreadyExists"
-#define ERROR_IS_LOCKED                "org.freedesktop.Secrets.Error.IsLocked"
-#define ERROR_NOT_SUPPORTED            "org.freedesktop.Secrets.Error.NotSupported"
-#define ERROR_NO_SESSION               "org.freedesktop.Secrets.Error.NoSession"
-#define ERROR_NO_SUCH_OBJECT           "org.freedesktop.Secrets.Error.NoSuchObject"
+#define ERROR_ALREADY_EXISTS           "org.freedesktop.Secret.Error.AlreadyExists"
+#define ERROR_IS_LOCKED                "org.freedesktop.Secret.Error.IsLocked"
+#define ERROR_NOT_SUPPORTED            "org.freedesktop.Secret.Error.NotSupported"
+#define ERROR_NO_SESSION               "org.freedesktop.Secret.Error.NoSession"
+#define ERROR_NO_SUCH_OBJECT           "org.freedesktop.Secret.Error.NoSuchObject"
 
 #define NORMAL_ALLOCATOR  ((EggBufferAllocator)g_realloc)
 #define SECURE_ALLOCATOR  ((EggBufferAllocator)gnome_keyring_memory_realloc)
