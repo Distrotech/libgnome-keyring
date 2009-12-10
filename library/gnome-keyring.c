@@ -557,11 +557,11 @@ gnome_keyring_set_default_keyring (const gchar                             *keyr
 
 	path = gkr_encode_keyring_name (keyring);
 	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
-	                                    SERVICE_INTERFACE, "SetWellKnownCollection");
+	                                    SERVICE_INTERFACE, "SetAlias");
 
 	string = "default";
 	dbus_message_append_args (req, DBUS_TYPE_STRING, &string,
-	                          DBUS_TYPE_STRING, &path, DBUS_TYPE_INVALID);
+	                          DBUS_TYPE_OBJECT_PATH, &path, DBUS_TYPE_INVALID);
 
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
 	gkr_operation_request (op, req);
@@ -656,7 +656,7 @@ gnome_keyring_get_default_keyring (GnomeKeyringOperationGetStringCallback  callb
 	g_return_val_if_fail (callback, NULL);
 
 	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
-	                                    SERVICE_INTERFACE, "SetWellKnownCollection");
+	                                    SERVICE_INTERFACE, "ReadAlias");
 
 	string = "default";
 	dbus_message_append_args (req, DBUS_TYPE_STRING, &string, DBUS_TYPE_INVALID);

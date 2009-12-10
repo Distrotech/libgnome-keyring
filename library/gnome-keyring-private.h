@@ -69,7 +69,7 @@ extern gboolean gnome_keyring_memory_warning;
 #define PROMPT_INTERFACE               "org.freedesktop.Secret.Prompt"
 #define SERVICE_INTERFACE              "org.freedesktop.Secret.Service"
 #define COLLECTION_PREFIX              "/org/freedesktop/secrets/collection/"
-#define COLLECTION_DEFAULT             "/org/freedesktop/secrets/collection/default"
+#define COLLECTION_DEFAULT             "/org/freedesktop/secrets/aliases/default"
 
 #define ERROR_ALREADY_EXISTS           "org.freedesktop.Secret.Error.AlreadyExists"
 #define ERROR_IS_LOCKED                "org.freedesktop.Secret.Error.IsLocked"
