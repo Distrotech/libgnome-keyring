@@ -308,7 +308,7 @@ egg_dh_gen_secret (gcry_mpi_t peer, gcry_mpi_t priv,
 	gcry_error_t gcry;
 	guchar *value;
 	gsize n_value;
-	gsize offset;
+	gsize offset = 0;
 	gcry_mpi_t k;
 	gint bits;
 

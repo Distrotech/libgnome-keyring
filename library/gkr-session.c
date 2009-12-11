@@ -29,6 +29,7 @@
 #include <gcrypt.h>
 
 #include "egg/egg-dh.h"
+#include "egg/egg-libgcrypt.h"
 #include "egg/egg-secure-memory.h"
 
 struct _GkrSession {
@@ -223,7 +224,7 @@ decode_open_session_aes (DBusMessage *message, gcry_mpi_t *peer, const char **pa
 	g_assert (path);
 
 	/* Parse the incomming message */
-	if (dbus_message_has_signature (message, "vo"))
+	if (!dbus_message_has_signature (message, "vo"))
 		return FALSE;
 	if (!dbus_message_iter_init (message, &iter))
 		g_return_val_if_reached (FALSE);
@@ -234,10 +235,10 @@ decode_open_session_aes (DBusMessage *message, gcry_mpi_t *peer, const char **pa
 	dbus_message_iter_get_fixed_array (&array, &buffer, &n_buffer);
 	if (!dbus_message_iter_next (&iter))
 		g_return_val_if_reached (FALSE);
-	dbus_message_iter_get_basic (&iter, &path);
+	dbus_message_iter_get_basic (&iter, path);
 
 	gcry = gcry_mpi_scan (peer, GCRYMPI_FMT_USG, buffer, n_buffer, NULL);
-	return (gcry != 0);
+	return (gcry == 0);
 }
 
 static void
@@ -303,7 +304,7 @@ on_open_session_aes (GkrOperation *op, DBusMessage *reply, gpointer user_data)
 static void
 session_negotiate_aes (GkrOperation *op)
 {
-	DBusMessageIter iter, variant;
+	DBusMessageIter iter, variant, array;
 	gcry_mpi_t prime, base, pub, priv;
 	const char *algorithm = "dh-ietf1024-aes128-cbc-pkcs7";
 	gboolean ret;
@@ -313,6 +314,8 @@ session_negotiate_aes (GkrOperation *op)
 	DBusMessage *req;
 
 	g_assert (op);
+
+	egg_libgcrypt_initialize ();
 
 	prime = base = pub = priv = NULL;
 	ret = egg_dh_default_params ("ietf-ike-grp-modp-1024", &prime, &base) &&
@@ -328,12 +331,14 @@ session_negotiate_aes (GkrOperation *op)
 		dbus_message_iter_init_append (req, &iter);
 		dbus_message_iter_append_basic (&iter, DBUS_TYPE_STRING, &algorithm);
 		dbus_message_iter_open_container (&iter, DBUS_TYPE_VARIANT, "ay", &variant);
+		dbus_message_iter_open_container (&variant, DBUS_TYPE_ARRAY, "y", &array);
 
 		gcry = gcry_mpi_aprint (GCRYMPI_FMT_USG, &buffer, &n_buffer, pub);
 		g_return_if_fail (gcry == 0);
-		dbus_message_iter_append_fixed_array (&variant, DBUS_TYPE_BYTE, &buffer, n_buffer);
+		dbus_message_iter_append_fixed_array (&array, DBUS_TYPE_BYTE, &buffer, n_buffer);
 		gcry_free (buffer);
 
+		dbus_message_iter_close_container (&variant, &array);
 		dbus_message_iter_close_container (&iter, &variant);
 
 		gkr_operation_push (op, on_open_session_aes, GKR_CALLBACK_OP_MSG,
@@ -379,16 +384,18 @@ static gboolean
 session_encode_secret (DBusMessageIter *iter, const gchar *path, gconstpointer parameter,
                        gsize n_parameter, gconstpointer secret, gsize n_secret)
 {
-	DBusMessageIter struc;
+	DBusMessageIter struc, array;
 
 	/* Write out the result message */
-	if (!dbus_message_iter_open_container (iter, DBUS_TYPE_STRUCT, NULL, &struc))
-		g_return_val_if_reached (FALSE);
-	dbus_message_iter_append_basic (iter, DBUS_TYPE_STRING, &path);
-	dbus_message_iter_append_fixed_array (iter, DBUS_TYPE_BYTE, &parameter, n_parameter);
-	dbus_message_iter_append_fixed_array (iter, DBUS_TYPE_BYTE, &secret, n_secret);
-	if (!dbus_message_iter_close_container (iter, &struc))
-		g_return_val_if_reached (FALSE);
+	dbus_message_iter_open_container (iter, DBUS_TYPE_STRUCT, NULL, &struc);
+	dbus_message_iter_append_basic (&struc, DBUS_TYPE_OBJECT_PATH, &path);
+	dbus_message_iter_open_container (&struc, DBUS_TYPE_ARRAY, "y", &array);
+	dbus_message_iter_append_fixed_array (&array, DBUS_TYPE_BYTE, &parameter, n_parameter);
+	dbus_message_iter_close_container (&struc, &array);
+	dbus_message_iter_open_container (&struc, DBUS_TYPE_ARRAY, "y", &array);
+	dbus_message_iter_append_fixed_array (&array, DBUS_TYPE_BYTE, &secret, n_secret);
+	dbus_message_iter_close_container (&struc, &array);
+	dbus_message_iter_close_container (iter, &struc);
 
 	return TRUE;
 }
