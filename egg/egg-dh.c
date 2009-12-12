@@ -24,6 +24,9 @@
 #include "egg-dh.h"
 #include "egg-secure-memory.h"
 
+/* Enabling this is a complete security compromise */
+#define DEBUG_DH_SECRET 0
+
 typedef struct _DHGroup {
 	const gchar *name;
 	guint bits;
@@ -257,17 +260,17 @@ egg_dh_default_params (const gchar *name, gcry_mpi_t *prime, gcry_mpi_t *base)
 }
 
 gboolean
-egg_dh_gen_pair (gcry_mpi_t p, gcry_mpi_t g, guint bits,
-                 gcry_mpi_t *X, gcry_mpi_t *x)
+egg_dh_gen_pair (gcry_mpi_t prime, gcry_mpi_t base, guint bits,
+                 gcry_mpi_t *pub, gcry_mpi_t *priv)
 {
 	guint pbits;
 
-	g_return_val_if_fail (g, FALSE);
-	g_return_val_if_fail (p, FALSE);
-	g_return_val_if_fail (X, FALSE);
-	g_return_val_if_fail (x, FALSE);
+	g_return_val_if_fail (prime, FALSE);
+	g_return_val_if_fail (base, FALSE);
+	g_return_val_if_fail (pub, FALSE);
+	g_return_val_if_fail (priv, FALSE);
 
-	pbits = gcry_mpi_get_nbits (p);
+	pbits = gcry_mpi_get_nbits (prime);
 	g_return_val_if_fail (pbits > 1, FALSE);
 
 	if (bits == 0) {
@@ -279,24 +282,24 @@ egg_dh_gen_pair (gcry_mpi_t p, gcry_mpi_t g, guint bits,
 	/*
 	 * Generate a strong random number of bits, and not zero.
 	 * gcry_mpi_randomize bumps up to the next byte. Since we
-	 * need to have a value less than half of p, we make sure
+	 * need to have a value less than half of prime, we make sure
 	 * we bump down.
 	 */
-	*x = gcry_mpi_snew (bits);
-	g_return_val_if_fail (*x, FALSE);
-	while (gcry_mpi_cmp_ui (*x, 0) == 0)
-		gcry_mpi_randomize (*x, bits, GCRY_STRONG_RANDOM);
+	*priv = gcry_mpi_snew (bits);
+	g_return_val_if_fail (*priv, FALSE);
+	while (gcry_mpi_cmp_ui (*priv, 0) == 0)
+		gcry_mpi_randomize (*priv, bits, GCRY_STRONG_RANDOM);
 
 	/* Secret key value must be less than half of p */
-	if (gcry_mpi_get_nbits (*x) > bits)
-		gcry_mpi_clear_highbit (*x, bits);
-	if (gcry_mpi_get_nbits (*x) > pbits - 1)
-		gcry_mpi_clear_highbit (*x, pbits - 1);
-	g_assert (gcry_mpi_cmp (p, *x) > 0);
+	if (gcry_mpi_get_nbits (*priv) > bits)
+		gcry_mpi_clear_highbit (*priv, bits);
+	if (gcry_mpi_get_nbits (*priv) > pbits - 1)
+		gcry_mpi_clear_highbit (*priv, pbits - 1);
+	g_assert (gcry_mpi_cmp (prime, *priv) > 0);
 
-	*X = gcry_mpi_new (gcry_mpi_get_nbits (*x));
-	g_return_val_if_fail (*X, FALSE);
-	gcry_mpi_powm (*X, g, *x, p);
+	*pub = gcry_mpi_new (gcry_mpi_get_nbits (*priv));
+	g_return_val_if_fail (*pub, FALSE);
+	gcry_mpi_powm (*pub, base, *priv, prime);
 
 	return TRUE;
 }
@@ -333,13 +336,24 @@ egg_dh_gen_secret (gcry_mpi_t peer, gcry_mpi_t priv,
 	gcry = gcry_mpi_print (GCRYMPI_FMT_USG, value + offset, n_value, &n_value, k);
 	g_return_val_if_fail (gcry == 0, NULL);
 
+#if DEBUG_DH_SECRET
+	g_printerr ("DH SECRET: ");
+	gcry_mpi_dump (k);
 	gcry_mpi_release (k);
+#endif
 
 	if (bytes != 0 && bytes < n_value) {
 		offset = n_value - bytes;
 		memmove (value, value + offset, bytes);
 		egg_secure_clear (value + bytes, offset);
 	}
+
+#if DEBUG_DH_SECRET
+	gcry_mpi_scan (&k, GCRYMPI_FMT_USG, value, bytes, NULL);
+	g_printerr ("RAW SECRET: ");
+	gcry_mpi_dump (k);
+	gcry_mpi_release (k);
+#endif
 
 	return value;
 }
