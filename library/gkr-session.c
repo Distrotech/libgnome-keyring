@@ -141,7 +141,7 @@ decode_open_session_plain (DBusMessage *message, const char **path)
 	g_assert (path);
 
 	/* Parse the incomming message */
-	if (dbus_message_has_signature (message, "vo"))
+	if (!dbus_message_has_signature (message, "vo"))
 		return FALSE;
 	if (!dbus_message_iter_init (message, &iter))
 		g_return_val_if_reached (FALSE);
@@ -150,7 +150,7 @@ decode_open_session_plain (DBusMessage *message, const char **path)
 		return FALSE;
 	if (!dbus_message_iter_next (&iter))
 		g_return_val_if_reached (FALSE);
-	dbus_message_iter_get_basic (&iter, &path);
+	dbus_message_iter_get_basic (&iter, path);
 
 	return TRUE;
 }
@@ -377,7 +377,6 @@ gkr_session_negotiate (GkrOperation *op)
 
 	/* Try to start a new AES session */
 	session_negotiate_aes (op);
-
 }
 
 static gboolean
