@@ -2948,9 +2948,9 @@ item_set_info_2_reply (GkrOperation *op, GkrSession *session, gpointer user_data
 
 	/* Sending a secret */
 	req = dbus_message_new_method_call (SECRETS_SERVICE, args->path,
-	                                    DBUS_INTERFACE_PROPERTIES, "SetSecret");
+	                                    ITEM_INTERFACE, "SetSecret");
 
-	dbus_message_iter_init (req, &iter);
+	dbus_message_iter_init_append (req, &iter);
 	if (!gkr_session_encode_secret (session, &iter, args->info->secret)) {
 		dbus_message_unref (req);
 		gkr_operation_complete (op, GNOME_KEYRING_RESULT_IO_ERROR);
@@ -3024,15 +3024,17 @@ gnome_keyring_item_set_info (const char                                 *keyring
 	                                    DBUS_INTERFACE_PROPERTIES, "Set");
 
 	dbus_message_iter_init_append (req, &iter);
+	string = ITEM_INTERFACE;
+	dbus_message_iter_append_basic (&iter, DBUS_TYPE_STRING, &string);
 	string = "Label";
 	dbus_message_iter_append_basic (&iter, DBUS_TYPE_STRING, &string);
 	dbus_message_iter_open_container (&iter, DBUS_TYPE_VARIANT, "s", &variant);
 	string = args->info->display_name ? args->info->display_name : "";
-	dbus_message_iter_append_basic (&iter, DBUS_TYPE_STRING, &string);
+	dbus_message_iter_append_basic (&variant, DBUS_TYPE_STRING, &string);
 	dbus_message_iter_close_container (&iter, &variant);
 
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
-	gkr_operation_push (op, item_set_info_1_reply, GKR_CALLBACK_RES, args, item_set_info_free);
+	gkr_operation_push (op, item_set_info_1_reply, GKR_CALLBACK_OP_MSG, args, item_set_info_free);
 	gkr_operation_request (op, req);
 	gkr_operation_unref (op);
 	dbus_message_unref (req);
