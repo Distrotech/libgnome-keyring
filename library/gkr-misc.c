@@ -163,7 +163,7 @@ gkr_decode_item_id (const char *path, guint32 *id)
 		return FALSE;
 	}
 
-	*id = strtoul (part, &end, 10);
+	*id = strtoul (part + 1, &end, 10);
 	if (!end || end[0] != '\0') {
 		g_message ("item has unsupported non-numeric item identifier: %s", path);
 		return FALSE;
@@ -176,6 +176,7 @@ gchar*
 gkr_decode_keyring_item_id (const char *path, guint32* id)
 {
 	const gchar *part;
+	const gchar *coll;
 	gchar *result;
 	gchar *end;
 
@@ -186,21 +187,20 @@ gkr_decode_keyring_item_id (const char *path, guint32* id)
 		return NULL;
 	}
 
-	path += strlen (COLLECTION_PREFIX);
-
-	part = strrchr (path, '/');
+	coll = path + strlen (COLLECTION_PREFIX);
+	part = strrchr (coll, '/');
 	if (part == NULL || part[1] == '\0') {
 		g_message ("response from daemon contained a bad item path: %s", path);
-		return FALSE;
+		return NULL;
 	}
 
-	*id = strtoul (part, &end, 10);
+	*id = strtoul (part + 1, &end, 10);
 	if (!end || end[0] != '\0') {
 		g_message ("item has unsupported non-numeric item identifier: %s", path);
-		return FALSE;
+		return NULL;
 	}
 
-	result = decode_object_identifier (path, (part - 1) - path);
+	result = decode_object_identifier (coll, (part - 1) - coll);
 	if (result == NULL) {
 		g_message ("response from daemon contained an bad collection path: %s", path);
 		return NULL;
