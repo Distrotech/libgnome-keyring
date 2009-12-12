@@ -99,6 +99,14 @@ DEFINE_TEST(recreate_keyring)
 	g_assert_cmpint (GNOME_KEYRING_RESULT_OK, ==, res);
 }
 
+static gint
+compare_ids (gconstpointer a, gconstpointer b)
+{
+	if (a < b)
+		return -1;
+	return a == b ? 0 : 1;
+}
+
 DEFINE_TEST(create_list_items)
 {
 	GnomeKeyringResult res;
@@ -152,6 +160,7 @@ DEFINE_TEST(create_list_items)
 	/* "Wrong number of ids created" */
 	g_assert_cmpint (g_list_length (ids), ==, 2);
 	if (g_list_length (ids) == 2) {
+		ids = g_list_sort (ids, compare_ids);
 		g_assert_cmpint (id, ==, GPOINTER_TO_UINT (ids->data));
 		g_assert_cmpint (id2, ==, GPOINTER_TO_UINT (ids->next->data));
 	}
