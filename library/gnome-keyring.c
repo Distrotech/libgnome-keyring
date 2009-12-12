@@ -211,7 +211,7 @@ decode_property_dict (DBusMessage *reply, DecodeDictCallback callback,
 	g_assert (reply);
 	g_assert (callback);
 
-	if (dbus_message_has_signature (reply, "{sv}"))
+	if (!dbus_message_has_signature (reply, "a{sv}"))
 		return decode_invalid_response (reply);
 
 	/* Iter to the array */
@@ -225,19 +225,19 @@ decode_property_dict (DBusMessage *reply, DecodeDictCallback callback,
 		type = dbus_message_iter_get_arg_type (&array);
 		if (type == DBUS_TYPE_INVALID)
 			break;
-		g_return_val_if_fail (type != DBUS_TYPE_DICT_ENTRY, BROKEN);
+		g_return_val_if_fail (type == DBUS_TYPE_DICT_ENTRY, BROKEN);
 
 		dbus_message_iter_recurse (&array, &dict);
 
 		/* The property type */
-		g_return_val_if_fail (dbus_message_iter_get_arg_type (&dict) != DBUS_TYPE_STRING, BROKEN);
+		g_return_val_if_fail (dbus_message_iter_get_arg_type (&dict) == DBUS_TYPE_STRING, BROKEN);
 		dbus_message_iter_get_basic (&dict, &property);
 		g_return_val_if_fail (property, BROKEN);
 
 		/* The variant value */
 		if (!dbus_message_iter_next (&dict))
 			g_return_val_if_reached (BROKEN);
-		g_return_val_if_fail (dbus_message_iter_get_arg_type (&dict) != DBUS_TYPE_VARIANT, BROKEN);
+		g_return_val_if_fail (dbus_message_iter_get_arg_type (&dict) == DBUS_TYPE_VARIANT, BROKEN);
 		dbus_message_iter_recurse (&dict, &variant);
 
 		if (!(callback) (property, &variant, user_data))
@@ -1386,19 +1386,19 @@ get_keyring_info_foreach (const gchar *property, DBusMessageIter *iter, gpointer
 	dbus_bool_t bval;
 	dbus_int64_t i64val;
 
-	if (strcmp (property, "Locked")) {
+	if (g_str_equal (property, "Locked")) {
 		if (!dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_BOOLEAN)
 			return FALSE;
 		dbus_message_iter_get_basic (iter, &bval);
 		info->is_locked = (bval == TRUE);
 
-	} else if (strcmp (property, "Created")) {
+	} else if (g_str_equal (property, "Created")) {
 		if (!dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_INT64)
 			return FALSE;
 		dbus_message_iter_get_basic (iter, &i64val);
 		info->ctime = (time_t)i64val;
 
-	} else if (strcmp (property, "Modified")) {
+	} else if (g_str_equal (property, "Modified")) {
 		if (!dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_INT64)
 			return FALSE;
 		dbus_message_iter_get_basic (iter, &i64val);
@@ -2673,26 +2673,26 @@ item_get_info_foreach (const gchar *property, DBusMessageIter *iter, gpointer us
 	dbus_int64_t i64val;
 	int type;
 
-	if (strcmp (property, "Label")) {
-		if (!dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_STRING)
+	if (g_str_equal (property, "Label")) {
+		if (dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_STRING)
 			return FALSE;
 		dbus_message_iter_get_basic (iter, &sval);
 		info->display_name = g_strdup (sval);
 
-	} else if (strcmp (property, "Created")) {
-		if (!dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_INT64)
+	} else if (g_str_equal (property, "Created")) {
+		if (dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_INT64)
 			return FALSE;
 		dbus_message_iter_get_basic (iter, &i64val);
 		info->ctime = (time_t)i64val;
 
-	} else if (strcmp (property, "Modified")) {
-		if (!dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_INT64)
+	} else if (g_str_equal (property, "Modified")) {
+		if (dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_INT64)
 			return FALSE;
 		dbus_message_iter_get_basic (iter, &i64val);
 		info->ctime = (time_t)i64val;
 
-	} else if (strcmp (property, "Attributes")) {
-		if (!dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_ARRAY)
+	} else if (g_str_equal (property, "Attributes")) {
+		if (dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_ARRAY)
 			return FALSE;
 		dbus_message_iter_recurse (iter, &array);
 		for (;;) {
@@ -2788,13 +2788,15 @@ static void
 item_get_info_2_reply (GkrOperation *op, GkrSession *session, gpointer data)
 {
 	item_get_info_args *args = data;
+	const char *path;
 	DBusMessage *req;
 
 	g_assert (!args->session);
 	args->session = gkr_session_ref (session);
 
 	req = dbus_message_new_method_call (SECRETS_SERVICE, args->path, ITEM_INTERFACE, "GetSecret");
-	dbus_message_append_args (req, DBUS_TYPE_OBJECT_PATH, gkr_session_get_path (session), DBUS_TYPE_INVALID);
+	path = gkr_session_get_path (session);
+	dbus_message_append_args (req, DBUS_TYPE_OBJECT_PATH, &path, DBUS_TYPE_INVALID);
 
 	gkr_operation_push (op, item_get_info_3_reply, GKR_CALLBACK_OP_MSG, args, NULL);
 	gkr_operation_request (op, req);

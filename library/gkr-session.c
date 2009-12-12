@@ -491,7 +491,7 @@ session_decode_secret (DBusMessageIter *iter, const char **path, gconstpointer *
 		return FALSE;
 	dbus_message_iter_recurse (iter, &struc);
 
-	if (dbus_message_iter_get_arg_type (&struc) != DBUS_TYPE_STRING)
+	if (dbus_message_iter_get_arg_type (&struc) != DBUS_TYPE_OBJECT_PATH)
 		return FALSE;
 	dbus_message_iter_get_basic (&struc, path);
 
@@ -500,7 +500,7 @@ session_decode_secret (DBusMessageIter *iter, const char **path, gconstpointer *
 	    dbus_message_iter_get_element_type (&struc) != DBUS_TYPE_BYTE)
 		return FALSE;
 	dbus_message_iter_recurse (&struc, &array);
-	dbus_message_iter_get_fixed_array (iter, parameter, &n_elements);
+	dbus_message_iter_get_fixed_array (&array, parameter, &n_elements);
 	*n_parameter = n_elements;
 
 	if (!dbus_message_iter_next (&struc) ||
@@ -508,7 +508,7 @@ session_decode_secret (DBusMessageIter *iter, const char **path, gconstpointer *
 	    dbus_message_iter_get_element_type (&struc) != DBUS_TYPE_BYTE)
 		return FALSE;
 	dbus_message_iter_recurse (&struc, &array);
-	dbus_message_iter_get_fixed_array (iter, secret, &n_elements);
+	dbus_message_iter_get_fixed_array (&array, secret, &n_elements);
 	*n_secret = n_elements;
 
 	return TRUE;
