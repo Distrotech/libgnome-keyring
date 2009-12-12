@@ -365,14 +365,13 @@ gkr_operation_handle_errors (GkrOperation *op, DBusMessage *reply)
 	op->was_keyring = FALSE;
 
 	if (dbus_set_error_from_message (&derr, reply)) {
-		g_message ("secret service operation failed: %s", derr.message);
-
 		if (dbus_error_has_name (&derr, ERROR_NO_SUCH_OBJECT)) {
 			if (was_keyring)
 				res = GNOME_KEYRING_RESULT_NO_SUCH_KEYRING;
 			else
 				res = GNOME_KEYRING_RESULT_BAD_ARGUMENTS;
 		} else {
+			g_message ("secret service operation failed: %s", derr.message);
 			res = GNOME_KEYRING_RESULT_IO_ERROR;
 		}
 
