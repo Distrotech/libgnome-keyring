@@ -3172,6 +3172,8 @@ item_set_attributes_prepare (const gchar *path, GnomeKeyringAttributeList *attrs
 	                                    DBUS_INTERFACE_PROPERTIES, "Set");
 
 	dbus_message_iter_init_append (req, &iter);
+	string = ITEM_INTERFACE;
+	dbus_message_iter_append_basic (&iter, DBUS_TYPE_STRING, &string);
 	string = "Attributes";
 	dbus_message_iter_append_basic (&iter, DBUS_TYPE_STRING, &string);
 	dbus_message_iter_open_container (&iter, DBUS_TYPE_VARIANT, "a{ss}", &variant);
