@@ -172,7 +172,7 @@ decode_property_variant_array (DBusMessage *reply, DecodeCallback callback,
 	g_assert (reply);
 	g_assert (callback);
 
-	if (dbus_message_has_signature (reply, "v"))
+	if (!dbus_message_has_signature (reply, "v"))
 		return decode_invalid_response (reply);
 
 	/* Iter to the variant */
