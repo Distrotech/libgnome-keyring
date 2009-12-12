@@ -864,6 +864,59 @@ gnome_keyring_lock_all_sync (void)
 	return gkr_operation_block (op);
 }
 
+typedef struct _create_keyring_password_args {
+	gchar *keyring_name;
+	gchar *password;
+} create_keyring_password_args;
+
+static void
+create_keyring_password_free (gpointer data)
+{
+	create_keyring_password_args *args = data;
+	g_free (args->keyring_name);
+	egg_secure_strfree (args->password);
+	g_slice_free (create_keyring_password_args, args);
+}
+
+static void
+create_keyring_encode_properties (DBusMessageIter *iter, const gchar *keyring_name)
+{
+	DBusMessageIter array, dict, variant;
+	const gchar *label = "Label";
+
+	dbus_message_iter_open_container (iter, DBUS_TYPE_ARRAY, "{sv}", &array);
+	dbus_message_iter_open_container (&array, DBUS_TYPE_DICT_ENTRY, NULL, &dict);
+	dbus_message_iter_append_basic (&dict, DBUS_TYPE_STRING, &label);
+	dbus_message_iter_open_container (&dict, DBUS_TYPE_VARIANT, "s", &variant);
+	dbus_message_iter_append_basic (&variant, DBUS_TYPE_STRING, &keyring_name);
+	dbus_message_iter_close_container (&dict, &variant);
+	dbus_message_iter_close_container (&array, &dict);
+	dbus_message_iter_close_container (iter, &array);
+}
+
+static void
+create_keyring_password_reply (GkrOperation *op, GkrSession *session, gpointer user_data)
+{
+	create_keyring_password_args *args = user_data;
+	DBusMessageIter iter;
+	DBusMessage *req;
+
+	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
+	                                    "org.gnome.keyring.InternalUnsupportedGuiltRiddenInterface",
+	                                    "CreateWithMasterPassword");
+
+	dbus_message_iter_init_append (req, &iter);
+	create_keyring_encode_properties (&iter, args->keyring_name);
+	if (!gkr_session_encode_secret (session, &iter, args->password)) {
+		gkr_operation_complete (op, GNOME_KEYRING_RESULT_IO_ERROR);
+		dbus_message_unref (req);
+		return;
+	}
+
+	gkr_operation_request (op, req);
+	dbus_message_unref (req);
+}
+
 static void
 create_keyring_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data)
 {
@@ -891,29 +944,6 @@ create_keyring_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data)
 		gkr_operation_prompt (op, prompt);
 }
 
-static DBusMessage*
-create_keyring_prepare (const gchar *keyring_name)
-{
-	DBusMessageIter iter, array, dict, variant;
-	const gchar *label = "Label";
-	DBusMessage *req;
-
-	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
-	                                    SERVICE_INTERFACE, "CreateCollection");
-
-	dbus_message_iter_init_append (req, &iter);
-	dbus_message_iter_open_container (&iter, DBUS_TYPE_ARRAY, "{sv}", &array);
-	dbus_message_iter_open_container (&array, DBUS_TYPE_DICT_ENTRY, NULL, &dict);
-	dbus_message_iter_append_basic (&dict, DBUS_TYPE_STRING, &label);
-	dbus_message_iter_open_container (&dict, DBUS_TYPE_VARIANT, "s", &variant);
-	dbus_message_iter_append_basic (&variant, DBUS_TYPE_STRING, &keyring_name);
-	dbus_message_iter_close_container (&dict, &variant);
-	dbus_message_iter_close_container (&array, &dict);
-	dbus_message_iter_close_container (&iter, &array);
-
-	return req;
-}
-
 /**
  * gnome_keyring_create:
  * @keyring_name: The new keyring name. Must not be %NULL.
@@ -937,20 +967,36 @@ gnome_keyring_create (const char                                  *keyring_name,
                       gpointer                                     data,
                       GDestroyNotify                               destroy_data)
 {
+	create_keyring_password_args *args;
+	DBusMessageIter iter;
 	DBusMessage *req;
 	GkrOperation *op;
 
 	g_return_val_if_fail (callback, NULL);
 
-	/* TODO: Password is currently ignored */
-	req = create_keyring_prepare (keyring_name);
-
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
-	gkr_operation_push (op, create_keyring_reply, GKR_CALLBACK_OP_MSG, NULL, NULL);
-	gkr_operation_request (op, req);
-	gkr_operation_unref (op);
 
-	dbus_message_unref (req);
+	/* With and without password are completely different */
+
+	if (password) {
+		args = g_slice_new0 (create_keyring_password_args);
+		args->keyring_name = g_strdup (keyring_name);
+		args->password = egg_secure_strdup (password);
+		gkr_operation_push (op, create_keyring_password_reply, GKR_CALLBACK_OP_SESSION,
+		                    args, create_keyring_password_free);
+		gkr_session_negotiate (op);
+
+	} else {
+		req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
+		                                    SERVICE_INTERFACE, "CreateCollection");
+		dbus_message_iter_init_append (req, &iter);
+		create_keyring_encode_properties (&iter, keyring_name);
+		gkr_operation_push (op, create_keyring_reply, GKR_CALLBACK_OP_MSG, NULL, NULL);
+		gkr_operation_request (op, req);
+		dbus_message_unref (req);
+	}
+
+	gkr_operation_unref (op);
 	return op;
 }
 
