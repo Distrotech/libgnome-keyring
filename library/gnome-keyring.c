@@ -1077,13 +1077,13 @@ xlock_1_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data)
 	}
 
 	/* Is there a prompt needed? */
-	if (g_str_equal (prompt, "/")) {
+	if (!g_str_equal (prompt, "/")) {
 		gkr_operation_push (op, xlock_2_reply, GKR_CALLBACK_OP_MSG, user_data, NULL);
 		gkr_operation_prompt (op, prompt);
 
 	/* No prompt, and no opportunity to */
 	} else {
-		gkr_callback_invoke_res (gkr_operation_pop (op), GNOME_KEYRING_RESULT_DENIED);
+		gkr_callback_invoke_res (gkr_operation_pop (op), GNOME_KEYRING_RESULT_NO_SUCH_KEYRING);
 	}
 }
 
