@@ -1107,11 +1107,44 @@ xlock_async (const gchar *method, const gchar *keyring,
 	return op;
 }
 
-static GnomeKeyringResult
-xlock_sync (const gchar *method, const char *keyring)
+typedef struct _unlock_password_args {
+	gchar *keyring_name;
+	gchar *password;
+} unlock_password_args;
+
+static void
+unlock_password_free (gpointer data)
 {
-	gpointer op = xlock_async (method, keyring, gkr_callback_empty, NULL, NULL);
-	return gkr_operation_block (op);
+	unlock_password_args *args = data;
+	g_free (args->keyring_name);
+	egg_secure_strfree (args->password);
+	g_slice_free (unlock_password_args, args);
+}
+
+static void
+unlock_password_reply (GkrOperation *op, GkrSession *session, gpointer user_data)
+{
+	unlock_password_args *args = user_data;
+	DBusMessageIter iter;
+	DBusMessage *req;
+	gchar *path;
+
+	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
+	                                    "org.gnome.keyring.InternalUnsupportedGuiltRiddenInterface",
+	                                    "UnlockWithMasterPassword");
+
+	dbus_message_iter_init_append (req, &iter);
+	path = gkr_encode_keyring_name (args->keyring_name);
+	dbus_message_iter_append_basic (&iter, DBUS_TYPE_OBJECT_PATH, &path);
+	g_free (path);
+	if (!gkr_session_encode_secret (session, &iter, args->password)) {
+		gkr_operation_complete (op, GNOME_KEYRING_RESULT_IO_ERROR);
+		dbus_message_unref (req);
+		return;
+	}
+
+	gkr_operation_request (op, req);
+	dbus_message_unref (req);
 }
 
 /**
@@ -1140,10 +1173,29 @@ gnome_keyring_unlock (const char                                  *keyring,
                       gpointer                                     data,
                       GDestroyNotify                               destroy_data)
 {
+	unlock_password_args *args;
+	GkrOperation *op;
+
 	g_return_val_if_fail (callback, NULL);
 
-	/* TODO: What to do with password? */
-	return xlock_async ("Unlock", keyring, callback, data, destroy_data);
+	/* Null password, standard operation */
+	if (password == NULL)
+		return xlock_async ("Unlock", keyring, callback, data, destroy_data);
+
+	g_return_val_if_fail (callback, NULL);
+
+	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
+
+	args = g_slice_new0 (unlock_password_args);
+	args->keyring_name = g_strdup (keyring);
+	args->password = egg_secure_strdup (password);
+	gkr_operation_push (op, unlock_password_reply, GKR_CALLBACK_OP_SESSION,
+	                    args, unlock_password_free);
+	gkr_operation_set_keyring_hint (op);
+	gkr_session_negotiate (op);
+	gkr_operation_unref (op);
+
+	return op;
 }
 
 /**
@@ -1167,8 +1219,8 @@ GnomeKeyringResult
 gnome_keyring_unlock_sync (const char *keyring,
                            const char *password)
 {
-	/* TODO: What to do with password? */
-	return xlock_sync ("Unlock", keyring);
+	GkrOperation *op = gnome_keyring_unlock (keyring, password, gkr_callback_empty, NULL, NULL);
+	return gkr_operation_block (op);
 }
 
 /**
@@ -1218,8 +1270,8 @@ gnome_keyring_lock (const char                                  *keyring,
 GnomeKeyringResult
 gnome_keyring_lock_sync (const char *keyring)
 {
-	/* TODO: What to do with password? */
-	return xlock_sync ("Lock", keyring);
+	GkrOperation *op = gnome_keyring_lock (keyring, gkr_callback_empty, NULL, NULL);
+	return gkr_operation_block (op);
 }
 
 /**
@@ -1280,6 +1332,98 @@ gnome_keyring_delete_sync (const char *keyring)
 	return gkr_operation_block (op);
 }
 
+typedef struct _change_password_args {
+	gchar *keyring_name;
+	gchar *password;
+	gchar *original;
+} change_password_args;
+
+static void
+change_password_free (gpointer data)
+{
+	change_password_args *args = data;
+	g_free (args->keyring_name);
+	egg_secure_strfree (args->password);
+	egg_secure_strfree (args->original);
+	g_slice_free (change_password_args, args);
+}
+
+static void
+change_password_reply (GkrOperation *op, GkrSession *session, gpointer user_data)
+{
+	change_password_args *args = user_data;
+	DBusMessageIter iter;
+	DBusMessage *req;
+	gchar *path;
+
+	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
+	                                    "org.gnome.keyring.InternalUnsupportedGuiltRiddenInterface",
+	                                    "ChangeWithMasterPassword");
+
+	dbus_message_iter_init_append (req, &iter);
+	path = gkr_encode_keyring_name (args->keyring_name);
+	dbus_message_iter_append_basic (&iter, DBUS_TYPE_OBJECT_PATH, &path);
+	g_free (path);
+	if (!gkr_session_encode_secret (session, &iter, args->original) ||
+	    !gkr_session_encode_secret (session, &iter, args->password)) {
+		gkr_operation_complete (op, GNOME_KEYRING_RESULT_IO_ERROR);
+		dbus_message_unref (req);
+		return;
+	}
+
+	gkr_operation_request (op, req);
+	dbus_message_unref (req);
+}
+
+
+static void
+change_2_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data)
+{
+	DBusMessageIter iter;
+	dbus_bool_t dismissed;
+
+	if (gkr_operation_handle_errors (op, reply))
+		return;
+
+	if (!dbus_message_has_signature (reply, "bv")) {
+		gkr_operation_complete (op, decode_invalid_response (reply));
+		return;
+	}
+
+	if (!dbus_message_iter_init (reply, &iter))
+		g_return_if_reached ();
+	dbus_message_iter_get_basic (&iter, &dismissed);
+
+	if (dismissed)
+		gkr_operation_complete (op, GNOME_KEYRING_RESULT_DENIED);
+	else
+		gkr_operation_complete (op, GNOME_KEYRING_RESULT_OK);
+}
+
+static void
+change_1_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data)
+{
+	const char *prompt;
+
+	if (gkr_operation_handle_errors (op, reply))
+		return;
+
+	if (!dbus_message_get_args (reply, NULL, DBUS_TYPE_OBJECT_PATH, &prompt, DBUS_TYPE_INVALID)) {
+		gkr_operation_complete (op, decode_invalid_response (reply));
+		return;
+	}
+
+	/* Is there a prompt needed? */
+	if (!g_str_equal (prompt, "/")) {
+		gkr_operation_push (op, change_2_reply, GKR_CALLBACK_OP_MSG, user_data, NULL);
+		gkr_operation_prompt (op, prompt);
+
+	/* Somehow, no prompt was necessary */
+	} else {
+		gkr_operation_complete (op, GNOME_KEYRING_RESULT_OK);
+	}
+}
+
 /**
  * gnome_keyring_change_password:
  * @keyring: The name of the keyring to change the password for. Cannot be %NULL.
@@ -1305,25 +1449,38 @@ gnome_keyring_change_password (const char                                  *keyr
                                gpointer                                     data,
                                GDestroyNotify                               destroy_data)
 {
-#if 0
-	GnomeKeyringOperation *op;
+	change_password_args *args;
+	DBusMessage *req;
+	GkrOperation *op;
+	gchar *path;
 
-	op = gkr_operation_new (FALSE, callback, GKR_CALLBACK_RES, data, destroy_data);
+	g_return_val_if_fail (callback, NULL);
 
-	/* Automatically secures buffer */
-	if (!gkr_proto_encode_op_string_secret_secret (&op->send_buffer,
-	                                               GNOME_KEYRING_OP_CHANGE_KEYRING_PASSWORD,
-	                                               keyring, original, password)) {
-		schedule_op_failed (op, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
+	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
+
+	/* With and without password are completely different */
+
+	if (password || original) {
+		args = g_slice_new0 (change_password_args);
+		args->keyring_name = g_strdup (keyring);
+		args->password = egg_secure_strdup (password);
+		args->original = egg_secure_strdup (original);
+		gkr_operation_push (op, change_password_reply, GKR_CALLBACK_OP_SESSION,
+		                    args, change_password_free);
+		gkr_session_negotiate (op);
+
+	} else {
+		req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
+		                                    SERVICE_INTERFACE, "ChangeLock");
+		path = gkr_encode_keyring_name (keyring);
+		dbus_message_append_args (req, DBUS_TYPE_OBJECT_PATH, &path, DBUS_TYPE_INVALID);
+		gkr_operation_push (op, change_1_reply, GKR_CALLBACK_OP_MSG, path, g_free);
+		gkr_operation_request (op, req);
+		dbus_message_unref (req);
 	}
 
-	op->reply_handler = standard_reply;
-	start_and_take_operation (op);
-
+	gkr_operation_unref (op);
 	return op;
-#endif
-	g_assert (FALSE && "TODO");
-	return NULL;
 }
 
 
@@ -1346,37 +1503,9 @@ GnomeKeyringResult
 gnome_keyring_change_password_sync (const char *keyring_name,
                                     const char *original, const char *password)
 {
-#if 0
-	EggBuffer send, receive;
-	GnomeKeyringResult res;
-
-	egg_buffer_init_full (&send, 128, SECURE_ALLOCATOR);
-
-	if (!gkr_proto_encode_op_string_secret_secret (&send,
-	                                               GNOME_KEYRING_OP_CHANGE_KEYRING_PASSWORD,
-	                                               keyring_name, original, password)) {
-		egg_buffer_uninit (&send);
-		return GNOME_KEYRING_RESULT_BAD_ARGUMENTS;
-	}
-
-	egg_buffer_init_full (&receive, 128, NORMAL_ALLOCATOR);
-	res = run_sync_operation (&send, &receive);
-	egg_buffer_uninit (&send);
-	if (res != GNOME_KEYRING_RESULT_OK) {
-		egg_buffer_uninit (&receive);
-		return res;
-	}
-
-	if (!gkr_proto_decode_result_reply (&receive, &res)) {
-		egg_buffer_uninit (&receive);
-		return GNOME_KEYRING_RESULT_IO_ERROR;
-	}
-	egg_buffer_uninit (&receive);
-
-	return res;
-#endif
-	g_assert (FALSE && "TODO");
-	return 0;
+	GkrOperation *op = gnome_keyring_change_password (keyring_name, original, password,
+	                                                  gkr_callback_empty, NULL, NULL);
+	return gkr_operation_block (op);
 }
 
 static gboolean
@@ -2530,7 +2659,7 @@ gnome_keyring_item_create (const char                          *keyring,
  * When @update_if_exists is set to %TRUE, the user may be prompted for access
  * to the previously existing item.
  *
- * For an asynchronous version of this function see gnome_keyring_create().
+ * For an asynchronous version of this function see gnome_keyring_item_create().
  *
  * Return value: %GNOME_KEYRING_RESULT_OK if the operation was succcessful or
  * an error result otherwise.
