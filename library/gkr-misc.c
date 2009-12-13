@@ -200,7 +200,7 @@ gkr_decode_keyring_item_id (const char *path, guint32* id)
 		return NULL;
 	}
 
-	result = decode_object_identifier (coll, (part - 1) - coll);
+	result = decode_object_identifier (coll, part - coll);
 	if (result == NULL) {
 		g_message ("response from daemon contained an bad collection path: %s", path);
 		return NULL;

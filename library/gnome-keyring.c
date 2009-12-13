@@ -257,16 +257,16 @@ decode_get_attributes_foreach (DBusMessageIter *iter, gpointer user_data)
 	const char *name;
 	const char *value;
 
-	if (!dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_DICT_ENTRY)
+	if (dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_DICT_ENTRY)
 		return FALSE;
 
 	dbus_message_iter_recurse (iter, &dict);
-	if (!dbus_message_iter_get_arg_type (&dict) != DBUS_TYPE_STRING)
+	if (dbus_message_iter_get_arg_type (&dict) != DBUS_TYPE_STRING)
 		return FALSE;
 	dbus_message_iter_get_basic (&dict, &name);
 
 	dbus_message_iter_next (&dict);
-	if (!dbus_message_iter_get_arg_type (&dict) != DBUS_TYPE_STRING)
+	if (dbus_message_iter_get_arg_type (&dict) != DBUS_TYPE_STRING)
 		return FALSE;
 	dbus_message_iter_get_basic (&dict, &value);
 
@@ -1753,7 +1753,7 @@ find_items_free (gpointer data)
 	gnome_keyring_found_list_free (args->found);
 	gkr_session_unref (args->session);
 	for (i = 0; i < args->paths->len; ++i)
-		g_free (g_ptr_array_index(args->paths, i));
+		g_free (g_ptr_array_index (args->paths, i));
 	g_ptr_array_free (args->paths, TRUE);
 
 	g_slice_free (find_items_args, args);
@@ -1786,7 +1786,7 @@ find_items_decode_secrets (DBusMessageIter *iter, find_items_args *args)
 	int type;
 
 	if (dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_ARRAY ||
-	    dbus_message_iter_get_element_type (iter) != DBUS_TYPE_STRUCT)
+	    dbus_message_iter_get_element_type (iter) != DBUS_TYPE_DICT_ENTRY)
 		return FALSE;
 
 	dbus_message_iter_recurse (iter, &array);
@@ -1859,10 +1859,14 @@ find_items_6_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
 
 	/* Do we have any more items? */
 	if (!args->queued) {
-		cb = gkr_operation_pop (op);
-		gkr_callback_invoke_ok_list (cb, args->found);
-		if (cb->callback == find_items_sync)
-			args->found = NULL;
+		if (args->found) {
+			cb = gkr_operation_pop (op);
+			gkr_callback_invoke_ok_list (cb, args->found);
+			if (cb->callback == find_items_sync)
+				args->found = NULL;
+		} else {
+			gkr_operation_complete (op, GNOME_KEYRING_RESULT_NO_MATCH);
+		}
 		return;
 	}
 
@@ -1914,6 +1918,7 @@ find_items_4_reply (GkrOperation *op, GkrSession *session, gpointer data)
 	/* At this point we have a session, and can get secrets */
 
 	g_assert (!args->session);
+	args->session = gkr_session_ref (session);
 
 	paths = (char**)args->paths->pdata;
 	n_paths = args->paths->len;
@@ -1999,14 +2004,15 @@ find_items_1_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
 
 	if (!dbus_message_get_args (reply, NULL,
 	                            DBUS_TYPE_ARRAY, DBUS_TYPE_OBJECT_PATH, &unlocked, &n_unlocked,
-	                            DBUS_TYPE_ARRAY, DBUS_TYPE_OBJECT_PATH, &locked, &n_locked)) {
+	                            DBUS_TYPE_ARRAY, DBUS_TYPE_OBJECT_PATH, &locked, &n_locked,
+	                            DBUS_TYPE_INVALID)) {
 		gkr_operation_complete (op, decode_invalid_response (reply));
 		return;
 	}
 
 	/* Did we find anything? */
 	if (!n_unlocked && !n_locked) {
-		gkr_operation_complete (op, GNOME_KEYRING_RESULT_OK);
+		gkr_operation_complete (op, GNOME_KEYRING_RESULT_NO_MATCH);
 		return;
 	}
 
