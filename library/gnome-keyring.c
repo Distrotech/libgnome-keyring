@@ -1516,19 +1516,19 @@ get_keyring_info_foreach (const gchar *property, DBusMessageIter *iter, gpointer
 	dbus_int64_t i64val;
 
 	if (g_str_equal (property, "Locked")) {
-		if (!dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_BOOLEAN)
+		if (dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_BOOLEAN)
 			return FALSE;
 		dbus_message_iter_get_basic (iter, &bval);
 		info->is_locked = (bval == TRUE);
 
 	} else if (g_str_equal (property, "Created")) {
-		if (!dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_INT64)
+		if (dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_INT64)
 			return FALSE;
 		dbus_message_iter_get_basic (iter, &i64val);
 		info->ctime = (time_t)i64val;
 
 	} else if (g_str_equal (property, "Modified")) {
-		if (!dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_INT64)
+		if (dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_INT64)
 			return FALSE;
 		dbus_message_iter_get_basic (iter, &i64val);
 		info->ctime = (time_t)i64val;
@@ -4125,7 +4125,7 @@ gnome_keyring_store_password (const GnomeKeyringPasswordSchema* schema, const gc
 	op = gnome_keyring_item_create (keyring, schema->item_type, display_name, attributes,
 	                                password, TRUE, store_password_filter, cb, gkr_callback_free);
 
-	gnome_keyring_attribute_list_free (attributes);
+	g_array_free (attributes, TRUE);
 	return op;
 }
 
@@ -4251,7 +4251,8 @@ find_unlocked_1_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
 
 	if (!dbus_message_get_args (reply, NULL,
 	                            DBUS_TYPE_ARRAY, DBUS_TYPE_OBJECT_PATH, &unlocked, &n_unlocked,
-	                            DBUS_TYPE_ARRAY, DBUS_TYPE_OBJECT_PATH, &locked, &n_locked)) {
+	                            DBUS_TYPE_ARRAY, DBUS_TYPE_OBJECT_PATH, &locked, &n_locked,
+	                            DBUS_TYPE_INVALID)) {
 		gkr_operation_complete (op, decode_invalid_response (reply));
 		return;
 	}
