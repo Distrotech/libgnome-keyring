@@ -33,8 +33,9 @@ DEFINE_TEST(set_display)
 {
 	GnomeKeyringResult res;
 
+	/* Deprecated method */
 	res = gnome_keyring_daemon_set_display_sync (":0.0");
-	g_assert_cmpint (GNOME_KEYRING_RESULT_OK, ==, res);
+	g_assert_cmpint (GNOME_KEYRING_RESULT_DENIED, ==, res);
 }
 
 DEFINE_TEST(setup_environment)

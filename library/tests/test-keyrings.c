@@ -24,6 +24,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
+#include <time.h>
 
 #include "run-auto-test.h"
 
@@ -201,12 +202,16 @@ DEFINE_TEST(find_keyrings)
 	GnomeKeyringFound* f;
 	guint id, i;
 	GList *found;
+	guint num;
+
+	/* Unique for every run */
+	num  = time (NULL);
 
 	attrs = gnome_keyring_attribute_list_new ();
 	gnome_keyring_attribute_list_append_string (attrs, "dog", "woof");
 	gnome_keyring_attribute_list_append_string (attrs, "bird", "cheep");
 	gnome_keyring_attribute_list_append_string (attrs, "iguana", "");
-	gnome_keyring_attribute_list_append_uint32 (attrs, "num", 19);
+	gnome_keyring_attribute_list_append_uint32 (attrs, "num", num);
 
 	/* Create the item */
 	res = gnome_keyring_item_create_sync ("session", GNOME_KEYRING_ITEM_GENERIC_SECRET,
