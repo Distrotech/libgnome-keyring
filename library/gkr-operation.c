@@ -170,10 +170,9 @@ gkr_operation_set_result (GkrOperation *op, GnomeKeyringResult res)
 	return g_atomic_int_get (&op->result) == res; /* Success when already set to res */
 }
 
-static gboolean
-on_complete (gpointer data)
+static void
+on_complete (GkrOperation *op)
 {
-	GkrOperation *op = data;
 	GkrCallback *cb;
 
 	g_assert (op);
@@ -186,6 +185,16 @@ on_complete (gpointer data)
 
 	gkr_callback_invoke_res (cb, gkr_operation_get_result (op));
 	gkr_callback_free (cb);
+}
+
+static gboolean
+on_complete_later (gpointer data)
+{
+	GkrOperation *op = data;
+
+	/* Often we've already responded by the time the callback hits */
+	if (!g_queue_is_empty (&op->callbacks))
+		on_complete (op);
 
 	return FALSE; /* Don't run idle handler again */
 }
@@ -203,7 +212,7 @@ gkr_operation_complete_later (GkrOperation *op, GnomeKeyringResult res)
 {
 	g_return_if_fail (op);
 	if (gkr_operation_set_result (op, res))
-		g_idle_add_full (G_PRIORITY_DEFAULT_IDLE, on_complete,
+		g_idle_add_full (G_PRIORITY_DEFAULT_IDLE, on_complete_later,
 		                 gkr_operation_ref (op), gkr_operation_unref);
 }
 
