@@ -245,6 +245,9 @@ connect_to_service (void)
 		rule = "type='signal',interface='org.gnome.secrets.Prompt',member='Completed'";
 		dbus_bus_add_match (conn, rule, NULL);
 
+		rule = "type='signal',member='NameOwnerChanged',interface='org.freedesktop.DBus'";
+		dbus_bus_add_match (conn, rule, NULL);
+
 		G_LOCK (dbus_connection);
 		{
 			if (dbus_connection) {
@@ -404,10 +407,17 @@ on_prompt_completed (DBusConnection *connection, DBusMessage *message, void *use
 	DBusMessageIter iter;
 	dbus_bool_t dismissed;
 	GkrOperation *op;
+	const char *object_name;
+	const char *new_owner;
+	const char *old_owner;
 
 	g_assert (args);
 
-	if (args->path && dbus_message_has_path (message, args->path) &&
+	if (!args->path)
+		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+
+	/* org.freedesktop.Secret.Prompt.Completed(BOOLEAN dismissed, VARIANT result) */
+	if (dbus_message_has_path (message, args->path) &&
 	    dbus_message_is_signal (message, PROMPT_INTERFACE, "Completed")) {
 
 		/* Only one call, even if daemon decides to be strange */
@@ -422,14 +432,34 @@ on_prompt_completed (DBusConnection *connection, DBusMessage *message, void *use
 		op = gkr_operation_ref (args->op);
 
 		if (dismissed)
-			gkr_operation_complete (args->op, GNOME_KEYRING_RESULT_CANCELLED);
+			gkr_operation_complete (op, GNOME_KEYRING_RESULT_CANCELLED);
 		else
-			callback_with_message (args->op, message);
+			callback_with_message (op, message);
 
 		op->prompting = FALSE;
 		gkr_operation_unref (op);
 
 		return DBUS_HANDLER_RESULT_HANDLED;
+	}
+
+	/* org.freedesktop.DBus.NameOwnerChanged(STRING name, STRING old_owner, STRING new_owner) */
+	if (dbus_message_is_signal (message, DBUS_INTERFACE_DBUS, "NameOwnerChanged") &&
+	    dbus_message_get_args (message, NULL, DBUS_TYPE_STRING, &object_name,
+	                           DBUS_TYPE_STRING, &old_owner, DBUS_TYPE_STRING, &new_owner,
+	                           DBUS_TYPE_INVALID)) {
+
+		/* See if it's the secret service going away */
+		if (object_name && g_str_equal (SECRETS_SERVICE, object_name) &&
+		    new_owner && g_str_equal ("", new_owner)) {
+
+			g_message ("Secret service disappeared while waiting for prompt");
+			op = gkr_operation_ref (args->op);
+			gkr_operation_complete (op, GNOME_KEYRING_RESULT_IO_ERROR);
+			op->prompting = FALSE;
+			gkr_operation_unref (op);
+		}
+
+		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 	}
 
 	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
