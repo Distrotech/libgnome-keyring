@@ -277,7 +277,7 @@ DEFINE_TEST(lock_keyrings)
 {
 	GnomeKeyringResult res;
 
-	res = gnome_keyring_lock_all_sync ();
+	res = gnome_keyring_lock_sync (KEYRING_NAME);
 	g_assert_cmpint (GNOME_KEYRING_RESULT_OK, ==, res);
 
 	res = gnome_keyring_unlock_sync (KEYRING_NAME, PASSWORD);
