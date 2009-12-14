@@ -253,7 +253,7 @@ on_open_session_aes (GkrOperation *op, DBusMessage *reply, gpointer user_data)
 	g_assert (user_data);
 
 	/* If AES is not supported then skip on over to plain */
-	if (dbus_message_is_error (reply, ERROR_NOT_SUPPORTED)) {
+	if (dbus_message_is_error (reply, DBUS_ERROR_NOT_SUPPORTED)) {
 		session_negotiate_plain (op);
 		return;
 	}
