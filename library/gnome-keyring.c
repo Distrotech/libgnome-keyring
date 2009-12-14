@@ -145,13 +145,6 @@ prepare_xlock (const char *action, char **objects, int n_objects)
 	return req;
 }
 
-static DBusMessage*
-prepare_delete (const char *path)
-{
-	return dbus_message_new_method_call (SECRETS_SERVICE, path,
-	                                     COLLECTION_INTERFACE, "Delete");
-}
-
 static GnomeKeyringResult
 decode_invalid_response (DBusMessage *reply)
 {
@@ -496,7 +489,7 @@ gnome_keyring_is_available (void)
 	gkr_operation_request (op, req);
 	dbus_message_unref (req);
 	gkr_operation_unref (op);
-	return gkr_operation_block (op);
+	return gkr_operation_block (op) == GNOME_KEYRING_RESULT_OK;
 }
 
 /**
@@ -731,7 +724,7 @@ list_keyring_names_reply (GkrOperation *op, DBusMessage *reply,
                           gpointer user_data)
 {
 	GnomeKeyringResult res;
-	GList *names;
+	GList *names = NULL;
 	GkrCallback *cb;
 
 	if (gkr_operation_handle_errors (op, reply))
@@ -4208,7 +4201,7 @@ find_unlocked_3_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
 		return;
 	}
 
-	gkr_callback_invoke_ok_string (gkr_operation_pop (op), item);
+	gkr_callback_invoke_op_string (gkr_operation_pop (op), item);
 }
 
 static void
@@ -4234,7 +4227,7 @@ find_unlocked_2_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
 		return;
 	}
 
-	gkr_callback_invoke_ok_string (gkr_operation_pop (op), item);
+	gkr_callback_invoke_op_string (gkr_operation_pop (op), item);
 }
 
 static void
@@ -4259,7 +4252,7 @@ find_unlocked_1_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
 
 	/* Do we have an unlocked item? */
 	if (n_unlocked) {
-		gkr_callback_invoke_ok_string (gkr_operation_pop (op), unlocked[0]);
+		gkr_callback_invoke_op_string (gkr_operation_pop (op), unlocked[0]);
 
 	/* Do we have any to unlock? */
 	} else if (n_locked) {
@@ -4269,7 +4262,7 @@ find_unlocked_1_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
 
 	/* No passwords at all, complete */
 	} else {
-		gkr_callback_invoke_ok_string (gkr_operation_pop (op), NULL);
+		gkr_callback_invoke_op_string (gkr_operation_pop (op), NULL);
 	}
 
 	dbus_free_string_array (locked);
@@ -4362,8 +4355,16 @@ find_password_va (const GnomeKeyringPasswordSchema* schema, va_list va,
 	attributes = schema_attribute_list_va (schema, va);
 
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES_STRING, data, destroy_data);
-	gkr_operation_push (op, find_password_1_reply, GKR_CALLBACK_OP_STRING, NULL, NULL);
-	find_unlocked (op, attributes);
+
+	if (attributes == NULL || attributes->len == 0) {
+		gkr_operation_complete_later (op, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
+
+	} else {
+		gkr_operation_push (op, find_password_1_reply, GKR_CALLBACK_OP_STRING, NULL, NULL);
+		find_unlocked (op, attributes);
+	}
+
+	g_array_free (attributes, TRUE);
 	gkr_operation_unref (op);
 	return op;
 }
@@ -4457,9 +4458,14 @@ delete_password_reply (GkrOperation *op, const char *path, gpointer user_data)
 {
 	DBusMessage *req;
 
-	req = prepare_delete (path);
-	gkr_operation_request (op, req);
-	dbus_message_unref (req);
+	if (path == NULL) {
+		gkr_operation_complete (op, GNOME_KEYRING_RESULT_NO_MATCH);
+	} else {
+		req = dbus_message_new_method_call (SECRETS_SERVICE, path,
+		                                    ITEM_INTERFACE, "Delete");
+		gkr_operation_request (op, req);
+		dbus_message_unref (req);
+	}
 }
 
 static GkrOperation*
@@ -4476,9 +4482,16 @@ delete_password_va (const GnomeKeyringPasswordSchema* schema, va_list va,
 
 	attributes = schema_attribute_list_va (schema, va);
 
-	op = gkr_operation_new (callback, GKR_CALLBACK_RES_STRING, data, destroy_data);
-	gkr_operation_push (op, delete_password_reply, GKR_CALLBACK_OP_STRING, NULL, NULL);
-	find_unlocked (op, attributes);
+	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
+
+	if (!attributes || !attributes->len) {
+		gkr_operation_complete_later (op, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
+
+	} else {
+		gkr_operation_push (op, delete_password_reply, GKR_CALLBACK_OP_STRING, NULL, NULL);
+		find_unlocked (op, attributes);
+	}
+
 	gkr_operation_unref (op);
 	return op;
 }

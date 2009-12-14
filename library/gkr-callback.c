@@ -88,7 +88,7 @@ void
 gkr_callback_invoke_op_string (GkrCallback *cb, const gchar *value)
 {
 	g_assert (cb);
-	g_assert (cb->type == GKR_CALLBACK_OP_SESSION);
+	g_assert (cb->type == GKR_CALLBACK_OP_STRING);
 	g_assert (cb->callback);
 	g_assert (cb->operation);
 	cb->type = 0;
