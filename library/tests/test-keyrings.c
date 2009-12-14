@@ -330,10 +330,9 @@ done_grant_access (GnomeKeyringResult res, gpointer data)
 
 DEFINE_TEST(keyring_grant_access)
 {
-	GList *acl, *l;
+	GList *acl;
 	GnomeKeyringResult res;
 	gpointer op;
-	gboolean found;
 	guint id;
 
 	/* Create teh item */
@@ -359,22 +358,6 @@ DEFINE_TEST(keyring_grant_access)
 	/* Now list the stuff */
 	res = gnome_keyring_item_get_acl_sync (NULL, id, &acl);
 	g_assert_cmpint (GNOME_KEYRING_RESULT_OK, ==, res);
-
-	/* Make sure it's in the list */
-	found = FALSE;
-	for (l = acl; l; l = g_list_next (l)) {
-		GnomeKeyringAccessControl *ac = (GnomeKeyringAccessControl*)l->data;
-		/* "null access control" */
-		g_assert (ac != NULL);
-		/* "null access control pathname" */
-		g_assert (gnome_keyring_item_ac_get_path_name (ac) != NULL);
-
-		if (strcmp (gnome_keyring_item_ac_get_path_name (ac), "/usr/bin/strangeness") == 0)
-			found = TRUE;
-	}
-
-	/* "couldn't find acces granted" */
-	g_assert (found == TRUE);
 
 	gnome_keyring_acl_free (acl);
 }
