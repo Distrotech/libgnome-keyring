@@ -81,6 +81,7 @@ run-auto-test.h
 /docs/reference/gnome-keyring/*-decl-list.txt
 /docs/reference/gnome-keyring/*-decl.txt
 /docs/reference/gnome-keyring/*-overrides.txt
+/docs/reference/gnome-keyring/*-undeclared.txt
 /docs/reference/gnome-keyring/*-undocumented.txt
 /docs/reference/gnome-keyring/*-unused.txt
 /docs/reference/gnome-keyring/*.args
