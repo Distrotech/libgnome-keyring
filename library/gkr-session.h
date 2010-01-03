@@ -28,6 +28,8 @@
 
 void                 gkr_session_negotiate            (GkrOperation *op);
 
+void                 gkr_session_clear                (void);
+
 GkrSession*          gkr_session_ref                  (GkrSession *session);
 
 void                 gkr_session_unref                (gpointer data);

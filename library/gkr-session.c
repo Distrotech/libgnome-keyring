@@ -379,6 +379,19 @@ gkr_session_negotiate (GkrOperation *op)
 	session_negotiate_aes (op);
 }
 
+void
+gkr_session_clear (void)
+{
+	G_LOCK (session_globals);
+	{
+		if (the_session) {
+			gkr_session_unref (the_session);
+			the_session = NULL;
+		}
+	}
+	G_UNLOCK (session_globals);
+}
+
 static gboolean
 session_encode_secret (DBusMessageIter *iter, const gchar *path, gconstpointer parameter,
                        gsize n_parameter, gconstpointer secret, gsize n_secret)

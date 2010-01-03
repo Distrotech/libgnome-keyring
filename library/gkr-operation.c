@@ -27,6 +27,7 @@
 
 #include "gkr-misc.h"
 #include "gkr-operation.h"
+#include "gkr-session.h"
 #include "gnome-keyring.h"
 #include "gnome-keyring-private.h"
 
@@ -216,6 +217,33 @@ gkr_operation_complete_later (GkrOperation *op, GnomeKeyringResult res)
 		                 gkr_operation_ref (op), gkr_operation_unref);
 }
 
+static DBusHandlerResult
+on_name_changed_filter (DBusConnection *connection, DBusMessage *message, void *user_data)
+{
+	const char *object_name;
+	const char *new_owner;
+	const char *old_owner;
+
+	/* org.freedesktop.DBus.NameOwnerChanged(STRING name, STRING old_owner, STRING new_owner) */
+	if (dbus_message_is_signal (message, DBUS_INTERFACE_DBUS, "NameOwnerChanged") &&
+	    dbus_message_get_args (message, NULL, DBUS_TYPE_STRING, &object_name,
+	                           DBUS_TYPE_STRING, &old_owner, DBUS_TYPE_STRING, &new_owner,
+	                           DBUS_TYPE_INVALID)) {
+
+		/* See if it's the secret service going away */
+		if (object_name && g_str_equal (SECRETS_SERVICE, object_name) &&
+		    new_owner && g_str_equal ("", new_owner)) {
+
+			/* Clear any session, when the service goes away */
+			gkr_session_clear ();
+		}
+
+		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+	}
+
+	return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+}
+
 static DBusConnection*
 connect_to_service (void)
 {
@@ -245,18 +273,21 @@ connect_to_service (void)
 		rule = "type='signal',interface='org.gnome.secrets.Prompt',member='Completed'";
 		dbus_bus_add_match (conn, rule, NULL);
 
+		/* Listen for name owner changed signals */
 		rule = "type='signal',member='NameOwnerChanged',interface='org.freedesktop.DBus'";
 		dbus_bus_add_match (conn, rule, NULL);
+		dbus_connection_add_filter (conn, on_name_changed_filter, NULL, NULL);
 
 		G_LOCK (dbus_connection);
 		{
 			if (dbus_connection) {
-				dbus_connection_unref (dbus_connection);
+				dbus_connection_unref (conn);
 			} else {
 				egg_dbus_connect_with_mainloop (conn, NULL);
 				dbus_connection = conn;
 			}
 		}
+		G_UNLOCK (dbus_connection);
 	}
 
 	return dbus_connection_ref (dbus_connection);
