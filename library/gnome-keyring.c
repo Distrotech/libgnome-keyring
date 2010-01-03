@@ -3381,6 +3381,13 @@ gnome_keyring_item_set_attributes_sync (const char                *keyring,
 	return gkr_operation_block (op);
 }
 
+static void
+item_get_acl_reply (GnomeKeyringResult res, gpointer user_data)
+{
+	GkrCallback *cb = user_data;
+	gkr_callback_invoke_ok_list (cb, NULL);
+}
+
 /**
  * gnome_keyring_item_get_acl:
  * @keyring: The name of the keyring in which the item exists, or NULL for the default keyring.
@@ -3401,7 +3408,9 @@ gnome_keyring_item_get_acl (const char                                 *keyring,
                             GDestroyNotify                              destroy_data)
 {
 	GkrOperation *op;
-	op = gkr_operation_new (callback, GKR_CALLBACK_RES_LIST, data, destroy_data);
+	GkrCallback *cb;
+	cb = gkr_callback_new (NULL, callback, GKR_CALLBACK_RES_LIST, data, destroy_data);
+	op = gkr_operation_new (item_get_acl_reply, GKR_CALLBACK_RES, cb, gkr_callback_free);
 	gkr_operation_complete_later (op, GNOME_KEYRING_RESULT_OK);
 	gkr_operation_unref (op);
 	return op;
