@@ -2796,10 +2796,8 @@ static gboolean
 item_get_info_foreach (const gchar *property, DBusMessageIter *iter, gpointer user_data)
 {
 	GnomeKeyringItemInfo *info = user_data;
-	DBusMessageIter array, dict;
 	const char *sval;
 	dbus_int64_t i64val;
-	int type;
 
 	if (g_str_equal (property, "Label")) {
 		if (dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_STRING)
@@ -2819,41 +2817,25 @@ item_get_info_foreach (const gchar *property, DBusMessageIter *iter, gpointer us
 		dbus_message_iter_get_basic (iter, &i64val);
 		info->ctime = (time_t)i64val;
 
-	} else if (g_str_equal (property, "Attributes")) {
-		if (dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_ARRAY)
+	} else if (g_str_equal (property, "Type")) {
+		if (dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_STRING)
 			return FALSE;
-		dbus_message_iter_recurse (iter, &array);
-		for (;;) {
-			type = dbus_message_iter_get_arg_type (&array);
-			if (type == DBUS_TYPE_INVALID)
-				break;
-			else if (type != DBUS_TYPE_DICT_ENTRY)
-				return FALSE;
-			dbus_message_iter_recurse (&array, &dict);
-			if (dbus_message_iter_get_arg_type (&dict) != DBUS_TYPE_STRING)
-				return FALSE;
-			dbus_message_iter_get_basic (&dict, &sval);
-			if (g_str_equal ("gkr:item-type", sval)) {
-				if (!dbus_message_iter_next (&dict) ||
-				    dbus_message_iter_get_arg_type (&dict) != DBUS_TYPE_STRING)
-					return FALSE;
-				dbus_message_iter_get_basic (&dict, &sval);
-				if (g_str_equal (sval, "generic-secret"))
-					info->type = GNOME_KEYRING_ITEM_GENERIC_SECRET;
-				else if (g_str_equal (sval, "network-password"))
-					info->type = GNOME_KEYRING_ITEM_NETWORK_PASSWORD;
-				else if (g_str_equal (sval, "note"))
-					info->type = GNOME_KEYRING_ITEM_NOTE;
-				else if (g_str_equal (sval, "chained-keyring-password"))
-					info->type = GNOME_KEYRING_ITEM_CHAINED_KEYRING_PASSWORD;
-				else if (g_str_equal (sval, "encryption-key-password"))
-					info->type = GNOME_KEYRING_ITEM_ENCRYPTION_KEY_PASSWORD;
-				else if (g_str_equal (sval, "pk-storage"))
-					info->type = GNOME_KEYRING_ITEM_PK_STORAGE;
-			}
-
-			dbus_message_iter_next (&array);
-		}
+		dbus_message_iter_get_basic (iter, &sval);
+		g_return_val_if_fail (sval, FALSE);
+		if (g_str_equal (sval, "org.freedesktop.Secret.Generic"))
+			info->type = GNOME_KEYRING_ITEM_GENERIC_SECRET;
+		else if (g_str_equal (sval, "org.gnome.keyring.NetworkPassword"))
+			info->type = GNOME_KEYRING_ITEM_NETWORK_PASSWORD;
+		else if (g_str_equal (sval, "org.gnome.keyring.Note"))
+			info->type = GNOME_KEYRING_ITEM_NOTE;
+		else if (g_str_equal (sval, "org.gnome.keyring.ChainedKeyring"))
+			info->type = GNOME_KEYRING_ITEM_CHAINED_KEYRING_PASSWORD;
+		else if (g_str_equal (sval, "org.gnome.keyring.EncryptionKey"))
+			info->type = GNOME_KEYRING_ITEM_ENCRYPTION_KEY_PASSWORD;
+		else if (g_str_equal (sval, "org.gnome.keyring.PkStorage"))
+			info->type = GNOME_KEYRING_ITEM_PK_STORAGE;
+		else
+			info->type = GNOME_KEYRING_ITEM_GENERIC_SECRET;
 	}
 
 	return TRUE;
@@ -3064,7 +3046,7 @@ item_set_info_free (gpointer data)
 }
 
 static void
-item_set_info_2_reply (GkrOperation *op, GkrSession *session, gpointer user_data)
+item_set_info_3_reply (GkrOperation *op, GkrSession *session, gpointer user_data)
 {
 	item_set_info_args *args = user_data;
 	DBusMessageIter iter;
@@ -3091,24 +3073,66 @@ item_set_info_2_reply (GkrOperation *op, GkrSession *session, gpointer user_data
 }
 
 static void
-item_set_info_1_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data)
+item_set_info_2_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data)
 {
 	item_set_info_args *args = user_data;
 
 	if (gkr_operation_handle_errors (op, reply))
 		return;
 
-	/* TODO: No way to set item 'type' easily, so we skip for now */
-
 	/* Need a session to send a secret */
 	if (args->info->secret) {
-		gkr_operation_push (op, item_set_info_2_reply, GKR_CALLBACK_OP_SESSION, args, NULL);
+		gkr_operation_push (op, item_set_info_3_reply, GKR_CALLBACK_OP_SESSION, args, NULL);
 		gkr_session_negotiate (op);
 
 	/* No secret? all done */
 	} else {
 		gkr_operation_complete (op, GNOME_KEYRING_RESULT_OK);
 	}
+}
+
+static void
+item_set_info_1_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data)
+{
+	item_set_info_args *args = user_data;
+	DBusMessageIter iter, variant;
+	DBusMessage *req;
+	const char *string;
+
+	if (gkr_operation_handle_errors (op, reply))
+		return;
+
+	/* Next set the type */
+	req = dbus_message_new_method_call (SECRETS_SERVICE, args->path,
+	                                    DBUS_INTERFACE_PROPERTIES, "Set");
+
+	dbus_message_iter_init_append (req, &iter);
+	string = ITEM_INTERFACE;
+	dbus_message_iter_append_basic (&iter, DBUS_TYPE_STRING, &string);
+	string = "Type";
+	dbus_message_iter_append_basic (&iter, DBUS_TYPE_STRING, &string);
+	dbus_message_iter_open_container (&iter, DBUS_TYPE_VARIANT, "s", &variant);
+
+	if (args->info->type == GNOME_KEYRING_ITEM_GENERIC_SECRET)
+		string = "org.freedesktop.Secret.Generic";
+	else if (args->info->type == GNOME_KEYRING_ITEM_NETWORK_PASSWORD)
+		string = "org.gnome.keyring.NetworkPassword";
+	else if (args->info->type == GNOME_KEYRING_ITEM_NOTE)
+		string = "org.gnome.keyring.Note";
+	else if (args->info->type == GNOME_KEYRING_ITEM_CHAINED_KEYRING_PASSWORD)
+		string = "org.gnome.keyring.ChainedKeyring";
+	else if (args->info->type == GNOME_KEYRING_ITEM_ENCRYPTION_KEY_PASSWORD)
+		string = "org.gnome.keyring.EncryptionKey";
+	else if (args->info->type == GNOME_KEYRING_ITEM_PK_STORAGE)
+		string = "org.gnome.keyring.PkStorage";
+	else
+		string = "org.freedesktop.Secret.Generic";
+
+	dbus_message_iter_append_basic (&variant, DBUS_TYPE_STRING, &string);
+	dbus_message_iter_close_container (&iter, &variant);
+
+	gkr_operation_push (op, item_set_info_2_reply, GKR_CALLBACK_OP_MSG, args, NULL);
+	gkr_operation_request (op, req);
 }
 
 /**
