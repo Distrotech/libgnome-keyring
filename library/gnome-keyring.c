@@ -1193,7 +1193,7 @@ gnome_keyring_unlock (const char                                  *keyring,
 
 /**
  * gnome_keyring_unlock_sync:
- * @keyring_name: The name of the keyring to unlock, or %NULL for the default keyring.
+ * @keyring: The name of the keyring to unlock, or %NULL for the default keyring.
  * @password: The password to unlock the keyring with, or %NULL to prompt the user.
  *
  * Unlock a @keyring, so that its contents may be accessed. In most cases %NULL
@@ -1246,7 +1246,7 @@ gnome_keyring_lock (const char                                  *keyring,
 }
 
 /**
- * gnome_keyring_unlock_sync:
+ * gnome_keyring_lock_sync:
  * @keyring: The name of the keyring to lock, or %NULL for the default keyring.
  *
  * Lock a @keyring, so that its contents may not be accessed without first
@@ -1839,6 +1839,8 @@ gnome_keyring_list_item_ids_sync (const char  *keyring,
  * @display: Deprecated
  *
  * Deprecated. No longer supported, always fails.
+ *
+ * Return value: GNOME_KEYRING_RESULT_DENIED
  **/
 GnomeKeyringResult
 gnome_keyring_daemon_set_display_sync (const char *display)
@@ -1851,6 +1853,8 @@ gnome_keyring_daemon_set_display_sync (const char *display)
  * gnome_keyring_daemon_prepare_environment_sync:
  *
  * Deprecated. No longer supported, call is ignored.
+ *
+ * Return value: GNOME_KEYRING_RESULT_OK
  **/
 GnomeKeyringResult
 gnome_keyring_daemon_prepare_environment_sync (void)
@@ -2264,6 +2268,7 @@ make_attribute_list_va (va_list args)
  * @callback: A callback which will be called when the request completes or fails.
  * @data: A pointer to arbitrary data that will be passed to the @callback.
  * @destroy_data: A function to free @data when it's no longer needed.
+ * @...: Attribute name, followed by the attribute type, and string or 32-bit unsigned int value. Terminated with NULL.
  *
  * Searches through all keyrings for items that match the specified attributes.
  * The matches are for exact equality.
@@ -2335,6 +2340,7 @@ gnome_keyring_find_items_sync (GnomeKeyringItemType        type,
  * gnome_keyring_find_itemsv_sync:
  * @type: The type of items to find.
  * @found: The location to return a list of #GnomeKeyringFound pointers.
+ * @...: Attribute name, followed by the attribute type, and string or 32-bit unsigned int value. Terminated with NULL.
  *
  * Searches through all keyrings for items that match the @attributes and @type.
  * The matches are for exact equality.
@@ -3977,6 +3983,7 @@ gnome_keyring_set_network_password_sync (const char                            *
 
 /**
  * GnomeKeyringPasswordSchema:
+ * @item_type: The item type for this schema.
  *
  * Describes a password schema. Often you'll want to use a predefined schema such
  * as %GNOME_KEYRING_NETWORK_PASSWORD.
