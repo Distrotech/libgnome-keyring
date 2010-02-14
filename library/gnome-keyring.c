@@ -4374,10 +4374,19 @@ find_password_2_reply (GkrOperation *op, GkrSession *session, gpointer user_data
 static void
 find_password_1_reply (GkrOperation *op, const char *path, gpointer user_data)
 {
+	GkrCallback *cb;
+
+	/* All done, complete the operation here */
+	if (path == NULL) {
+		cb = gkr_operation_pop (op);
+		gkr_callback_invoke_ok_string (cb, NULL);
+
 	/* We need a session to get the secret for this item */
-	gkr_operation_push (op, find_password_2_reply, GKR_CALLBACK_OP_SESSION,
-	                    g_strdup (path), g_free);
-	gkr_session_negotiate (op);
+	} else {
+		gkr_operation_push (op, find_password_2_reply, GKR_CALLBACK_OP_SESSION,
+		                    g_strdup (path), g_free);
+		gkr_session_negotiate (op);
+	}
 }
 
 static GkrOperation*
