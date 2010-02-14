@@ -70,7 +70,7 @@ prepare_property_get (const gchar *path, const gchar *interface, const gchar *na
 	if (!interface)
 		interface = "";
 
-	req = dbus_message_new_method_call (SECRETS_SERVICE, path,
+	req = dbus_message_new_method_call (gkr_service_name (), path,
 	                                    DBUS_INTERFACE_PROPERTIES, "Get");
 	dbus_message_append_args (req, DBUS_TYPE_STRING, &interface,
 	                          DBUS_TYPE_STRING, &name, DBUS_TYPE_INVALID);
@@ -88,7 +88,7 @@ prepare_property_getall (const gchar *path, const gchar *interface)
 	if (!interface)
 		interface = "";
 
-	req = dbus_message_new_method_call (SECRETS_SERVICE, path,
+	req = dbus_message_new_method_call (gkr_service_name (), path,
 	                                    DBUS_INTERFACE_PROPERTIES, "GetAll");
 	dbus_message_append_args (req, DBUS_TYPE_STRING, &interface, DBUS_TYPE_INVALID);
 
@@ -104,7 +104,7 @@ prepare_get_secret (GkrSession *session, const char *path)
 	g_assert (session);
 	g_assert (path);
 
-	req = dbus_message_new_method_call (SECRETS_SERVICE, path,
+	req = dbus_message_new_method_call (gkr_service_name (), path,
 	                                    ITEM_INTERFACE, "GetSecret");
 
 	spath = gkr_session_get_path (session);
@@ -121,7 +121,7 @@ prepare_get_secrets (GkrSession *session, char **paths, int n_paths)
 
 	g_assert (session);
 
-	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
+	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
 	                                    SERVICE_INTERFACE, "GetSecrets");
 
 	spath = gkr_session_get_path (session);
@@ -136,7 +136,7 @@ prepare_xlock (const char *action, char **objects, int n_objects)
 {
 	DBusMessage *req;
 
-	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
+	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
 	                                    SERVICE_INTERFACE, action);
 
 	dbus_message_append_args (req, DBUS_TYPE_ARRAY, DBUS_TYPE_OBJECT_PATH, &objects, n_objects,
@@ -482,7 +482,7 @@ gnome_keyring_is_available (void)
 	GkrOperation *op;
 	DBusMessage *req;
 
-	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
+	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
 	                                    DBUS_INTERFACE_PEER, "Ping");
 
 	op = gkr_operation_new (gkr_callback_empty, GKR_CALLBACK_RES, NULL, NULL);
@@ -549,7 +549,7 @@ gnome_keyring_set_default_keyring (const gchar                             *keyr
 	g_return_val_if_fail (callback, NULL);
 
 	path = gkr_encode_keyring_name (keyring);
-	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
+	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
 	                                    SERVICE_INTERFACE, "SetAlias");
 
 	string = "default";
@@ -653,7 +653,7 @@ gnome_keyring_get_default_keyring (GnomeKeyringOperationGetStringCallback  callb
 
 	g_return_val_if_fail (callback, NULL);
 
-	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
+	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
 	                                    SERVICE_INTERFACE, "ReadAlias");
 
 	string = "default";
@@ -828,7 +828,7 @@ gnome_keyring_lock_all (GnomeKeyringOperationDoneCallback       callback,
 
 	g_return_val_if_fail (callback, NULL);
 
-	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
+	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
 	                                    SERVICE_INTERFACE, "LockService");
 
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
@@ -894,7 +894,7 @@ create_keyring_password_reply (GkrOperation *op, GkrSession *session, gpointer u
 	DBusMessageIter iter;
 	DBusMessage *req;
 
-	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
+	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
 	                                    "org.gnome.keyring.InternalUnsupportedGuiltRiddenInterface",
 	                                    "CreateWithMasterPassword");
 
@@ -980,7 +980,7 @@ gnome_keyring_create (const char                                  *keyring_name,
 		gkr_session_negotiate (op);
 
 	} else {
-		req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
+		req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
 		                                    SERVICE_INTERFACE, "CreateCollection");
 		dbus_message_iter_init_append (req, &iter);
 		create_keyring_encode_properties (&iter, keyring_name);
@@ -1122,7 +1122,7 @@ unlock_password_reply (GkrOperation *op, GkrSession *session, gpointer user_data
 	DBusMessage *req;
 	gchar *path;
 
-	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
+	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
 	                                    "org.gnome.keyring.InternalUnsupportedGuiltRiddenInterface",
 	                                    "UnlockWithMasterPassword");
 
@@ -1294,7 +1294,7 @@ gnome_keyring_delete (const char                                  *keyring,
 	g_return_val_if_fail (callback, NULL);
 
 	path = gkr_encode_keyring_name (keyring);
-	req = dbus_message_new_method_call (SECRETS_SERVICE, path,
+	req = dbus_message_new_method_call (gkr_service_name (), path,
 	                                    COLLECTION_INTERFACE, "Delete");
 
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
@@ -1349,7 +1349,7 @@ change_password_reply (GkrOperation *op, GkrSession *session, gpointer user_data
 	DBusMessage *req;
 	gchar *path;
 
-	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
+	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
 	                                    "org.gnome.keyring.InternalUnsupportedGuiltRiddenInterface",
 	                                    "ChangeWithMasterPassword");
 
@@ -1463,7 +1463,7 @@ gnome_keyring_change_password (const char                                  *keyr
 		gkr_session_negotiate (op);
 
 	} else {
-		req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
+		req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
 		                                    SERVICE_INTERFACE, "ChangeLock");
 		path = gkr_encode_keyring_name (keyring);
 		dbus_message_append_args (req, DBUS_TYPE_OBJECT_PATH, &path, DBUS_TYPE_INVALID);
@@ -2206,7 +2206,7 @@ gnome_keyring_find_items  (GnomeKeyringItemType                  type,
 	g_return_val_if_fail (attributes, NULL);
 	g_return_val_if_fail (callback, NULL);
 
-	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
+	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
 	                                    SERVICE_INTERFACE, "SearchItems");
 
 	/* Encode the attribute list */
@@ -2429,7 +2429,7 @@ item_create_prepare (const gchar *path, GnomeKeyringItemType type, const gchar *
 	DBusMessage *req;
 	const char *string;
 
-	req = dbus_message_new_method_call (SECRETS_SERVICE, path,
+	req = dbus_message_new_method_call (gkr_service_name (), path,
 	                                    COLLECTION_INTERFACE, "CreateItem");
 
 	dbus_message_iter_init_append (req, iter);
@@ -2701,7 +2701,7 @@ gnome_keyring_item_delete (const char                                 *keyring,
 	gchar *path;
 
 	path = gkr_encode_keyring_item_id (keyring, id);
-	req = dbus_message_new_method_call (SECRETS_SERVICE, path,
+	req = dbus_message_new_method_call (gkr_service_name (), path,
 	                                    ITEM_INTERFACE, "Delete");
 
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
@@ -2904,7 +2904,7 @@ item_get_info_2_reply (GkrOperation *op, GkrSession *session, gpointer data)
 	g_assert (!args->session);
 	args->session = gkr_session_ref (session);
 
-	req = dbus_message_new_method_call (SECRETS_SERVICE, args->path, ITEM_INTERFACE, "GetSecret");
+	req = dbus_message_new_method_call (gkr_service_name (), args->path, ITEM_INTERFACE, "GetSecret");
 	path = gkr_session_get_path (session);
 	dbus_message_append_args (req, DBUS_TYPE_OBJECT_PATH, &path, DBUS_TYPE_INVALID);
 
@@ -3057,7 +3057,7 @@ item_set_info_3_reply (GkrOperation *op, GkrSession *session, gpointer user_data
 	g_assert (args->info->secret);
 
 	/* Sending a secret */
-	req = dbus_message_new_method_call (SECRETS_SERVICE, args->path,
+	req = dbus_message_new_method_call (gkr_service_name (), args->path,
 	                                    ITEM_INTERFACE, "SetSecret");
 
 	dbus_message_iter_init_append (req, &iter);
@@ -3103,7 +3103,7 @@ item_set_info_1_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data)
 		return;
 
 	/* Next set the type */
-	req = dbus_message_new_method_call (SECRETS_SERVICE, args->path,
+	req = dbus_message_new_method_call (gkr_service_name (), args->path,
 	                                    DBUS_INTERFACE_PROPERTIES, "Set");
 
 	dbus_message_iter_init_append (req, &iter);
@@ -3172,7 +3172,7 @@ gnome_keyring_item_set_info (const char                                 *keyring
 	args->path = gkr_encode_keyring_item_id (keyring, id);
 
 	/* First set the label */
-	req = dbus_message_new_method_call (SECRETS_SERVICE, args->path,
+	req = dbus_message_new_method_call (gkr_service_name (), args->path,
 	                                    DBUS_INTERFACE_PROPERTIES, "Set");
 
 	dbus_message_iter_init_append (req, &iter);
@@ -3324,7 +3324,7 @@ item_set_attributes_prepare (const gchar *path, GnomeKeyringAttributeList *attrs
 	DBusMessage *req;
 	const gchar *string;
 
-	req = dbus_message_new_method_call (SECRETS_SERVICE, path,
+	req = dbus_message_new_method_call (gkr_service_name (), path,
 	                                    DBUS_INTERFACE_PROPERTIES, "Set");
 
 	dbus_message_iter_init_append (req, &iter);
@@ -4308,7 +4308,7 @@ find_unlocked (GkrOperation *op, GnomeKeyringAttributeList *attributes)
 	DBusMessageIter iter;
 	DBusMessage *req;
 
-	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
+	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
 	                                    SERVICE_INTERFACE, "SearchItems");
 
 	/* Encode the attribute list */
@@ -4494,7 +4494,7 @@ delete_password_reply (GkrOperation *op, const char *path, gpointer user_data)
 	if (path == NULL) {
 		gkr_operation_complete (op, GNOME_KEYRING_RESULT_NO_MATCH);
 	} else {
-		req = dbus_message_new_method_call (SECRETS_SERVICE, path,
+		req = dbus_message_new_method_call (gkr_service_name (), path,
 		                                    ITEM_INTERFACE, "Delete");
 		gkr_operation_request (op, req);
 		dbus_message_unref (req);

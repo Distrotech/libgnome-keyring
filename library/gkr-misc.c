@@ -29,6 +29,17 @@
 #include <stdlib.h>
 #include <string.h>
 
+const gchar*
+gkr_service_name (void)
+{
+#ifdef WITH_TESTS
+	const gchar *service = g_getenv ("GNOME_KEYRING_TEST_SERVICE");
+	if (service && service[0])
+		return service;
+#endif
+	return SECRETS_SERVICE;
+}
+
 static void
 encode_object_identifier (GString *string, const gchar* name, gssize length)
 {

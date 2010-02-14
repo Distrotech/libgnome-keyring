@@ -23,6 +23,7 @@
 
 #include "config.h"
 
+#include "gkr-misc.h"
 #include "gkr-session.h"
 #include "gnome-keyring-private.h"
 
@@ -198,7 +199,7 @@ session_negotiate_plain (GkrOperation *op)
 
 	g_assert (op);
 
-	req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
+	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
 	                                    SERVICE_INTERFACE, "OpenSession");
 	dbus_message_iter_init_append (req, &iter);
 	dbus_message_iter_append_basic (&iter, DBUS_TYPE_STRING, &algorithm);
@@ -325,7 +326,7 @@ session_negotiate_aes (GkrOperation *op)
 	gcry_mpi_release (base);
 
 	if (ret == TRUE) {
-		req = dbus_message_new_method_call (SECRETS_SERVICE, SERVICE_PATH,
+		req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
 		                                    SERVICE_INTERFACE, "OpenSession");
 
 		dbus_message_iter_init_append (req, &iter);

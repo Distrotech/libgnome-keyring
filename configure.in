@@ -193,6 +193,9 @@ fi
 
 AM_CONDITIONAL(WITH_TESTS, test "$enable_tests" = "yes")
 
+AC_PATH_PROG(GNOME_KEYRING_DAEMON_PATH, gnome-keyring-daemon, "gnome-keyring-daemon")
+AC_DEFINE_UNQUOTED(GNOME_KEYRING_DAEMON_PATH, "$GNOME_KEYRING_DAEMON_PATH", [Path to gnome-keyring-daemon])
+
 # ----------------------------------------------------------------------
 
 AC_SUBST(LIBRARY_CFLAGS)

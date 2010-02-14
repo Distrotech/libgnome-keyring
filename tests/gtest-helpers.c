@@ -23,12 +23,15 @@
 
 /* This file is included into the main .c file for each gtest unit-test program */
 
+#include "config.h"
+
 #include <glib.h>
 #include <stdio.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <signal.h>
 
 #include "gtest-helpers.h"
 
@@ -36,6 +39,7 @@
 
 static GStaticMutex memory_mutex = G_STATIC_MUTEX_INIT;
 static const gchar *test_path = NULL;
+static pid_t daemon_pid = 0;
 
 void
 egg_memory_lock (void)
@@ -157,20 +161,59 @@ chdir_base_dir (char* argv0)
 	g_free (dir);
 }
 
+static void
+daemon_start ()
+{
+	GError *err = NULL;
+	gchar *args[3];
+	const gchar *path, *service;
+
+	path = g_getenv ("GNOME_KEYRING_TEST_PATH");
+	if (path && !path[0])
+		path = NULL;
+
+	service = g_getenv ("GNOME_KEYRING_TEST_SERVICE");
+	if (service && !service[0])
+		service = NULL;
+
+	if (!path && !service) {
+		g_mkdir_with_parents ("/tmp/keyring-test/data", 0700);
+		g_setenv ("GNOME_KEYRING_TEST_PATH", "/tmp/keyring-test/data", TRUE);
+		g_setenv ("GNOME_KEYRING_TEST_SERVICE", "org.gnome.keyring.Test", TRUE);
+
+		g_printerr ("Starting gnome-keyring-daemon...\n");
+
+		args[0] = GNOME_KEYRING_DAEMON_PATH;
+		args[1] = "--foreground";
+		args[2] = "--control-directory";
+		args[3] = "/tmp/keyring-test";
+		args[4] = NULL;
+
+		if (!g_spawn_async (NULL, args, NULL, G_SPAWN_LEAVE_DESCRIPTORS_OPEN | G_SPAWN_DO_NOT_REAP_CHILD,
+							NULL, NULL, &daemon_pid, &err)) {
+			g_error ("couldn't start gnome-keyring-daemon for testing: %s",
+					 err && err->message ? err->message : "");
+			g_assert_not_reached ();
+		}
+
+		/* Let it startup properly */
+		sleep (2);
+	}
+}
+
+static void
+daemon_stop (void)
+{
+	if (daemon_pid)
+		kill (daemon_pid, SIGTERM);
+	daemon_pid = 0;
+}
+
 int
 main (int argc, char* argv[])
 {
 	GLogLevelFlags fatal_mask;
 	int ret;
-
-	test_path = getenv ("GNOME_KEYRING_TEST_PATH");
-	if (test_path) {
-		setenv ("GNOME_KEYRING_OUTSIDE_TEST", "TRUE", 1);
-	} else {
-		test_path = "/tmp/test-gnome-keyring";
-		setenv ("GNOME_KEYRING_TEST_PATH", test_path, 1);
-		g_mkdir_with_parents (test_path, 0777);
-	}
 
 	chdir_base_dir (argv[0]);
 	g_test_init (&argc, &argv, NULL);
@@ -181,10 +224,13 @@ main (int argc, char* argv[])
 	g_log_set_always_fatal (fatal_mask);
 
 	initialize_tests ();
+	daemon_start ();
 
 	start_tests ();
 	ret = g_test_run ();
 	stop_tests();
+
+	daemon_stop();
 
 	return ret;
 }

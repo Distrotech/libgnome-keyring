@@ -231,7 +231,7 @@ on_name_changed_filter (DBusConnection *connection, DBusMessage *message, void *
 	                           DBUS_TYPE_INVALID)) {
 
 		/* See if it's the secret service going away */
-		if (object_name && g_str_equal (SECRETS_SERVICE, object_name) &&
+		if (object_name && g_str_equal (gkr_service_name (), object_name) &&
 		    new_owner && g_str_equal ("", new_owner)) {
 
 			/* Clear any session, when the service goes away */
@@ -480,7 +480,7 @@ on_prompt_completed (DBusConnection *connection, DBusMessage *message, void *use
 	                           DBUS_TYPE_INVALID)) {
 
 		/* See if it's the secret service going away */
-		if (object_name && g_str_equal (SECRETS_SERVICE, object_name) &&
+		if (object_name && g_str_equal (gkr_service_name (), object_name) &&
 		    new_owner && g_str_equal ("", new_owner)) {
 
 			g_message ("Secret service disappeared while waiting for prompt");
@@ -536,7 +536,7 @@ gkr_operation_prompt (GkrOperation *op, const gchar *prompt)
 	args->op->prompting = TRUE;
 	dbus_connection_add_filter (op->conn, on_prompt_completed, args, NULL);
 
-	req = dbus_message_new_method_call (SECRETS_SERVICE, prompt,
+	req = dbus_message_new_method_call (gkr_service_name (), prompt,
 	                                    PROMPT_INTERFACE, "Prompt");
 
 	window_id = "";

@@ -26,6 +26,8 @@
 
 #include <glib.h>
 
+const gchar*            gkr_service_name                     (void);
+
 gchar*                  gkr_encode_keyring_name              (const gchar *keyring);
 
 gchar*                  gkr_encode_keyring_item_id           (const gchar *keyring,

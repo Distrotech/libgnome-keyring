@@ -29,19 +29,19 @@
 
 #include "library/gnome-keyring-memory.h"
 
-#define IS_ZERO ~0
+#define IS_ZERO -1
 
-static gsize
+static int
 find_non_zero (gpointer mem, gsize len)
 {
 	guchar *b, *e;
 	gsize sz = 0;
 	for (b = (guchar*)mem, e = ((guchar*)mem) + len; b != e; ++b, ++sz) {
 		if (*b != 0x00)
-			return sz;
+			return (int)sz;
 	}
 
-	return IS_ZERO;
+	return -1;
 }
 
 DEFINE_TEST(alloc_free)
