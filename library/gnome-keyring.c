@@ -2407,6 +2407,7 @@ gnome_keyring_find_itemsv_sync  (GnomeKeyringItemType        type,
 typedef struct _item_create_args {
 	DBusMessage *request;
 	DBusMessageIter iter;
+	gboolean is_default;
 	gboolean update_if_exists;
 	gchar *secret;
 } item_create_args;
@@ -2463,17 +2464,11 @@ item_create_prepare (const gchar *path, GnomeKeyringItemType type, const gchar *
 	return req;
 }
 
-static gboolean
-item_create_check_unlock (const char *path, gpointer user_data)
-{
-	gboolean *unlocked = user_data;
-	*unlocked = TRUE;
-	return FALSE;
-}
-
 static void
-item_create_4_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
+item_create_3_created_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
 {
+	/* Called after trying to create item */
+
 	const char *path;
 	const char *prompt;
 	guint32 id;
@@ -2496,8 +2491,10 @@ item_create_4_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
 }
 
 static void
-item_create_3_reply (GkrOperation *op, GkrSession *session, gpointer data)
+item_create_2_session_reply (GkrOperation *op, GkrSession *session, gpointer data)
 {
+	/* Called after we have a session, start creating item */
+
 	item_create_args *args = data;
 	dbus_bool_t replace;
 
@@ -2509,14 +2506,130 @@ item_create_3_reply (GkrOperation *op, GkrSession *session, gpointer data)
 	replace = args->update_if_exists;
 	dbus_message_iter_append_basic (&args->iter, DBUS_TYPE_BOOLEAN, &replace);
 
-	gkr_operation_push (op, item_create_4_reply, GKR_CALLBACK_OP_MSG, NULL, NULL);
+	gkr_operation_push (op, item_create_3_created_reply, GKR_CALLBACK_OP_MSG, NULL, NULL);
+	gkr_operation_set_keyring_hint (op);
 	gkr_operation_request (op, args->request);
 }
 
 static void
-item_create_2_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
+item_create_2_session_request (GkrOperation *op, gpointer data)
 {
-	item_create_args *args = data;
+	/* Called to get us a valid session */
+
+	gkr_operation_push (op, item_create_2_session_reply, GKR_CALLBACK_OP_SESSION, data, NULL);
+	gkr_session_negotiate (op);
+}
+
+static void
+item_create_1_default_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
+{
+	/* Called after setting newly created keyring to default */
+
+	if (gkr_operation_handle_errors (op, reply))
+		return;
+
+	item_create_2_session_request (op, data);
+}
+
+static void
+item_create_1_default_request (GkrOperation *op, const gchar *path, gpointer data)
+{
+	/* Called to request setting newly created keyring to default */
+
+	DBusMessage *req;
+	const char *string;
+
+	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
+	                                    SERVICE_INTERFACE, "SetAlias");
+
+	string = "default";
+	dbus_message_append_args (req, DBUS_TYPE_STRING, &string,
+	                          DBUS_TYPE_OBJECT_PATH, &path, DBUS_TYPE_INVALID);
+
+	gkr_operation_push (op, item_create_1_default_reply, GKR_CALLBACK_OP_MSG, data, NULL);
+	gkr_operation_set_keyring_hint (op);
+	gkr_operation_request (op, req);
+	dbus_message_unref (req);
+}
+
+static void
+item_create_1_create_prompt_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
+{
+	/* Called after prompting to create default collection for item */
+
+	DBusMessageIter iter, variant;
+	const char *path;
+
+	if (gkr_operation_handle_errors (op, reply))
+		return;
+
+	if (!dbus_message_has_signature (reply, "bv")) {
+		gkr_operation_complete (op, decode_invalid_response (reply));
+		return;
+	}
+
+	/* Skip over dismissed, already parsed */
+	if (!dbus_message_iter_init (reply, &iter) ||
+	    !dbus_message_iter_next (&iter))
+		g_return_if_reached ();
+
+	/* Dig out the variant */
+	dbus_message_iter_recurse (&iter, &variant);
+	if (!g_str_equal (dbus_message_iter_get_signature (&variant), "o")) {
+		gkr_operation_complete (op, decode_invalid_response (reply));
+		return;
+	}
+
+	g_return_if_fail (dbus_message_iter_get_arg_type (&variant) == DBUS_TYPE_OBJECT_PATH);
+	dbus_message_iter_get_basic (&variant, &path);
+
+	/* Set this keyring as the default keyring */
+	item_create_1_default_request (op, path, data);
+}
+
+static void
+item_create_1_collection_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
+{
+	/* Called after trying to create default collection to create item in */
+
+	const char *collection;
+	const char *prompt;
+
+	if (gkr_operation_handle_errors (op, reply))
+		return;
+
+	/* Parse the response */
+	if (!dbus_message_get_args (reply, NULL, DBUS_TYPE_OBJECT_PATH, &collection,
+	                            DBUS_TYPE_OBJECT_PATH, &prompt, DBUS_TYPE_INVALID)) {
+		g_warning ("bad response to CreateCollection from service");
+		gkr_callback_invoke_res (gkr_operation_pop (op), GNOME_KEYRING_RESULT_IO_ERROR);
+		return;
+	}
+
+	/* No prompt, set keyring as default */
+	g_return_if_fail (prompt);
+	if (g_str_equal (prompt, "/")) {
+		item_create_1_default_request (op, collection, data);
+
+	/* A prompt, display it get the response */
+	} else {
+		gkr_operation_push (op, item_create_1_create_prompt_reply, GKR_CALLBACK_OP_MSG, data, NULL);
+		gkr_operation_prompt (op, prompt);
+	}
+}
+
+static gboolean
+item_create_check_unlock (const char *path, gpointer user_data)
+{
+	gboolean *unlocked = user_data;
+	*unlocked = TRUE;
+	return FALSE;
+}
+
+static void
+item_create_1_unlock_prompt_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
+{
+	/* Called after unlocking the collection we're going to create item in */
 	gboolean dismissed = FALSE;
 	gboolean unlocked = FALSE;
 
@@ -2531,15 +2644,18 @@ item_create_2_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
 	}
 
 	/* Now that its unlocked, we need a session to transfer the secret */
-	gkr_operation_push (op, item_create_3_reply, GKR_CALLBACK_OP_SESSION, args, NULL);
-	gkr_session_negotiate (op);
+	item_create_2_session_request (op, data);
 }
 
 static void
-item_create_1_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
+item_create_1_unlock_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
 {
+	/* Called after trying to unlock keyring we're going to create item in */
+
 	item_create_args *args = data;
-	gboolean unlocked;
+	DBusMessageIter iter;
+	DBusMessage *req;
+	gboolean unlocked = FALSE;
 	const char *prompt;
 
 	if (gkr_operation_handle_errors (op, reply))
@@ -2552,13 +2668,30 @@ item_create_1_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
 
 	/* Prompt to unlock the collection */
 	if (!g_str_equal (prompt, "/")) {
-		gkr_operation_push (op, item_create_2_reply, GKR_CALLBACK_OP_MSG, args, NULL);
+		gkr_operation_push (op, item_create_1_unlock_prompt_reply, GKR_CALLBACK_OP_MSG, args, NULL);
 		gkr_operation_prompt (op, prompt);
 
-	/* We need a session to transfer the secret */
+	/* No such keyring, no prompt, and not unlocked */
+	} else if (!unlocked) {
+
+		/* Caller asked for default keyring, and there is no such keyring. Create */
+		if (args->is_default) {
+			req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
+							    SERVICE_INTERFACE, "CreateCollection");
+			dbus_message_iter_init_append (req, &iter);
+			create_keyring_encode_properties (&iter, "default");
+			gkr_operation_push (op, item_create_1_collection_reply, GKR_CALLBACK_OP_MSG, args, NULL);
+			gkr_operation_request (op, req);
+			dbus_message_unref (req);
+
+		/* No such keyring, error */
+		} else {
+			gkr_operation_complete (op, GNOME_KEYRING_RESULT_NO_SUCH_KEYRING);
+		}
+
+	/* Successfully unlocked, or not locked. We need a session to transfer the secret */
 	} else {
-		gkr_operation_push (op, item_create_3_reply, GKR_CALLBACK_OP_SESSION, args, NULL);
-		gkr_session_negotiate (op);
+		item_create_2_session_request (op, args);
 	}
 }
 
@@ -2616,6 +2749,7 @@ gnome_keyring_item_create (const char                          *keyring,
 	args = g_slice_new0 (item_create_args);
 	args->update_if_exists = update_if_exists;
 	args->secret = egg_secure_strdup (secret);
+	args->is_default = (keyring == NULL);
 
 	path = gkr_encode_keyring_name (keyring);
 	args->request = item_create_prepare (path, type, display_name, attributes, &args->iter);
@@ -2626,7 +2760,7 @@ gnome_keyring_item_create (const char                          *keyring,
 	g_free (path);
 
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES_UINT, data, destroy_data);
-	gkr_operation_push (op, item_create_1_reply, GKR_CALLBACK_OP_MSG, args, item_create_free);
+	gkr_operation_push (op, item_create_1_unlock_reply, GKR_CALLBACK_OP_MSG, args, item_create_free);
 	gkr_operation_set_keyring_hint (op);
 	gkr_operation_request (op, req);
 	gkr_operation_unref (op);
@@ -4379,7 +4513,7 @@ find_password_1_reply (GkrOperation *op, const char *path, gpointer user_data)
 	/* All done, complete the operation here */
 	if (path == NULL) {
 		cb = gkr_operation_pop (op);
-		gkr_callback_invoke_ok_string (cb, NULL);
+		gkr_callback_invoke_res (cb, GNOME_KEYRING_RESULT_NO_MATCH);
 
 	/* We need a session to get the secret for this item */
 	} else {
