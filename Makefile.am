@@ -16,7 +16,8 @@ EXTRA_DIST = \
 	intltool-extract.in \
 	intltool-merge.in \
 	intltool-update.in \
-	HACKING
+	HACKING \
+	COPYING.GPL
 
 DISTCHECK_CONFIGURE_FLAGS = --enable-gtk-doc --enable-tests
 
