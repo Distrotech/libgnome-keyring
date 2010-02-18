@@ -37,6 +37,8 @@
 
 #include <dbus/dbus.h>
 
+#include <glib/gi18n-lib.h>
+
 #include <time.h>
 #include <unistd.h>
 #include <errno.h>
@@ -2679,7 +2681,8 @@ item_create_1_unlock_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
 			req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
 							    SERVICE_INTERFACE, "CreateCollection");
 			dbus_message_iter_init_append (req, &iter);
-			create_keyring_encode_properties (&iter, "default");
+			/* TRANSLATORS: This is the name of an automatically created default keyring. */
+			create_keyring_encode_properties (&iter, _("Default"));
 			gkr_operation_push (op, item_create_1_collection_reply, GKR_CALLBACK_OP_MSG, args, NULL);
 			gkr_operation_request (op, req);
 			dbus_message_unref (req);
