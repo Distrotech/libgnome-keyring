@@ -4516,7 +4516,7 @@ find_password_1_reply (GkrOperation *op, const char *path, gpointer user_data)
 	/* All done, complete the operation here */
 	if (path == NULL) {
 		cb = gkr_operation_pop (op);
-		gkr_callback_invoke_res (cb, GNOME_KEYRING_RESULT_NO_MATCH);
+		gkr_callback_invoke_ok_string (cb, NULL);
 
 	/* We need a session to get the secret for this item */
 	} else {
