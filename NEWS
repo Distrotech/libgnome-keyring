@@ -1,2 +1,13 @@
+Changes in version 2.29.92 are:
+ * Fix assertion calling deprecated acl function.
+ * Clear the client's session when the service disconnects.
+ * Implement setting of Type property in gnome_keyring_item_set_info().
+ * Allow predictable testing by setting up a test path and service.
+ * Fix assertion when password is not found.
+ * Prompt to create a new default keyring when creating an item while no
+   default keyring exists.
+ * Fix up some documentation errors.
+ * Updated translations.
+
 2.29.1
  * Branched library from gnome-keyring into its own.
