@@ -25,6 +25,3 @@ test_prompting_CFLAGS = \
 test_prompting_LDADD = \
 	$(top_builddir)/library/libgnome-keyring.la \
 	$(GLIB_LIBS)
-
-EXTRA_DIST = \
-	test-data

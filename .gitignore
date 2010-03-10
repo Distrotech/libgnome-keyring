@@ -80,7 +80,6 @@ run-auto-test.h
 # Commit these files if you edit them
 /docs/reference/gnome-keyring/*-decl-list.txt
 /docs/reference/gnome-keyring/*-decl.txt
-/docs/reference/gnome-keyring/*-overrides.txt
 /docs/reference/gnome-keyring/*-undeclared.txt
 /docs/reference/gnome-keyring/*-undocumented.txt
 /docs/reference/gnome-keyring/*-unused.txt
