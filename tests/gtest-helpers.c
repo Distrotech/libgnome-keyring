@@ -165,7 +165,7 @@ static void
 daemon_start ()
 {
 	GError *err = NULL;
-	gchar *args[3];
+	gchar *args[5];
 	const gchar *path, *service;
 
 	path = g_getenv ("GNOME_KEYRING_TEST_PATH");
