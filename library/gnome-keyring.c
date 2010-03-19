@@ -4567,7 +4567,6 @@ find_password_va (const GnomeKeyringPasswordSchema* schema, va_list va,
 	GkrOperation *op;
 
 	g_assert (schema);
-	g_assert (va);
 	g_assert (callback);
 
 	attributes = schema_attribute_list_va (schema, va);
@@ -4695,7 +4694,6 @@ delete_password_va (const GnomeKeyringPasswordSchema* schema, va_list va,
 	GkrOperation *op;
 
 	g_assert (schema);
-	g_assert (va);
 	g_assert (callback);
 
 	attributes = schema_attribute_list_va (schema, va);
