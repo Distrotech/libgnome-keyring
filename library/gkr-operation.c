@@ -431,8 +431,17 @@ typedef struct _on_prompt_args {
 	gchar *path;
 } on_prompt_args;
 
+static void
+on_prompt_completed (void *user_data)
+{
+	on_prompt_args *args = user_data;
+	g_return_if_fail (args->op->prompting);
+	gkr_operation_unref (args->op);
+	args->op->prompting = FALSE;
+}
+
 static DBusHandlerResult
-on_prompt_completed (DBusConnection *connection, DBusMessage *message, void *user_data)
+on_prompt_signal (DBusConnection *connection, DBusMessage *message, void *user_data)
 {
 	on_prompt_args *args = user_data;
 	DBusMessageIter iter;
@@ -444,7 +453,7 @@ on_prompt_completed (DBusConnection *connection, DBusMessage *message, void *use
 
 	g_assert (args);
 
-	if (!args->path)
+	if (!args->path || !args->op->prompting)
 		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
 
 	/* org.freedesktop.Secret.Prompt.Completed(BOOLEAN dismissed, VARIANT result) */
@@ -467,7 +476,8 @@ on_prompt_completed (DBusConnection *connection, DBusMessage *message, void *use
 		else
 			callback_with_message (op, message);
 
-		op->prompting = FALSE;
+		if (op->prompting)
+			dbus_connection_remove_filter (args->op->conn, on_prompt_signal, args);
 		gkr_operation_unref (op);
 
 		return DBUS_HANDLER_RESULT_HANDLED;
@@ -486,7 +496,8 @@ on_prompt_completed (DBusConnection *connection, DBusMessage *message, void *use
 			g_message ("Secret service disappeared while waiting for prompt");
 			op = gkr_operation_ref (args->op);
 			gkr_operation_complete (op, GNOME_KEYRING_RESULT_IO_ERROR);
-			op->prompting = FALSE;
+			if (op->prompting)
+				dbus_connection_remove_filter (args->op->conn, on_prompt_signal, args);
 			gkr_operation_unref (op);
 		}
 
@@ -508,8 +519,8 @@ on_prompt_free (gpointer data)
 	on_prompt_args *args = data;
 	g_assert (args);
 	g_assert (args->op);
-	args->op->prompting = FALSE;
-	dbus_connection_remove_filter (args->op->conn, on_prompt_completed, args);
+	if (args->op->prompting)
+		dbus_connection_remove_filter (args->op->conn, on_prompt_signal, args);
 	g_free (args->path);
 	g_slice_free (on_prompt_args, args);
 }
@@ -532,9 +543,12 @@ gkr_operation_prompt (GkrOperation *op, const gchar *prompt)
 
 	args = g_slice_new (on_prompt_args);
 	args->path = g_strdup (prompt);
-	args->op = op;
+
+	/* This reference and flag is cleared by on_prompt_completed */
+	args->op = gkr_operation_ref (op);
 	args->op->prompting = TRUE;
-	dbus_connection_add_filter (op->conn, on_prompt_completed, args, NULL);
+	dbus_connection_add_filter (op->conn, on_prompt_signal, args,
+	                            on_prompt_completed);
 
 	req = dbus_message_new_method_call (gkr_service_name (), prompt,
 	                                    PROMPT_INTERFACE, "Prompt");
