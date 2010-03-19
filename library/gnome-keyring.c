@@ -859,18 +859,18 @@ gnome_keyring_lock_all_sync (void)
 	return gkr_operation_block (op);
 }
 
-typedef struct _create_keyring_password_args {
+typedef struct _create_keyring_args {
 	gchar *keyring_name;
 	gchar *password;
-} create_keyring_password_args;
+} create_keyring_args;
 
 static void
-create_keyring_password_free (gpointer data)
+create_keyring_free (gpointer data)
 {
-	create_keyring_password_args *args = data;
+	create_keyring_args *args = data;
 	g_free (args->keyring_name);
 	egg_secure_strfree (args->password);
-	g_slice_free (create_keyring_password_args, args);
+	g_slice_free (create_keyring_args, args);
 }
 
 static void
@@ -892,7 +892,7 @@ create_keyring_encode_properties (DBusMessageIter *iter, const gchar *keyring_na
 static void
 create_keyring_password_reply (GkrOperation *op, GkrSession *session, gpointer user_data)
 {
-	create_keyring_password_args *args = user_data;
+	create_keyring_args *args = user_data;
 	DBusMessageIter iter;
 	DBusMessage *req;
 
@@ -939,6 +939,38 @@ create_keyring_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data)
 		gkr_operation_prompt (op, prompt);
 }
 
+static void
+create_keyring_check_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data)
+{
+	create_keyring_args *args = user_data;
+	DBusMessageIter iter;
+	DBusMessage *req;
+
+	/* If no such object, then no such keyring exists and we're good to go. */
+	if (!dbus_message_is_error (reply, ERROR_NO_SUCH_OBJECT)) {
+		/* Success means 'already exists' */
+		if (!gkr_operation_handle_errors (op, reply))
+			gkr_operation_complete (op, GNOME_KEYRING_RESULT_ALREADY_EXISTS);
+		return;
+	}
+
+	/* With a password requires a session, so get on that */
+	if (args->password) {
+		gkr_operation_push (op, create_keyring_password_reply, GKR_CALLBACK_OP_SESSION, args, NULL);
+		gkr_session_negotiate (op);
+
+	/* Otherwiswe just create the collection */
+	} else {
+		req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
+		                                    SERVICE_INTERFACE, "CreateCollection");
+		dbus_message_iter_init_append (req, &iter);
+		create_keyring_encode_properties (&iter, args->keyring_name);
+		gkr_operation_push (op, create_keyring_reply, GKR_CALLBACK_OP_MSG, NULL, NULL);
+		gkr_operation_request (op, req);
+		dbus_message_unref (req);
+	}
+}
+
 /**
  * gnome_keyring_create:
  * @keyring_name: The new keyring name. Must not be %NULL.
@@ -962,34 +994,34 @@ gnome_keyring_create (const char                                  *keyring_name,
                       gpointer                                     data,
                       GDestroyNotify                               destroy_data)
 {
-	create_keyring_password_args *args;
-	DBusMessageIter iter;
+	create_keyring_args *args;
 	DBusMessage *req;
 	GkrOperation *op;
+	gchar *path;
 
 	g_return_val_if_fail (callback, NULL);
 
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
 
-	/* With and without password are completely different */
+	args = g_slice_new0 (create_keyring_args);
+	args->keyring_name = g_strdup (keyring_name);
+	args->password = egg_secure_strdup (password);
 
-	if (password) {
-		args = g_slice_new0 (create_keyring_password_args);
-		args->keyring_name = g_strdup (keyring_name);
-		args->password = egg_secure_strdup (password);
-		gkr_operation_push (op, create_keyring_password_reply, GKR_CALLBACK_OP_SESSION,
-		                    args, create_keyring_password_free);
-		gkr_session_negotiate (op);
+	/*
+	 * The secrets API has a significantly different model with creating of
+	 * keyrings, where we never get an 'already exists' error. However this
+	 * breaks certain strange uses of gnome_keyring_create ().
+	 *
+	 * So we simulate 'already exists' in a fairly good, but 'racy' manner.
+	 */
 
-	} else {
-		req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
-		                                    SERVICE_INTERFACE, "CreateCollection");
-		dbus_message_iter_init_append (req, &iter);
-		create_keyring_encode_properties (&iter, keyring_name);
-		gkr_operation_push (op, create_keyring_reply, GKR_CALLBACK_OP_MSG, NULL, NULL);
-		gkr_operation_request (op, req);
-		dbus_message_unref (req);
-	}
+	path = gkr_encode_keyring_name (keyring_name);
+	req = prepare_property_get (path, COLLECTION_INTERFACE, "Label");
+	gkr_operation_push (op, create_keyring_check_reply, GKR_CALLBACK_OP_MSG,
+	                    args, create_keyring_free);
+	gkr_operation_request (op, req);
+	dbus_message_unref (req);
+	g_free (path);
 
 	gkr_operation_unref (op);
 	return op;
