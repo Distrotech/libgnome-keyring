@@ -495,15 +495,14 @@ static void
 done_find_no_password (GnomeKeyringResult res, const gchar* password, gpointer unused)
 {
 	find_no_password_result = res;
-	if(res == GNOME_KEYRING_RESULT_OK)
-		g_assert (password == NULL);
+	g_assert (password == NULL);
 	test_mainloop_quit ();
 }
 
 DEFINE_TEST(find_no_password)
 {
 	GnomeKeyringResult res;
-	gchar *password;
+	gchar *password = NULL;
 	gpointer op;
 
 	/* Synchronous, valid*/
@@ -511,7 +510,7 @@ DEFINE_TEST(find_no_password)
 	                                        "dog", "grunt",
 	                                        "legs", 1000,
 	                                        NULL);
-	g_assert_cmpint (GNOME_KEYRING_RESULT_OK, ==, res);
+	g_assert_cmpint (GNOME_KEYRING_RESULT_NO_MATCH, ==, res);
 	g_assert (password == NULL);
 
 	/* Asynchronous, less arguments */
@@ -526,7 +525,7 @@ DEFINE_TEST(find_no_password)
 
 	test_mainloop_run (2000);
 
-	g_assert_cmpint (GNOME_KEYRING_RESULT_OK, ==, find_no_password_result);
+	g_assert_cmpint (GNOME_KEYRING_RESULT_NO_MATCH, ==, find_no_password_result);
 }
 
 static void
