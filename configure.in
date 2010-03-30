@@ -1,6 +1,6 @@
 AC_INIT(library/gnome-keyring.h)
 
-AM_INIT_AUTOMAKE(libgnome-keyring, 2.29.92)
+AM_INIT_AUTOMAKE(libgnome-keyring, 2.30.0)
 AM_CONFIG_HEADER(config.h)
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([no])])
 
