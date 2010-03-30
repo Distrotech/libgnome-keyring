@@ -166,7 +166,7 @@ gboolean
 gkr_operation_set_result (GkrOperation *op, GnomeKeyringResult res)
 {
 	g_assert (op);
-	g_assert (res != INCOMPLETE);
+	g_assert ((int) res != INCOMPLETE);
 	g_atomic_int_compare_and_exchange (&op->result, INCOMPLETE, res);
 	return g_atomic_int_get (&op->result) == res; /* Success when already set to res */
 }
@@ -367,12 +367,12 @@ gkr_operation_block (GkrOperation *op)
 
 	gkr_operation_ref (op);
 
-	while (gkr_operation_get_result (op) == INCOMPLETE) {
+	while ((int) gkr_operation_get_result (op) == INCOMPLETE) {
 		if (op->pending) {
 			dbus_pending_call_block (op->pending);
 		} else if (op->prompting) {
 			dbus_connection_flush (op->conn);
-			while (op->prompting && gkr_operation_get_result (op) == INCOMPLETE) {
+			while (op->prompting && (int) gkr_operation_get_result (op) == INCOMPLETE) {
 				if (!dbus_connection_read_write_dispatch (op->conn, 200))
 					break;
 			}
