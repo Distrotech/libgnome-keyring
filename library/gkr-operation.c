@@ -363,13 +363,25 @@ gkr_operation_request (GkrOperation *op, DBusMessage *req)
 GnomeKeyringResult
 gkr_operation_block (GkrOperation *op)
 {
+	DBusPendingCall *pending;
 	g_return_val_if_fail (op, BROKEN);
 
 	gkr_operation_ref (op);
 
 	while ((int) gkr_operation_get_result (op) == INCOMPLETE) {
 		if (op->pending) {
-			dbus_pending_call_block (op->pending);
+			/*
+			 * DBus has strange behavior that can complete a pending call
+			 * in another thread and somehow does this without calling our
+			 * on_pending_call_notify. So guard against this brokenness.
+			 */
+			pending = op->pending;
+			dbus_pending_call_block (pending);
+			if (op->pending == pending) {
+				g_return_val_if_fail (dbus_pending_call_get_completed (pending), BROKEN);
+				on_pending_call_notify (pending, op);
+				g_assert (op->pending != pending);
+			}
 		} else if (op->prompting) {
 			dbus_connection_flush (op->conn);
 			while (op->prompting && (int) gkr_operation_get_result (op) == INCOMPLETE) {
