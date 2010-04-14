@@ -9,7 +9,7 @@ msgstr ""
 "Project-Id-Version: libgnome-keyring master\n"
 "Report-Msgid-Bugs-To: http://bugzilla.gnome.org/enter_bug.cgi?product=gnome-keyring&component=libgnome-keyring\n"
 "POT-Creation-Date: 2010-02-24 11:03+0000\n"
-"PO-Revision-Date: 2010-02-24 15:34+0100\n"
+"PO-Revision-Date: 2010-04-14 14:40+0100\n"
 "Last-Translator: Matej Urbančič <mateju@svn.gnome.org>\n"
 "Language-Team: Slovenian GNOME Translation Team <gnome-si@googlegroups.com>\n"
 "MIME-Version: 1.0\n"
@@ -56,4 +56,3 @@ msgstr "Zbirka ključev je že odklenjena"
 #: ../library/gnome-keyring.c:2685
 msgid "Default"
 msgstr "Privzeto"
-
