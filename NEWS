@@ -1,3 +1,8 @@
+Changes in version 2.30.1 are:
+ * Work around for bug in dbus which causes an endless loop
+   during blocking operations.
+ * Updated translations.
+
 Changes in version 2.30.0 are:
  * Fix assertion calling deprecated acl function.
  * Clear the client's session when the service disconnects.
