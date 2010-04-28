@@ -1,6 +1,7 @@
-AC_INIT(library/gnome-keyring.h)
+AC_INIT([libgnome-keyring], [2.30.2])
+AC_CONFIG_SRCDIR([library/gnome-keyring.h])
+AM_INIT_AUTOMAKE([tar-ustar])
 
-AM_INIT_AUTOMAKE(libgnome-keyring, 2.30.2)
 AM_CONFIG_HEADER(config.h)
 m4_ifdef([AM_SILENT_RULES], [AM_SILENT_RULES([no])])
 
