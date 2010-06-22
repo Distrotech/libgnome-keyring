@@ -483,6 +483,7 @@ gnome_keyring_is_available (void)
 {
 	GkrOperation *op;
 	DBusMessage *req;
+	gboolean ret;
 
 	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
 	                                    DBUS_INTERFACE_PEER, "Ping");
@@ -490,8 +491,9 @@ gnome_keyring_is_available (void)
 	op = gkr_operation_new (gkr_callback_empty, GKR_CALLBACK_RES, NULL, NULL);
 	gkr_operation_request (op, req);
 	dbus_message_unref (req);
+	ret = gkr_operation_block (op) == GNOME_KEYRING_RESULT_OK;
 	gkr_operation_unref (op);
-	return gkr_operation_block (op) == GNOME_KEYRING_RESULT_OK;
+	return ret;
 }
 
 /**
