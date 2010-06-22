@@ -490,8 +490,7 @@ gnome_keyring_is_available (void)
 	op = gkr_operation_new (gkr_callback_empty, GKR_CALLBACK_RES, NULL, NULL);
 	gkr_operation_request (op, req);
 	dbus_message_unref (req);
-	gkr_operation_unref (op);
-	return gkr_operation_block (op) == GNOME_KEYRING_RESULT_OK;
+	return gkr_operation_block_and_unref (op) == GNOME_KEYRING_RESULT_OK;
 }
 
 /**
@@ -523,24 +522,9 @@ gnome_keyring_cancel_request (gpointer request)
  * Each keyring can be in a locked or unlocked state. A password must be specified, either by the user or the calling application, to unlock the keyring.
  **/
 
-/**
- * gnome_keyring_set_default_keyring:
- * @keyring: The keyring to make default
- * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
- * @destroy_data: A function to free @data when it's no longer needed.
- *
- * Change the default keyring.
- *
- * For a synchronous version of this function see gnome_keyring_set_default_keyring_sync().
- *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
- **/
-gpointer
-gnome_keyring_set_default_keyring (const gchar                             *keyring,
-                                   GnomeKeyringOperationDoneCallback       callback,
-                                   gpointer                                data,
-                                   GDestroyNotify                          destroy_data)
+static GkrOperation*
+set_default_keyring_start (const gchar *keyring, GnomeKeyringOperationDoneCallback callback,
+                           gpointer data, GDestroyNotify destroy_data)
 {
 	DBusMessage *req;
 	const char *string;
@@ -561,12 +545,33 @@ gnome_keyring_set_default_keyring (const gchar                             *keyr
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
 	gkr_operation_set_keyring_hint (op);
 	gkr_operation_request (op, req);
-	gkr_operation_unref (op);
-
 	dbus_message_unref (req);
 	g_free (path);
 
 	return op;
+}
+
+/**
+ * gnome_keyring_set_default_keyring:
+ * @keyring: The keyring to make default
+ * @callback: A callback which will be called when the request completes or fails.
+ * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @destroy_data: A function to free @data when it's no longer needed.
+ *
+ * Change the default keyring.
+ *
+ * For a synchronous version of this function see gnome_keyring_set_default_keyring_sync().
+ *
+ * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ **/
+gpointer
+gnome_keyring_set_default_keyring (const gchar                             *keyring,
+                                   GnomeKeyringOperationDoneCallback       callback,
+                                   gpointer                                data,
+                                   GDestroyNotify                          destroy_data)
+{
+	GkrOperation *op = set_default_keyring_start (keyring, callback, data, destroy_data);
+	return gkr_operation_pending_and_unref (op);
 }
 
 /**
@@ -587,8 +592,8 @@ gnome_keyring_set_default_keyring_sync (const char *keyring)
 
 	g_return_val_if_fail (keyring, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
 
-	op = gnome_keyring_set_default_keyring (keyring, gkr_callback_empty, NULL, NULL);
-	return gkr_operation_block (op);
+	op = set_default_keyring_start (keyring, gkr_callback_empty, NULL, NULL);
+	return gkr_operation_block_and_unref (op);
 }
 
 static void
@@ -630,6 +635,30 @@ get_default_keyring_reply (GkrOperation *op, DBusMessage *reply, gpointer user_d
 		g_free (name);
 }
 
+static GkrOperation*
+get_default_keyring_start (GnomeKeyringOperationGetStringCallback callback,
+                           gpointer data, GDestroyNotify destroy_data)
+{
+	DBusMessage *req;
+	const char *string;
+	GkrOperation *op;
+
+	g_return_val_if_fail (callback, NULL);
+
+	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
+	                                    SERVICE_INTERFACE, "ReadAlias");
+
+	string = "default";
+	dbus_message_append_args (req, DBUS_TYPE_STRING, &string, DBUS_TYPE_INVALID);
+
+	op = gkr_operation_new (callback, GKR_CALLBACK_RES_STRING, data, destroy_data);
+	gkr_operation_push (op, get_default_keyring_reply, GKR_CALLBACK_OP_MSG, NULL, NULL);
+	gkr_operation_request (op, req);
+	dbus_message_unref (req);
+
+	return op;
+}
+
 /**
  * gnome_keyring_get_default_keyring:
  * @callback: A callback which will be called when the request completes or fails.
@@ -649,26 +678,8 @@ gnome_keyring_get_default_keyring (GnomeKeyringOperationGetStringCallback  callb
                                    gpointer                                data,
                                    GDestroyNotify                          destroy_data)
 {
-	DBusMessage *req;
-	const char *string;
-	GkrOperation *op;
-
-	g_return_val_if_fail (callback, NULL);
-
-	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
-	                                    SERVICE_INTERFACE, "ReadAlias");
-
-	string = "default";
-	dbus_message_append_args (req, DBUS_TYPE_STRING, &string, DBUS_TYPE_INVALID);
-
-	op = gkr_operation_new (callback, GKR_CALLBACK_RES_STRING, data, destroy_data);
-	gkr_operation_push (op, get_default_keyring_reply, GKR_CALLBACK_OP_MSG, NULL, NULL);
-	gkr_operation_request (op, req);
-	gkr_operation_unref (op);
-
-	dbus_message_unref (req);
-
-	return op;
+	GkrOperation *op = get_default_keyring_start (callback, data, destroy_data);
+	return gkr_operation_pending_and_unref (op);
 }
 
 /**
@@ -691,8 +702,8 @@ gnome_keyring_get_default_keyring_sync (char **keyring)
 
 	g_return_val_if_fail (keyring, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
 
-	op = gnome_keyring_get_default_keyring (get_default_keyring_sync, keyring, NULL);
-	return gkr_operation_block (op);
+	op = get_default_keyring_start (get_default_keyring_sync, keyring, NULL);
+	return gkr_operation_block_and_unref (op);
 }
 
 static void
@@ -745,6 +756,24 @@ list_keyring_names_reply (GkrOperation *op, DBusMessage *reply,
 	gnome_keyring_string_list_free (names);
 }
 
+static GkrOperation*
+list_keyring_names_start (GnomeKeyringOperationGetListCallback callback,
+                          gpointer data, GDestroyNotify destroy_data)
+{
+	GkrOperation *op;
+	DBusMessage *req;
+
+	g_return_val_if_fail (callback, NULL);
+
+	req = prepare_property_get (SERVICE_PATH, SERVICE_INTERFACE, "Collections");
+
+	op = gkr_operation_new (callback, GKR_CALLBACK_RES_LIST, data, destroy_data);
+	gkr_operation_push (op, list_keyring_names_reply, GKR_CALLBACK_OP_MSG, NULL, NULL);
+	gkr_operation_request (op, req);
+	dbus_message_unref (req);
+	return op;
+}
+
 /**
  * gnome_keyring_list_keyring_names:
  * @callback: A callback which will be called when the request completes or fails.
@@ -762,24 +791,12 @@ list_keyring_names_reply (GkrOperation *op, DBusMessage *reply,
  * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
  **/
 gpointer
-gnome_keyring_list_keyring_names  (GnomeKeyringOperationGetListCallback    callback,
-                                   gpointer                                data,
-                                   GDestroyNotify                          destroy_data)
+gnome_keyring_list_keyring_names (GnomeKeyringOperationGetListCallback    callback,
+                                  gpointer                                data,
+                                  GDestroyNotify                          destroy_data)
 {
-	GkrOperation *op;
-	DBusMessage *req;
-
-	g_return_val_if_fail (callback, NULL);
-
-	req = prepare_property_get (SERVICE_PATH, SERVICE_INTERFACE, "Collections");
-
-	op = gkr_operation_new (callback, GKR_CALLBACK_RES_LIST, data, destroy_data);
-	gkr_operation_push (op, list_keyring_names_reply, GKR_CALLBACK_OP_MSG, NULL, NULL);
-	gkr_operation_request (op, req);
-	gkr_operation_unref (op);
-
-	dbus_message_unref (req);
-	return op;
+	GkrOperation *op = list_keyring_names_start (callback, data, destroy_data);
+	return gkr_operation_pending_and_unref (op);
 }
 
 /**
@@ -803,8 +820,27 @@ gnome_keyring_list_keyring_names_sync (GList **keyrings)
 
 	g_return_val_if_fail (keyrings, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
 
-	op = gnome_keyring_list_keyring_names (list_keyring_names_sync, keyrings, NULL);
-	return gkr_operation_block (op);
+	op = list_keyring_names_start (list_keyring_names_sync, keyrings, NULL);
+	return gkr_operation_block_and_unref (op);
+}
+
+static GkrOperation*
+lock_all_start (GnomeKeyringOperationDoneCallback callback,
+                gpointer data, GDestroyNotify destroy_data)
+{
+	DBusMessage *req;
+	GkrOperation *op;
+
+	g_return_val_if_fail (callback, NULL);
+
+	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
+	                                    SERVICE_INTERFACE, "LockService");
+
+	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
+	gkr_operation_request (op, req);
+	dbus_message_unref (req);
+
+	return op;
 }
 
 /**
@@ -825,20 +861,8 @@ gnome_keyring_lock_all (GnomeKeyringOperationDoneCallback       callback,
                         gpointer                                data,
                         GDestroyNotify                          destroy_data)
 {
-	DBusMessage *req;
-	GkrOperation *op;
-
-	g_return_val_if_fail (callback, NULL);
-
-	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
-	                                    SERVICE_INTERFACE, "LockService");
-
-	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
-	gkr_operation_request (op, req);
-	gkr_operation_unref (op);
-
-	dbus_message_unref (req);
-	return op;
+	GkrOperation *op = lock_all_start (callback, data, destroy_data);
+	return gkr_operation_pending_and_unref (op);
 }
 
 /**
@@ -855,8 +879,8 @@ gnome_keyring_lock_all (GnomeKeyringOperationDoneCallback       callback,
 GnomeKeyringResult
 gnome_keyring_lock_all_sync (void)
 {
-	gpointer op = gnome_keyring_lock_all (gkr_callback_empty, NULL, NULL);
-	return gkr_operation_block (op);
+	GkrOperation *op = lock_all_start (gkr_callback_empty, NULL, NULL);
+	return gkr_operation_block_and_unref (op);
 }
 
 typedef struct _create_keyring_args {
@@ -971,28 +995,10 @@ create_keyring_check_reply (GkrOperation *op, DBusMessage *reply, gpointer user_
 	}
 }
 
-/**
- * gnome_keyring_create:
- * @keyring_name: The new keyring name. Must not be %NULL.
- * @password: The password for the new keyring. If %NULL user will be prompted.
- * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
- * @destroy_data: A function to free @data when it's no longer needed.
- *
- * Create a new keyring with the specified name. In most cases %NULL will be
- * passed as the @password, which will prompt the user to enter a password
- * of their choice.
- *
- * For a synchronous version of this function see gnome_keyring_create_sync().
- *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
- **/
-gpointer
-gnome_keyring_create (const char                                  *keyring_name,
-                      const char                                  *password,
-                      GnomeKeyringOperationDoneCallback            callback,
-                      gpointer                                     data,
-                      GDestroyNotify                               destroy_data)
+static GkrOperation*
+create_keyring_start (const char *keyring_name, const char *password,
+                      GnomeKeyringOperationDoneCallback callback,
+                      gpointer data, GDestroyNotify destroy_data)
 {
 	create_keyring_args *args;
 	DBusMessage *req;
@@ -1023,8 +1029,34 @@ gnome_keyring_create (const char                                  *keyring_name,
 	dbus_message_unref (req);
 	g_free (path);
 
-	gkr_operation_unref (op);
 	return op;
+}
+
+/**
+ * gnome_keyring_create:
+ * @keyring_name: The new keyring name. Must not be %NULL.
+ * @password: The password for the new keyring. If %NULL user will be prompted.
+ * @callback: A callback which will be called when the request completes or fails.
+ * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @destroy_data: A function to free @data when it's no longer needed.
+ *
+ * Create a new keyring with the specified name. In most cases %NULL will be
+ * passed as the @password, which will prompt the user to enter a password
+ * of their choice.
+ *
+ * For a synchronous version of this function see gnome_keyring_create_sync().
+ *
+ * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ **/
+gpointer
+gnome_keyring_create (const char                                  *keyring_name,
+                      const char                                  *password,
+                      GnomeKeyringOperationDoneCallback            callback,
+                      gpointer                                     data,
+                      GDestroyNotify                               destroy_data)
+{
+	GkrOperation *op = create_keyring_start (keyring_name, password, callback, data, destroy_data);
+	return gkr_operation_pending_and_unref (op);
 }
 
 /**
@@ -1045,8 +1077,8 @@ GnomeKeyringResult
 gnome_keyring_create_sync (const char *keyring_name,
                            const char *password)
 {
-	gpointer op = gnome_keyring_create (keyring_name, password, gkr_callback_empty, NULL, NULL);
-	return gkr_operation_block (op);
+	GkrOperation *op = create_keyring_start (keyring_name, password, gkr_callback_empty, NULL, NULL);
+	return gkr_operation_block_and_unref (op);
 }
 
 typedef struct _xlock_check_args {
@@ -1114,7 +1146,7 @@ xlock_1_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data)
 	}
 }
 
-static gpointer
+static GkrOperation*
 xlock_async (const gchar *method, const gchar *keyring,
              GnomeKeyringOperationDoneCallback callback,
              gpointer data, GDestroyNotify destroy_data)
@@ -1174,6 +1206,35 @@ unlock_password_reply (GkrOperation *op, GkrSession *session, gpointer user_data
 	dbus_message_unref (req);
 }
 
+static GkrOperation*
+unlock_keyring_start (const char *keyring, const char *password,
+                      GnomeKeyringOperationDoneCallback callback,
+                      gpointer data, GDestroyNotify destroy_data)
+{
+	unlock_password_args *args;
+	GkrOperation *op;
+
+	g_return_val_if_fail (callback, NULL);
+
+	/* Null password, standard operation */
+	if (password == NULL)
+		return xlock_async ("Unlock", keyring, callback, data, destroy_data);
+
+	g_return_val_if_fail (callback, NULL);
+
+	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
+
+	args = g_slice_new0 (unlock_password_args);
+	args->keyring_name = g_strdup (keyring);
+	args->password = egg_secure_strdup (password);
+	gkr_operation_push (op, unlock_password_reply, GKR_CALLBACK_OP_SESSION,
+	                    args, unlock_password_free);
+	gkr_operation_set_keyring_hint (op);
+	gkr_session_negotiate (op);
+
+	return op;
+}
+
 /**
  * gnome_keyring_unlock:
  * @keyring: The name of the keyring to unlock, or %NULL for the default keyring.
@@ -1200,29 +1261,8 @@ gnome_keyring_unlock (const char                                  *keyring,
                       gpointer                                     data,
                       GDestroyNotify                               destroy_data)
 {
-	unlock_password_args *args;
-	GkrOperation *op;
-
-	g_return_val_if_fail (callback, NULL);
-
-	/* Null password, standard operation */
-	if (password == NULL)
-		return xlock_async ("Unlock", keyring, callback, data, destroy_data);
-
-	g_return_val_if_fail (callback, NULL);
-
-	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
-
-	args = g_slice_new0 (unlock_password_args);
-	args->keyring_name = g_strdup (keyring);
-	args->password = egg_secure_strdup (password);
-	gkr_operation_push (op, unlock_password_reply, GKR_CALLBACK_OP_SESSION,
-	                    args, unlock_password_free);
-	gkr_operation_set_keyring_hint (op);
-	gkr_session_negotiate (op);
-	gkr_operation_unref (op);
-
-	return op;
+	GkrOperation *op = unlock_keyring_start (keyring, password, callback, data, destroy_data);
+	return gkr_operation_pending_and_unref (op);
 }
 
 /**
@@ -1246,8 +1286,16 @@ GnomeKeyringResult
 gnome_keyring_unlock_sync (const char *keyring,
                            const char *password)
 {
-	GkrOperation *op = gnome_keyring_unlock (keyring, password, gkr_callback_empty, NULL, NULL);
-	return gkr_operation_block (op);
+	GkrOperation *op = unlock_keyring_start (keyring, password, gkr_callback_empty, NULL, NULL);
+	return gkr_operation_block_and_unref (op);
+}
+
+static GkrOperation*
+lock_keyring_start (const char *keyring, GnomeKeyringOperationDoneCallback callback,
+                    gpointer data, GDestroyNotify destroy_data)
+{
+	g_return_val_if_fail (callback, NULL);
+	return xlock_async ("Lock", keyring, callback, data, destroy_data);
 }
 
 /**
@@ -1273,10 +1321,8 @@ gnome_keyring_lock (const char                                  *keyring,
                     gpointer                                     data,
                     GDestroyNotify                               destroy_data)
 {
-	g_return_val_if_fail (callback, NULL);
-
-	/* TODO: What to do with password? */
-	return xlock_async ("Lock", keyring, callback, data, destroy_data);
+	GkrOperation* op = lock_keyring_start (keyring, callback, data, destroy_data);
+	return gkr_operation_pending_and_unref (op);
 }
 
 /**
@@ -1297,8 +1343,30 @@ gnome_keyring_lock (const char                                  *keyring,
 GnomeKeyringResult
 gnome_keyring_lock_sync (const char *keyring)
 {
-	GkrOperation *op = gnome_keyring_lock (keyring, gkr_callback_empty, NULL, NULL);
-	return gkr_operation_block (op);
+	GkrOperation *op = lock_keyring_start (keyring, gkr_callback_empty, NULL, NULL);
+	return gkr_operation_block_and_unref (op);
+}
+
+static GkrOperation*
+delete_keyring_start (const char *keyring, GnomeKeyringOperationDoneCallback callback,
+                      gpointer data, GDestroyNotify destroy_data)
+{
+	DBusMessage *req;
+	GkrOperation *op;
+	gchar *path;
+
+	g_return_val_if_fail (callback, NULL);
+
+	path = gkr_encode_keyring_name (keyring);
+	req = dbus_message_new_method_call (gkr_service_name (), path,
+	                                    COLLECTION_INTERFACE, "Delete");
+
+	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
+	gkr_operation_request (op, req);
+	dbus_message_unref (req);
+	g_free (path);
+
+	return op;
 }
 
 /**
@@ -1321,23 +1389,8 @@ gnome_keyring_delete (const char                                  *keyring,
                       gpointer                                     data,
                       GDestroyNotify                               destroy_data)
 {
-	DBusMessage *req;
-	GkrOperation *op;
-	gchar *path;
-
-	g_return_val_if_fail (callback, NULL);
-
-	path = gkr_encode_keyring_name (keyring);
-	req = dbus_message_new_method_call (gkr_service_name (), path,
-	                                    COLLECTION_INTERFACE, "Delete");
-
-	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
-	gkr_operation_request (op, req);
-	gkr_operation_unref (op);
-	dbus_message_unref (req);
-	g_free (path);
-
-	return op;
+	GkrOperation *op = delete_keyring_start (keyring, callback, data, destroy_data);
+	return gkr_operation_pending_and_unref (op);
 }
 
 /**
@@ -1355,8 +1408,8 @@ gnome_keyring_delete (const char                                  *keyring,
 GnomeKeyringResult
 gnome_keyring_delete_sync (const char *keyring)
 {
-	GkrOperation *op = gnome_keyring_delete (keyring, gkr_callback_empty, NULL, NULL);
-	return gkr_operation_block (op);
+	GkrOperation *op = delete_keyring_start (keyring, gkr_callback_empty, NULL, NULL);
+	return gkr_operation_block_and_unref (op);
 }
 
 typedef struct _change_password_args {
@@ -1451,30 +1504,10 @@ change_1_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data)
 	}
 }
 
-/**
- * gnome_keyring_change_password:
- * @keyring: The name of the keyring to change the password for. Cannot be %NULL.
- * @original: The old keyring password, or %NULL to prompt the user for it.
- * @password: The new keyring password, or %NULL to prompt the user for it.
- * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
- * @destroy_data: A function to free @data when it's no longer needed.
- *
- * Change the password for a @keyring. In most cases you would specify %NULL for
- * both the @original and @password arguments and allow the user to type the
- * correct passwords.
- *
- * For a synchronous version of this function see gnome_keyring_change_password_sync().
- *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
- **/
-gpointer
-gnome_keyring_change_password (const char                                  *keyring,
-                               const char                                  *original,
-                               const char                                  *password,
-                               GnomeKeyringOperationDoneCallback            callback,
-                               gpointer                                     data,
-                               GDestroyNotify                               destroy_data)
+static GkrOperation*
+change_password_start (const char *keyring, const char *original, const char *password,
+                       GnomeKeyringOperationDoneCallback callback, gpointer data,
+                       GDestroyNotify destroy_data)
 {
 	change_password_args *args;
 	DBusMessage *req;
@@ -1506,8 +1539,36 @@ gnome_keyring_change_password (const char                                  *keyr
 		dbus_message_unref (req);
 	}
 
-	gkr_operation_unref (op);
 	return op;
+}
+
+/**
+ * gnome_keyring_change_password:
+ * @keyring: The name of the keyring to change the password for. Cannot be %NULL.
+ * @original: The old keyring password, or %NULL to prompt the user for it.
+ * @password: The new keyring password, or %NULL to prompt the user for it.
+ * @callback: A callback which will be called when the request completes or fails.
+ * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @destroy_data: A function to free @data when it's no longer needed.
+ *
+ * Change the password for a @keyring. In most cases you would specify %NULL for
+ * both the @original and @password arguments and allow the user to type the
+ * correct passwords.
+ *
+ * For a synchronous version of this function see gnome_keyring_change_password_sync().
+ *
+ * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ **/
+gpointer
+gnome_keyring_change_password (const char                                  *keyring,
+                               const char                                  *original,
+                               const char                                  *password,
+                               GnomeKeyringOperationDoneCallback            callback,
+                               gpointer                                     data,
+                               GDestroyNotify                               destroy_data)
+{
+	GkrOperation *op = change_password_start (keyring, original, password, callback, data, destroy_data);
+	return gkr_operation_pending_and_unref (op);
 }
 
 
@@ -1530,9 +1591,8 @@ GnomeKeyringResult
 gnome_keyring_change_password_sync (const char *keyring_name,
                                     const char *original, const char *password)
 {
-	GkrOperation *op = gnome_keyring_change_password (keyring_name, original, password,
-	                                                  gkr_callback_empty, NULL, NULL);
-	return gkr_operation_block (op);
+	GkrOperation *op = change_password_start (keyring_name, original, password, gkr_callback_empty, NULL, NULL);
+	return gkr_operation_block_and_unref (op);
 }
 
 static gboolean
@@ -1595,6 +1655,28 @@ get_keyring_info_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data
 	gnome_keyring_info_free (info);
 }
 
+static GkrOperation*
+get_keyring_info_start (const char *keyring, GnomeKeyringOperationGetKeyringInfoCallback callback,
+                        gpointer data, GDestroyNotify destroy_data)
+{
+	DBusMessage *req;
+	GkrOperation *op;
+	gchar *path;
+
+	g_return_val_if_fail (callback, NULL);
+
+	path = gkr_encode_keyring_name (keyring);
+	req = prepare_property_getall (path, COLLECTION_INTERFACE);
+
+	op = gkr_operation_new (callback, GKR_CALLBACK_RES_KEYRING_INFO, data, destroy_data);
+	gkr_operation_push (op, get_keyring_info_reply, GKR_CALLBACK_OP_MSG, NULL, NULL);
+	gkr_operation_request (op, req);
+	dbus_message_unref (req);
+	g_free (path);
+
+	return op;
+}
+
 /**
  * gnome_keyring_get_info:
  * @keyring: The name of the keyring, or %NULL for the default keyring.
@@ -1615,23 +1697,8 @@ gnome_keyring_get_info (const char                                  *keyring,
                         gpointer                                     data,
                         GDestroyNotify                               destroy_data)
 {
-	DBusMessage *req;
-	GkrOperation *op;
-	gchar *path;
-
-	g_return_val_if_fail (callback, NULL);
-
-	path = gkr_encode_keyring_name (keyring);
-	req = prepare_property_getall (path, COLLECTION_INTERFACE);
-
-	op = gkr_operation_new (callback, GKR_CALLBACK_RES_KEYRING_INFO, data, destroy_data);
-	gkr_operation_push (op, get_keyring_info_reply, GKR_CALLBACK_OP_MSG, NULL, NULL);
-	gkr_operation_request (op, req);
-	gkr_operation_unref (op);
-
-	dbus_message_unref (req);
-	g_free (path);
-	return op;
+	GkrOperation *op = get_keyring_info_start (keyring, callback, data, destroy_data);
+	return gkr_operation_pending_and_unref (op);
 }
 
 /**
@@ -1657,8 +1724,34 @@ gnome_keyring_get_info_sync (const char        *keyring,
 
 	g_return_val_if_fail (info, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
 
-	op = gnome_keyring_get_info (keyring, get_keyring_info_sync, info, NULL);
-	return gkr_operation_block (op);
+	op = get_keyring_info_start (keyring, get_keyring_info_sync, info, NULL);
+	return gkr_operation_block_and_unref (op);
+}
+
+static GkrOperation*
+set_keyring_info_start (const char *keyring, GnomeKeyringInfo *info,
+                        GnomeKeyringOperationDoneCallback callback,
+                        gpointer data, GDestroyNotify destroy_data)
+{
+	GkrOperation *op;
+	gchar *path;
+
+	g_return_val_if_fail (info, NULL);
+	g_return_val_if_fail (callback, NULL);
+
+	path = gkr_encode_keyring_name (keyring);
+
+	/*
+	 * TODO: Currently nothing to do. lock_on_idle and lock_timeout are not
+	 * implemented in the DBus API. They were never used by the old
+	 * gnome-keyring-daemon either.
+	 */
+
+	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
+	gkr_operation_complete_later (op, GNOME_KEYRING_RESULT_OK);
+
+	g_free (path);
+	return op;
 }
 
 /**
@@ -1683,26 +1776,8 @@ gnome_keyring_set_info (const char                                  *keyring,
                         gpointer                                     data,
                         GDestroyNotify                               destroy_data)
 {
-	GkrOperation *op;
-	gchar *path;
-
-	g_return_val_if_fail (info, NULL);
-	g_return_val_if_fail (callback, NULL);
-
-	path = gkr_encode_keyring_name (keyring);
-
-	/*
-	 * TODO: Currently nothing to do. lock_on_idle and lock_timeout are not
-	 * implemented in the DBus API. They were never used by the old
-	 * gnome-keyring-daemon either.
-	 */
-
-	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
-	gkr_operation_complete_later (op, GNOME_KEYRING_RESULT_OK);
-	gkr_operation_unref (op);
-
-	g_free (path);
-	return op;
+	GkrOperation *op = set_keyring_info_start (keyring, info, callback, data, destroy_data);
+	return gkr_operation_pending_and_unref (op);
 }
 
 /**
@@ -1788,6 +1863,29 @@ list_item_ids_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data)
 	g_list_free (ids);
 }
 
+static GkrOperation*
+list_item_ids_start (const char *keyring, GnomeKeyringOperationGetListCallback callback,
+                     gpointer data, GDestroyNotify destroy_data)
+{
+	DBusMessage *req;
+	GkrOperation *op;
+	gchar *path;
+
+	g_return_val_if_fail (callback, NULL);
+
+	path = gkr_encode_keyring_name (keyring);
+	req = prepare_property_get (path, COLLECTION_INTERFACE, "Items");
+
+	op = gkr_operation_new (callback, GKR_CALLBACK_RES_LIST, data, destroy_data);
+	gkr_operation_push (op, list_item_ids_reply, GKR_CALLBACK_OP_MSG, NULL, NULL);
+	gkr_operation_request (op, req);
+
+	dbus_message_unref (req);
+	g_free (path);
+
+	return op;
+}
+
 /**
  * gnome_keyring_list_item_ids:
  * @keyring: The name of the keyring, or %NULL for the default keyring.
@@ -1813,24 +1911,8 @@ gnome_keyring_list_item_ids (const char                                  *keyrin
                              gpointer                                     data,
                              GDestroyNotify                               destroy_data)
 {
-	DBusMessage *req;
-	GkrOperation *op;
-	gchar *path;
-
-	g_return_val_if_fail (callback, NULL);
-
-	path = gkr_encode_keyring_name (keyring);
-	req = prepare_property_get (path, COLLECTION_INTERFACE, "Items");
-
-	op = gkr_operation_new (callback, GKR_CALLBACK_RES_LIST, data, destroy_data);
-	gkr_operation_push (op, list_item_ids_reply, GKR_CALLBACK_OP_MSG, NULL, NULL);
-	gkr_operation_request (op, req);
-	gkr_operation_unref (op);
-
-	dbus_message_unref (req);
-	g_free (path);
-
-	return op;
+	GkrOperation *op = list_item_ids_start (keyring, callback, data, destroy_data);
+	return gkr_operation_pending_and_unref (op);
 }
 
 /**
@@ -1856,8 +1938,8 @@ gnome_keyring_list_item_ids_sync (const char  *keyring,
 
 	g_return_val_if_fail (ids, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
 
-	op = gnome_keyring_list_item_ids (keyring, list_item_ids_sync, ids, NULL);
-	return gkr_operation_block (op);
+	op = list_item_ids_start (keyring, list_item_ids_sync, ids, NULL);
+	return gkr_operation_block_and_unref (op);
 }
 
 /**
@@ -1895,6 +1977,18 @@ gnome_keyring_daemon_prepare_environment_sync (void)
 {
 	return GNOME_KEYRING_RESULT_OK;
 }
+
+/**
+ * SECTION:gnome-keyring-find
+ * @title: Search Functionality
+ * @short_description: Find Keyring Items
+ *
+ * A find operation searches through all keyrings for items that match the
+ * attributes. The user may have been prompted to unlock necessary keyrings, and
+ * user will have been prompted for access to the items if needed.
+ *
+ * A find operation may return multiple or zero results.
+ **/
 
 typedef struct _find_items_args {
 	GList *found;
@@ -2196,17 +2290,37 @@ find_items_1_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
 	dbus_free_string_array (unlocked);
 }
 
-/**
- * SECTION:gnome-keyring-find
- * @title: Search Functionality
- * @short_description: Find Keyring Items
- *
- * A find operation searches through all keyrings for items that match the
- * attributes. The user may have been prompted to unlock necessary keyrings, and
- * user will have been prompted for access to the items if needed.
- *
- * A find operation may return multiple or zero results.
- **/
+static GkrOperation*
+find_items_start (GnomeKeyringItemType type, GnomeKeyringAttributeList *attributes,
+                  GnomeKeyringOperationGetListCallback callback,
+                  gpointer data, GDestroyNotify destroy_data)
+{
+	DBusMessageIter iter;
+	find_items_args *args;
+	DBusMessage *req;
+	GkrOperation *op;
+
+	g_return_val_if_fail (attributes, NULL);
+	g_return_val_if_fail (callback, NULL);
+
+	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
+	                                    SERVICE_INTERFACE, "SearchItems");
+
+	/* Encode the attribute list */
+	dbus_message_iter_init_append (req, &iter);
+	encode_attribute_list (&iter, attributes);
+
+	args = g_slice_new0 (find_items_args);
+	args->paths = g_ptr_array_new ();
+
+	op = gkr_operation_new (callback, GKR_CALLBACK_RES_LIST, data, destroy_data);
+	gkr_operation_push (op, find_items_1_reply, GKR_CALLBACK_OP_MSG, args, find_items_free);
+	gkr_operation_request (op, req);
+
+	dbus_message_unref (req);
+
+	return op;
+}
 
 /**
  * gnome_keyring_find_items:
@@ -2236,32 +2350,8 @@ gnome_keyring_find_items  (GnomeKeyringItemType                  type,
                            gpointer                              data,
                            GDestroyNotify                        destroy_data)
 {
-	DBusMessageIter iter;
-	find_items_args *args;
-	DBusMessage *req;
-	GkrOperation *op;
-
-	g_return_val_if_fail (attributes, NULL);
-	g_return_val_if_fail (callback, NULL);
-
-	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
-	                                    SERVICE_INTERFACE, "SearchItems");
-
-	/* Encode the attribute list */
-	dbus_message_iter_init_append (req, &iter);
-	encode_attribute_list (&iter, attributes);
-
-	args = g_slice_new0 (find_items_args);
-	args->paths = g_ptr_array_new ();
-
-	op = gkr_operation_new (callback, GKR_CALLBACK_RES_LIST, data, destroy_data);
-	gkr_operation_push (op, find_items_1_reply, GKR_CALLBACK_OP_MSG, args, find_items_free);
-	gkr_operation_request (op, req);
-	gkr_operation_unref (op);
-
-	dbus_message_unref (req);
-
-	return op;
+	GkrOperation *op = find_items_start (type, attributes, callback, data, destroy_data);
+	return gkr_operation_pending_and_unref (op);
 }
 
 static GnomeKeyringAttributeList *
@@ -2366,8 +2456,8 @@ gnome_keyring_find_items_sync (GnomeKeyringItemType        type,
                                GnomeKeyringAttributeList  *attributes,
                                GList                     **found)
 {
-	gpointer op = gnome_keyring_find_items (type, attributes, find_items_sync, found, NULL);
-	return gkr_operation_block (op);
+	GkrOperation *op = find_items_start (type, attributes, find_items_sync, found, NULL);
+	return gkr_operation_block_and_unref (op);
 }
 
 /**
@@ -2730,6 +2820,42 @@ item_create_1_unlock_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
 	}
 }
 
+static GkrOperation*
+item_create_start (const char *keyring, GnomeKeyringItemType type, const char *display_name,
+                   GnomeKeyringAttributeList *attributes, const char *secret,
+                   gboolean update_if_exists, GnomeKeyringOperationGetIntCallback callback,
+                   gpointer data, GDestroyNotify destroy_data)
+{
+	item_create_args *args;
+	DBusMessage *req;
+	GkrOperation *op;
+	gchar *path;
+
+	if (!display_name)
+		display_name = "";
+
+	args = g_slice_new0 (item_create_args);
+	args->update_if_exists = update_if_exists;
+	args->secret = egg_secure_strdup (secret);
+	args->is_default = (keyring == NULL);
+
+	path = gkr_encode_keyring_name (keyring);
+	args->request = item_create_prepare (path, type, display_name, attributes, &args->iter);
+	g_return_val_if_fail (args->request, NULL);
+
+	/* First unlock the keyring */
+	req = prepare_xlock ("Unlock", &path, 1);
+	g_free (path);
+
+	op = gkr_operation_new (callback, GKR_CALLBACK_RES_UINT, data, destroy_data);
+	gkr_operation_push (op, item_create_1_unlock_reply, GKR_CALLBACK_OP_MSG, args, item_create_free);
+	gkr_operation_set_keyring_hint (op);
+	gkr_operation_request (op, req);
+	dbus_message_unref (req);
+
+	return op;
+}
+
 /**
  * gnome_keyring_item_create:
  * @keyring: The name of the keyring in which to create the item, or NULL for the default keyring.
@@ -2773,35 +2899,9 @@ gnome_keyring_item_create (const char                          *keyring,
                            gpointer                             data,
                            GDestroyNotify                       destroy_data)
 {
-	item_create_args *args;
-	DBusMessage *req;
-	GkrOperation *op;
-	gchar *path;
-
-	if (!display_name)
-		display_name = "";
-
-	args = g_slice_new0 (item_create_args);
-	args->update_if_exists = update_if_exists;
-	args->secret = egg_secure_strdup (secret);
-	args->is_default = (keyring == NULL);
-
-	path = gkr_encode_keyring_name (keyring);
-	args->request = item_create_prepare (path, type, display_name, attributes, &args->iter);
-	g_return_val_if_fail (args->request, NULL);
-
-	/* First unlock the keyring */
-	req = prepare_xlock ("Unlock", &path, 1);
-	g_free (path);
-
-	op = gkr_operation_new (callback, GKR_CALLBACK_RES_UINT, data, destroy_data);
-	gkr_operation_push (op, item_create_1_unlock_reply, GKR_CALLBACK_OP_MSG, args, item_create_free);
-	gkr_operation_set_keyring_hint (op);
-	gkr_operation_request (op, req);
-	gkr_operation_unref (op);
-	dbus_message_unref (req);
-
-	return op;
+	GkrOperation *op = item_create_start (keyring, type, display_name, attributes, secret,
+	                                      update_if_exists, callback, data, destroy_data);
+	return gkr_operation_pending_and_unref (op);
 }
 
 /**
@@ -2841,10 +2941,28 @@ gnome_keyring_item_create_sync (const char                                 *keyr
                                 gboolean                                    update_if_exists,
                                 guint32                                    *item_id)
 {
-	GkrOperation *op = gnome_keyring_item_create (keyring, type, display_name,
-	                                              attributes, secret, update_if_exists,
-	                                              item_create_sync, item_id, NULL);
-	return gkr_operation_block (op);
+	GkrOperation *op = item_create_start (keyring, type, display_name, attributes, secret,
+	                                      update_if_exists, item_create_sync, item_id, NULL);
+	return gkr_operation_block_and_unref (op);
+}
+
+static GkrOperation*
+item_delete_start (const char *keyring, guint32 id, GnomeKeyringOperationDoneCallback callback,
+                   gpointer data, GDestroyNotify destroy_data)
+{
+	DBusMessage *req;
+	GkrOperation *op;
+	gchar *path;
+
+	path = gkr_encode_keyring_item_id (keyring, id);
+	req = dbus_message_new_method_call (gkr_service_name (), path,
+	                                    ITEM_INTERFACE, "Delete");
+
+	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
+	gkr_operation_request (op, req);
+	dbus_message_unref (req);
+
+	return op;
 }
 
 /**
@@ -2871,19 +2989,8 @@ gnome_keyring_item_delete (const char                                 *keyring,
                            gpointer                                    data,
                            GDestroyNotify                              destroy_data)
 {
-	DBusMessage *req;
-	GkrOperation *op;
-	gchar *path;
-
-	path = gkr_encode_keyring_item_id (keyring, id);
-	req = dbus_message_new_method_call (gkr_service_name (), path,
-	                                    ITEM_INTERFACE, "Delete");
-
-	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
-	gkr_operation_request (op, req);
-	gkr_operation_unref (op);
-	dbus_message_unref (req);
-	return op;
+	GkrOperation *op = item_delete_start (keyring, id, callback, data, destroy_data);
+	return gkr_operation_pending_and_unref (op);
 }
 
 /**
@@ -2905,8 +3012,8 @@ GnomeKeyringResult
 gnome_keyring_item_delete_sync (const char *keyring,
                                 guint32     id)
 {
-	gpointer op = gnome_keyring_item_delete (keyring, id, gkr_callback_empty, NULL, NULL);
-	return gkr_operation_block (op);
+	GkrOperation *op = item_delete_start (keyring, id, gkr_callback_empty, NULL, NULL);
+	return gkr_operation_block_and_unref (op);
 }
 
 /**
@@ -3119,6 +3226,30 @@ item_get_info_1_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
 	}
 }
 
+static GkrOperation*
+item_get_info_start (const char *keyring, guint32 id, guint32 flags,
+                     GnomeKeyringOperationGetItemInfoCallback callback,
+                     gpointer data, GDestroyNotify destroy_data)
+{
+	item_get_info_args *args;
+	DBusMessage *req;
+	GkrOperation *op;
+
+	args = g_slice_new0 (item_get_info_args);
+	args->info = g_new0 (GnomeKeyringItemInfo, 1);
+	args->flags = flags;
+
+	args->path = gkr_encode_keyring_item_id (keyring, id);
+	req = prepare_property_getall (args->path, ITEM_INTERFACE);
+
+	op = gkr_operation_new (callback, GKR_CALLBACK_RES_ITEM_INFO, data, destroy_data);
+	gkr_operation_push (op, item_get_info_1_reply, GKR_CALLBACK_OP_MSG, args, item_get_info_free);
+	gkr_operation_request (op, req);
+
+	dbus_message_unref (req);
+	return op;
+}
+
 /**
  * gnome_keyring_item_get_info_full:
  * @keyring: The name of the keyring in which the item exists, or NULL for the default keyring.
@@ -3150,24 +3281,8 @@ gnome_keyring_item_get_info_full (const char                                 *ke
                                   gpointer                                    data,
                                   GDestroyNotify                              destroy_data)
 {
-	item_get_info_args *args;
-	DBusMessage *req;
-	GkrOperation *op;
-
-	args = g_slice_new0 (item_get_info_args);
-	args->info = g_new0 (GnomeKeyringItemInfo, 1);
-	args->flags = flags;
-
-	args->path = gkr_encode_keyring_item_id (keyring, id);
-	req = prepare_property_getall (args->path, ITEM_INTERFACE);
-
-	op = gkr_operation_new (callback, GKR_CALLBACK_RES_ITEM_INFO, data, destroy_data);
-	gkr_operation_push (op, item_get_info_1_reply, GKR_CALLBACK_OP_MSG, args, item_get_info_free);
-	gkr_operation_request (op, req);
-	gkr_operation_unref (op);
-
-	dbus_message_unref (req);
-	return op;
+	GkrOperation *op = item_get_info_start (keyring, id, flags, callback, data, destroy_data);
+	return gkr_operation_pending_and_unref (op);
 }
 
 /**
@@ -3198,8 +3313,8 @@ gnome_keyring_item_get_info_full_sync (const char              *keyring,
                                        guint32                  flags,
                                        GnomeKeyringItemInfo   **info)
 {
-	gpointer op = gnome_keyring_item_get_info_full (keyring, id, flags, item_get_info_sync, info, NULL);
-	return gkr_operation_block (op);
+	GkrOperation *op = item_get_info_start (keyring, id, flags, item_get_info_sync, info, NULL);
+	return gkr_operation_block_and_unref (op);
 }
 
 typedef struct _item_set_info_args {
@@ -3310,31 +3425,10 @@ item_set_info_1_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data)
 	gkr_operation_request (op, req);
 }
 
-/**
- * gnome_keyring_item_set_info:
- * @keyring: The name of the keyring in which the item exists, or NULL for the default keyring.
- * @id: The id of the item
- * @info: The item info to save into the item.
- * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
- * @destroy_data: A function to free @data when it's no longer needed.
- *
- * Set information on an item, like its display name, secret etc...
- *
- * Only the fields in the @info pointer that are non-null or non-zero will be
- * set on the item.
- *
- * For a synchronous version of this function see gnome_keyring_item_set_info_sync().
- *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
- **/
-gpointer
-gnome_keyring_item_set_info (const char                                 *keyring,
-                             guint32                                     id,
-                             GnomeKeyringItemInfo                       *info,
-                             GnomeKeyringOperationDoneCallback           callback,
-                             gpointer                                    data,
-                             GDestroyNotify                              destroy_data)
+static GkrOperation*
+item_set_info_start (const char *keyring, guint32 id, GnomeKeyringItemInfo *info,
+                     GnomeKeyringOperationDoneCallback callback,
+                     gpointer data, GDestroyNotify destroy_data)
 {
 	item_set_info_args *args;
 	DBusMessageIter iter, variant;
@@ -3363,10 +3457,39 @@ gnome_keyring_item_set_info (const char                                 *keyring
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
 	gkr_operation_push (op, item_set_info_1_reply, GKR_CALLBACK_OP_MSG, args, item_set_info_free);
 	gkr_operation_request (op, req);
-	gkr_operation_unref (op);
 	dbus_message_unref (req);
 
 	return op;
+}
+
+/**
+ * gnome_keyring_item_set_info:
+ * @keyring: The name of the keyring in which the item exists, or NULL for the default keyring.
+ * @id: The id of the item
+ * @info: The item info to save into the item.
+ * @callback: A callback which will be called when the request completes or fails.
+ * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @destroy_data: A function to free @data when it's no longer needed.
+ *
+ * Set information on an item, like its display name, secret etc...
+ *
+ * Only the fields in the @info pointer that are non-null or non-zero will be
+ * set on the item.
+ *
+ * For a synchronous version of this function see gnome_keyring_item_set_info_sync().
+ *
+ * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ **/
+gpointer
+gnome_keyring_item_set_info (const char                                 *keyring,
+                             guint32                                     id,
+                             GnomeKeyringItemInfo                       *info,
+                             GnomeKeyringOperationDoneCallback           callback,
+                             gpointer                                    data,
+                             GDestroyNotify                              destroy_data)
+{
+	GkrOperation *op = item_set_info_start (keyring, id, info, callback, data, destroy_data);
+	return gkr_operation_pending_and_unref (op);
 }
 
 /**
@@ -3390,8 +3513,8 @@ gnome_keyring_item_set_info_sync (const char           *keyring,
                                   guint32               id,
                                   GnomeKeyringItemInfo *info)
 {
-	gpointer op = gnome_keyring_item_set_info (keyring, id, info, gkr_callback_empty, NULL, NULL);
-	return gkr_operation_block (op);
+	GkrOperation *op = item_set_info_start (keyring, id, info, gkr_callback_empty, NULL, NULL);
+	return gkr_operation_block_and_unref (op);
 }
 
 static void
@@ -3425,6 +3548,27 @@ item_get_attributes_reply (GkrOperation *op, DBusMessage *reply, gpointer user_d
 	gnome_keyring_attribute_list_free (attrs);
 }
 
+static GkrOperation*
+item_get_attributes_start (const char *keyring, guint32 id,
+                           GnomeKeyringOperationGetAttributesCallback callback,
+                           gpointer data, GDestroyNotify destroy_data)
+{
+	DBusMessage *req;
+	GkrOperation *op;
+	gchar *path;
+
+	path = gkr_encode_keyring_item_id (keyring, id);
+	req = prepare_property_get (path, ITEM_INTERFACE, "Attributes");
+
+	op = gkr_operation_new (callback, GKR_CALLBACK_RES_ATTRIBUTES, data, destroy_data);
+	gkr_operation_push (op, item_get_attributes_reply, GKR_CALLBACK_OP_MSG, NULL, NULL);
+	gkr_operation_request (op, req);
+	dbus_message_unref (req);
+	g_free (path);
+
+	return op;
+}
+
 /**
  * gnome_keyring_item_get_attributes:
  * @keyring: The name of the keyring in which the item exists, or NULL for the default keyring.
@@ -3449,22 +3593,8 @@ gnome_keyring_item_get_attributes (const char                                 *k
                                    gpointer                                    data,
                                    GDestroyNotify                              destroy_data)
 {
-	DBusMessage *req;
-	GkrOperation *op;
-	gchar *path;
-
-	path = gkr_encode_keyring_item_id (keyring, id);
-	req = prepare_property_get (path, ITEM_INTERFACE, "Attributes");
-
-	op = gkr_operation_new (callback, GKR_CALLBACK_RES_ATTRIBUTES, data, destroy_data);
-	gkr_operation_push (op, item_get_attributes_reply, GKR_CALLBACK_OP_MSG, NULL, NULL);
-	gkr_operation_request (op, req);
-	gkr_operation_unref (op);
-
-	dbus_message_unref (req);
-	g_free (path);
-
-	return op;
+	GkrOperation *op = item_get_attributes_start (keyring, id, callback, data, destroy_data);
+	return gkr_operation_pending_and_unref (op);
 }
 
 /**
@@ -3488,8 +3618,8 @@ gnome_keyring_item_get_attributes_sync (const char                 *keyring,
                                         guint32                     id,
                                         GnomeKeyringAttributeList **attributes)
 {
-	gpointer op = gnome_keyring_item_get_attributes (keyring, id, item_get_attributes_sync, attributes, NULL);
-	return gkr_operation_block (op);
+	GkrOperation *op = item_get_attributes_start (keyring, id, item_get_attributes_sync, attributes, NULL);
+	return gkr_operation_block_and_unref (op);
 }
 
 static DBusMessage*
@@ -3512,6 +3642,29 @@ item_set_attributes_prepare (const gchar *path, GnomeKeyringAttributeList *attrs
 	dbus_message_iter_close_container (&iter, &variant);
 
 	return req;
+}
+
+static GkrOperation*
+item_set_attributes_start (const char *keyring, guint32 id, GnomeKeyringAttributeList *attributes,
+                           GnomeKeyringOperationDoneCallback callback,
+                           gpointer data, GDestroyNotify destroy_data)
+{
+	DBusMessage *req;
+	GkrOperation *op;
+	gchar *path;
+
+	path = gkr_encode_keyring_item_id (keyring, id);
+
+	/* First set the label */
+	req = item_set_attributes_prepare (path, attributes);
+
+	g_free (path);
+
+	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
+	gkr_operation_request (op, req);
+	dbus_message_unref (req);
+
+	return op;
 }
 
 /**
@@ -3538,23 +3691,8 @@ gnome_keyring_item_set_attributes (const char                                 *k
                                    gpointer                                    data,
                                    GDestroyNotify                              destroy_data)
 {
-	DBusMessage *req;
-	GkrOperation *op;
-	gchar *path;
-
-	path = gkr_encode_keyring_item_id (keyring, id);
-
-	/* First set the label */
-	req = item_set_attributes_prepare (path, attributes);
-
-	g_free (path);
-
-	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
-	gkr_operation_request (op, req);
-	gkr_operation_unref (op);
-	dbus_message_unref (req);
-
-	return op;
+	GkrOperation *op = item_set_attributes_start (keyring, id, attributes, callback, data, destroy_data);
+	return gkr_operation_pending_and_unref (op);
 }
 
 /**
@@ -3576,8 +3714,8 @@ gnome_keyring_item_set_attributes_sync (const char                *keyring,
                                         guint32                    id,
                                         GnomeKeyringAttributeList *attributes)
 {
-	gpointer op = gnome_keyring_item_set_attributes (keyring, id, attributes, gkr_callback_empty, NULL, NULL);
-	return gkr_operation_block (op);
+	GkrOperation *op = item_set_attributes_start (keyring, id, attributes, gkr_callback_empty, NULL, NULL);
+	return gkr_operation_block_and_unref (op);
 }
 
 static void
@@ -3611,8 +3749,7 @@ gnome_keyring_item_get_acl (const char                                 *keyring,
 	cb = gkr_callback_new (NULL, callback, GKR_CALLBACK_RES_LIST, data, destroy_data);
 	op = gkr_operation_new (item_get_acl_reply, GKR_CALLBACK_RES, cb, gkr_callback_free);
 	gkr_operation_complete_later (op, GNOME_KEYRING_RESULT_OK);
-	gkr_operation_unref (op);
-	return op;
+	return gkr_operation_pending_and_unref (op);
 }
 
 /**
@@ -3659,8 +3796,7 @@ gnome_keyring_item_set_acl (const char                                 *keyring,
 	GkrOperation *op;
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
 	gkr_operation_complete_later (op, GNOME_KEYRING_RESULT_OK);
-	gkr_operation_unref (op);
-	return op;
+	return gkr_operation_pending_and_unref (op);
 }
 
 /**
@@ -3711,8 +3847,7 @@ gnome_keyring_item_grant_access_rights (const gchar *keyring,
 	GkrOperation *op;
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
 	gkr_operation_complete_later (op, GNOME_KEYRING_RESULT_OK);
-	gkr_operation_unref (op);
-	return op;
+	return gkr_operation_pending_and_unref (op);
 }
 
 /**
@@ -3890,6 +4025,27 @@ make_attribute_list_for_network_password (const char                            
 	return attributes;
 }
 
+static GkrOperation*
+find_network_password_start (const char *user, const char *domain, const char *server,
+                             const char *object, const char *protocol, const char *authtype,
+                             guint32 port, GnomeKeyringOperationGetListCallback callback,
+                             gpointer user_data, GDestroyNotify destroy_data)
+{
+	GnomeKeyringAttributeList *attributes;
+	GkrOperation *op;
+	GkrCallback *cb;
+
+	attributes = make_attribute_list_for_network_password (user, domain, server, object,
+	                                                       protocol, authtype, port);
+
+	cb = gkr_callback_new (NULL, callback, GKR_CALLBACK_RES_LIST, user_data, destroy_data);
+	op = find_items_start (GNOME_KEYRING_ITEM_NETWORK_PASSWORD, attributes,
+	                       find_network_password_filter, cb, gkr_callback_free);
+	gnome_keyring_attribute_list_free (attributes);
+
+	return op;
+}
+
 /**
  * gnome_keyring_find_network_password:
  * @user: The user name or %NULL for any user.
@@ -3927,19 +4083,9 @@ gnome_keyring_find_network_password      (const char                            
                                           gpointer                               user_data,
                                           GDestroyNotify                         destroy_data)
 {
-	GnomeKeyringAttributeList *attributes;
-	GkrOperation *op;
-	GkrCallback *cb;
-
-	attributes = make_attribute_list_for_network_password (user, domain, server, object,
-	                                                       protocol, authtype, port);
-
-	cb = gkr_callback_new (NULL, callback, GKR_CALLBACK_RES_LIST, user_data, destroy_data);
-	op = gnome_keyring_find_items (GNOME_KEYRING_ITEM_NETWORK_PASSWORD, attributes,
-	                               find_network_password_filter, cb, gkr_callback_free);
-	gnome_keyring_attribute_list_free (attributes);
-
-	return op;
+	GkrOperation *op = find_network_password_start (user, domain, server, object, protocol,
+	                                                authtype, port, callback, user_data, destroy_data);
+	return gkr_operation_pending_and_unref (op);
 }
 
 /**
@@ -3976,10 +4122,9 @@ gnome_keyring_find_network_password_sync (const char                            
                                           guint32                                port,
                                           GList                                **results)
 {
-	GkrOperation *op = gnome_keyring_find_network_password (user, domain, server, object,
-	                                                        protocol, authtype, port,
-	                                                        find_network_password_sync, results, NULL);
-	return gkr_operation_block (op);
+	GkrOperation *op = find_network_password_start (user, domain, server, object, protocol,
+	                                                authtype, port, find_network_password_sync, results, NULL);
+	return gkr_operation_block_and_unref (op);
 }
 
 static char *
@@ -4013,6 +4158,31 @@ set_network_password_sync (GnomeKeyringResult res, guint32 item_id, gpointer use
 {
 	guint32 *result = user_data;
 	*result = item_id;
+}
+
+static GkrOperation*
+set_network_password_start (const char *keyring, const char *user, const char *domain,
+                            const char *server, const char *object, const char *protocol,
+                            const char *authtype, guint32 port, const char *password,
+                            GnomeKeyringOperationGetIntCallback callback,
+                            gpointer data, GDestroyNotify destroy_data)
+{
+	GnomeKeyringAttributeList *attributes;
+	GkrOperation *op;
+	char *name;
+
+	name = set_network_password_display_name (user, server, object, port);
+
+	attributes = make_attribute_list_for_network_password (user, domain, server, object,
+	                                                       protocol, authtype, port);
+
+	op = item_create_start (keyring, GNOME_KEYRING_ITEM_NETWORK_PASSWORD, name, attributes,
+	                        password, TRUE, callback, data, destroy_data);
+
+	gnome_keyring_attribute_list_free (attributes);
+	g_free (name);
+
+	return op;
 }
 
 /**
@@ -4056,23 +4226,9 @@ gnome_keyring_set_network_password      (const char                            *
                                          gpointer                               data,
                                          GDestroyNotify                         destroy_data)
 {
-	GnomeKeyringAttributeList *attributes;
-	GkrOperation *op;
-	char *name;
-
-	name = set_network_password_display_name (user, server, object, port);
-
-	attributes = make_attribute_list_for_network_password (user, domain, server, object,
-	                                                       protocol, authtype, port);
-
-	op = gnome_keyring_item_create (keyring, GNOME_KEYRING_ITEM_NETWORK_PASSWORD,
-	                                name, attributes, password, TRUE,
-	                                callback, data, destroy_data);
-
-	gnome_keyring_attribute_list_free (attributes);
-	g_free (name);
-
-	return op;
+	GkrOperation *op = set_network_password_start (keyring, user, domain, server, object, protocol,
+	                                               authtype, port, password, callback, data, destroy_data);
+	return gkr_operation_pending_and_unref (op);
 }
 
 /**
@@ -4112,10 +4268,9 @@ gnome_keyring_set_network_password_sync (const char                            *
                                          const char                            *password,
                                          guint32                               *item_id)
 {
-	GkrOperation *op = gnome_keyring_set_network_password (keyring, user, domain, server, object,
-	                                                       protocol, authtype, port, password,
-	                                                       set_network_password_sync, item_id, NULL);
-	return gkr_operation_block (op);
+	GkrOperation *op = set_network_password_start (keyring, user, domain, server, object, protocol,
+	                                               authtype, port, password, set_network_password_sync, item_id, NULL);
+	return gkr_operation_block_and_unref (op);
 }
 
 /* ------------------------------------------------------------------------------
@@ -4559,9 +4714,9 @@ find_password_1_reply (GkrOperation *op, const char *path, gpointer user_data)
 }
 
 static GkrOperation*
-find_password_va (const GnomeKeyringPasswordSchema* schema, va_list va,
-                  GnomeKeyringOperationGetStringCallback callback,
-                  gpointer data, GDestroyNotify destroy_data)
+find_password_va_start (const GnomeKeyringPasswordSchema* schema, va_list va,
+                        GnomeKeyringOperationGetStringCallback callback,
+                        gpointer data, GDestroyNotify destroy_data)
 {
 	GnomeKeyringAttributeList *attributes;
 	GkrOperation *op;
@@ -4582,7 +4737,6 @@ find_password_va (const GnomeKeyringPasswordSchema* schema, va_list va,
 	}
 
 	g_array_free (attributes, TRUE);
-	gkr_operation_unref (op);
 	return op;
 }
 
@@ -4623,10 +4777,10 @@ gnome_keyring_find_password (const GnomeKeyringPasswordSchema* schema,
 	g_return_val_if_fail (callback, NULL);
 
 	va_start (va, destroy_data);
-	op = find_password_va (schema, va, callback, data, destroy_data);
+	op = find_password_va_start (schema, va, callback, data, destroy_data);
 	va_end (va);
 
-	return op;
+	return gkr_operation_pending_and_unref (op);
 }
 
 /**
@@ -4655,7 +4809,8 @@ gnome_keyring_find_password (const GnomeKeyringPasswordSchema* schema,
  * Since: 2.22
  **/
 GnomeKeyringResult
-gnome_keyring_find_password_sync(const GnomeKeyringPasswordSchema* schema, gchar **password, ...)
+gnome_keyring_find_password_sync (const GnomeKeyringPasswordSchema* schema,
+                                  gchar **password, ...)
 {
 	GkrOperation *op;
 	va_list va;
@@ -4664,10 +4819,10 @@ gnome_keyring_find_password_sync(const GnomeKeyringPasswordSchema* schema, gchar
 	g_return_val_if_fail (password, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
 
 	va_start (va, password);
-	op = find_password_va (schema, va, find_password_sync, password, NULL);
+	op = find_password_va_start (schema, va, find_password_sync, password, NULL);
 	va_end (va);
 
-	return gkr_operation_block (op);
+	return gkr_operation_block_and_unref (op);
 }
 
 static void
@@ -4686,9 +4841,9 @@ delete_password_reply (GkrOperation *op, const char *path, gpointer user_data)
 }
 
 static GkrOperation*
-delete_password_va (const GnomeKeyringPasswordSchema* schema, va_list va,
-                    GnomeKeyringOperationDoneCallback callback,
-                    gpointer data, GDestroyNotify destroy_data)
+delete_password_va_start (const GnomeKeyringPasswordSchema* schema, va_list va,
+                          GnomeKeyringOperationDoneCallback callback,
+                          gpointer data, GDestroyNotify destroy_data)
 {
 	GnomeKeyringAttributeList *attributes;
 	GkrOperation *op;
@@ -4708,7 +4863,6 @@ delete_password_va (const GnomeKeyringPasswordSchema* schema, va_list va,
 		find_unlocked (op, attributes);
 	}
 
-	gkr_operation_unref (op);
 	return op;
 }
 
@@ -4746,10 +4900,10 @@ gnome_keyring_delete_password (const GnomeKeyringPasswordSchema* schema,
 	g_return_val_if_fail (callback, NULL);
 
 	va_start (va, destroy_data);
-	op = delete_password_va (schema, va, callback, data, destroy_data);
+	op = delete_password_va_start (schema, va, callback, data, destroy_data);
 	va_end (va);
 
-	return op;
+	return gkr_operation_pending_and_unref (op);
 }
 
 /**
@@ -4784,8 +4938,8 @@ gnome_keyring_delete_password_sync (const GnomeKeyringPasswordSchema* schema, ..
 	g_return_val_if_fail (schema, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
 
 	va_start (va, schema);
-	op = delete_password_va (schema, va, gkr_callback_empty, NULL, NULL);
+	op = delete_password_va_start (schema, va, gkr_callback_empty, NULL, NULL);
 	va_end (va);
 
-	return gkr_operation_block (op);
+	return gkr_operation_block_and_unref (op);
 }

@@ -64,7 +64,9 @@ void                gkr_operation_complete          (GkrOperation *op,
 void                gkr_operation_complete_later    (GkrOperation *op,
                                                      GnomeKeyringResult res);
 
-GnomeKeyringResult  gkr_operation_block             (GkrOperation *op);
+gpointer            gkr_operation_pending_and_unref (GkrOperation *op);
+
+GnomeKeyringResult  gkr_operation_block_and_unref   (GkrOperation *op);
 
 void                gkr_operation_request           (GkrOperation *op,
                                                      DBusMessage *request);

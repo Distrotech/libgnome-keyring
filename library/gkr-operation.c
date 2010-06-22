@@ -78,16 +78,14 @@ operation_clear_callbacks (GkrOperation *op)
 	op->completed = NULL;
 }
 
-void
-gkr_operation_unref (gpointer data)
+static gboolean
+operation_unref (gpointer data)
 {
 	GkrOperation *op = data;
-
-	if (!op)
-		return;
+	g_assert (op);
 
 	if (!g_atomic_int_dec_and_test (&op->refs))
-		return;
+		return FALSE;
 
 	if (op->pending) {
 		dbus_pending_call_cancel (op->pending);
@@ -103,6 +101,28 @@ gkr_operation_unref (gpointer data)
 	}
 
 	g_slice_free (GkrOperation, op);
+	return TRUE;
+}
+
+void
+gkr_operation_unref (gpointer data)
+{
+	GkrOperation *op = data;
+	g_assert (op);
+	operation_unref (op);
+}
+
+gpointer
+gkr_operation_pending_and_unref (GkrOperation *op)
+{
+	/* Return op, if not the last reference */
+	if (!operation_unref (op))
+		return op;
+
+	/* Not sure what to do here, but at least we can print a message */
+	g_message ("an libgnome-keyring operation completed unsafely before "
+	           "the function starting the operation returned.");
+	return NULL;
 }
 
 GnomeKeyringResult
@@ -361,12 +381,10 @@ gkr_operation_request (GkrOperation *op, DBusMessage *req)
 }
 
 GnomeKeyringResult
-gkr_operation_block (GkrOperation *op)
+gkr_operation_block_and_unref (GkrOperation *op)
 {
 	DBusPendingCall *pending;
 	g_return_val_if_fail (op, BROKEN);
-
-	gkr_operation_ref (op);
 
 	while ((int) gkr_operation_get_result (op) == INCOMPLETE) {
 		if (op->pending) {
