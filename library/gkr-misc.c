@@ -133,14 +133,14 @@ gkr_decode_keyring_name (const char *path)
 	g_return_val_if_fail (path, NULL);
 
 	if (!g_str_has_prefix (path, COLLECTION_PREFIX)) {
-		g_message ("response from daemon contained an bad collection path: %s", path);
+		g_message ("response from daemon contained a bad collection path: %s", path);
 		return NULL;
 	}
 
 	path += strlen (COLLECTION_PREFIX);
 	result = decode_object_identifier (path, -1);
 	if (result == NULL) {
-		g_message ("response from daemon contained an bad collection path: %s", path);
+		g_message ("response from daemon contained a bad collection path: %s", path);
 		return NULL;
 	}
 
@@ -194,7 +194,7 @@ gkr_decode_keyring_item_id (const char *path, guint32* id)
 	g_return_val_if_fail (path, NULL);
 
 	if (!g_str_has_prefix (path, COLLECTION_PREFIX)) {
-		g_message ("response from daemon contained an bad collection path: %s", path);
+		g_message ("response from daemon contained a bad collection path: %s", path);
 		return NULL;
 	}
 
@@ -213,7 +213,7 @@ gkr_decode_keyring_item_id (const char *path, guint32* id)
 
 	result = decode_object_identifier (coll, part - coll);
 	if (result == NULL) {
-		g_message ("response from daemon contained an bad collection path: %s", path);
+		g_message ("response from daemon contained a bad collection path: %s", path);
 		return NULL;
 	}
 
