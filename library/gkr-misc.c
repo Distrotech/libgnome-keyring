@@ -60,7 +60,7 @@ encode_object_identifier (GString *string, const gchar* name, gssize length)
 
 		/* Special characters are encoded with a _ */
 		} else {
-			g_string_append_printf (string, "_%02x", (unsigned int)ch);
+			g_string_append_printf (string, "_%02x", (unsigned int)(unsigned char)ch);
 		}
 	}
 }
