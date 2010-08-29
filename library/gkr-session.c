@@ -137,6 +137,8 @@ static gboolean
 decode_open_session_plain (DBusMessage *message, const char **path)
 {
 	DBusMessageIter iter, variant;
+	char *signature;
+	gboolean equal;
 
 	g_assert (message);
 	g_assert (path);
@@ -147,8 +149,13 @@ decode_open_session_plain (DBusMessage *message, const char **path)
 	if (!dbus_message_iter_init (message, &iter))
 		g_return_val_if_reached (FALSE);
 	dbus_message_iter_recurse (&iter, &variant);
-	if (!g_str_equal (dbus_message_iter_get_signature (&variant), "s"))
+
+	signature = dbus_message_iter_get_signature (&variant);
+	equal = g_str_equal (signature, "s");
+	dbus_free (signature);
+	if (!equal)
 		return FALSE;
+
 	if (!dbus_message_iter_next (&iter))
 		g_return_val_if_reached (FALSE);
 	dbus_message_iter_get_basic (&iter, path);
@@ -216,8 +223,10 @@ static gboolean
 decode_open_session_aes (DBusMessage *message, gcry_mpi_t *peer, const char **path)
 {
 	DBusMessageIter iter, variant, array;
+	char *signature;
 	gcry_error_t gcry;
 	guchar *buffer;
+	gboolean equal;
 	int n_buffer;
 
 	g_assert (message);
@@ -230,8 +239,13 @@ decode_open_session_aes (DBusMessage *message, gcry_mpi_t *peer, const char **pa
 	if (!dbus_message_iter_init (message, &iter))
 		g_return_val_if_reached (FALSE);
 	dbus_message_iter_recurse (&iter, &variant);
-	if (!g_str_equal (dbus_message_iter_get_signature (&variant), "ay"))
+
+	signature = dbus_message_iter_get_signature (&variant);
+	equal = g_str_equal (signature, "ay");
+	dbus_free (signature);
+	if (!equal)
 		return FALSE;
+
 	dbus_message_iter_recurse (&variant, &array);
 	dbus_message_iter_get_fixed_array (&array, &buffer, &n_buffer);
 	if (!dbus_message_iter_next (&iter))

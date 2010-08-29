@@ -367,6 +367,8 @@ decode_xlock_completed (DBusMessage *reply, gboolean *dismissed,
 	DBusMessageIter variant, iter, array;
 	dbus_bool_t bval;
 	const char *path;
+	char *signature;
+	gboolean equal;
 
 	g_assert (reply);
 	g_assert (dismissed);
@@ -388,7 +390,11 @@ decode_xlock_completed (DBusMessage *reply, gboolean *dismissed,
 	if (!dbus_message_iter_next (&iter))
 		g_return_val_if_reached (FALSE);
 	dbus_message_iter_recurse (&iter, &variant);
-	if (!g_str_equal (dbus_message_iter_get_signature (&variant), "ao"))
+
+	signature = dbus_message_iter_get_signature (&variant);
+	equal = g_str_equal (signature, "ao");
+	dbus_free (signature);
+	if (!equal)
 		return FALSE;
 
 	g_return_val_if_fail (dbus_message_iter_get_arg_type (&variant) == DBUS_TYPE_ARRAY, FALSE);
@@ -2683,6 +2689,8 @@ item_create_1_create_prompt_reply (GkrOperation *op, DBusMessage *reply, gpointe
 
 	DBusMessageIter iter, variant;
 	const char *path;
+	char *signature;
+	gboolean equal;
 
 	if (gkr_operation_handle_errors (op, reply))
 		return;
@@ -2699,7 +2707,11 @@ item_create_1_create_prompt_reply (GkrOperation *op, DBusMessage *reply, gpointe
 
 	/* Dig out the variant */
 	dbus_message_iter_recurse (&iter, &variant);
-	if (!g_str_equal (dbus_message_iter_get_signature (&variant), "o")) {
+
+	signature = dbus_message_iter_get_signature (&variant);
+	equal = g_str_equal (signature, "o");
+	dbus_free (signature);
+	if (!equal) {
 		gkr_operation_complete (op, decode_invalid_response (reply));
 		return;
 	}
