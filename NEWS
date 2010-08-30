@@ -1,3 +1,10 @@
+Changes in version 2.31.91 are:
+ * Use newer tar version for tarballs so we don't truncate file names.
+ * Remove erroneous egg-dbus dependency.
+ * Try to fix broken use on multiple threads in libgnome-keyring.
+ * Fix encoding problems with keyring names that contain foreign chars.
+ * Memory leak fix.
+
 Changes in version 2.30.1 are:
  * Work around for bug in dbus which causes an endless loop
    during blocking operations.
