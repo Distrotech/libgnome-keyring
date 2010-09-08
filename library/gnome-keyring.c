@@ -3976,27 +3976,28 @@ find_network_password_filter (GnomeKeyringResult res, GList *found_list, gpointe
 
 		attributes = (GnomeKeyringAttribute *) found->attributes->data;
 		for (i = 0; i < found->attributes->len; i++) {
-			if (strcmp (attributes[i].name, "user") == 0 &&
-			    attributes[i].type == GNOME_KEYRING_ATTRIBUTE_TYPE_STRING) {
-				data->user = g_strdup (attributes[i].value.string);
-			} else if (strcmp (attributes[i].name, "domain") == 0 &&
-				   attributes[i].type == GNOME_KEYRING_ATTRIBUTE_TYPE_STRING) {
-				data->domain = g_strdup (attributes[i].value.string);
-			} else if (strcmp (attributes[i].name, "server") == 0 &&
-				   attributes[i].type == GNOME_KEYRING_ATTRIBUTE_TYPE_STRING) {
-				data->server = g_strdup (attributes[i].value.string);
-			} else if (strcmp (attributes[i].name, "object") == 0 &&
-				   attributes[i].type == GNOME_KEYRING_ATTRIBUTE_TYPE_STRING) {
-				data->object = g_strdup (attributes[i].value.string);
-			} else if (strcmp (attributes[i].name, "protocol") == 0 &&
-				   attributes[i].type == GNOME_KEYRING_ATTRIBUTE_TYPE_STRING) {
-				data->protocol = g_strdup (attributes[i].value.string);
-			} else if (strcmp (attributes[i].name, "authtype") == 0 &&
-				   attributes[i].type == GNOME_KEYRING_ATTRIBUTE_TYPE_STRING) {
-				data->authtype = g_strdup (attributes[i].value.string);
-			} else if (strcmp (attributes[i].name, "port") == 0 &&
-				   attributes[i].type == GNOME_KEYRING_ATTRIBUTE_TYPE_UINT32) {
-				data->port = attributes[i].value.integer;
+			GnomeKeyringAttribute *attribute = &(g_array_index (found->attributes, GnomeKeyringAttribute, i));
+			if (strcmp (attribute->name, "user") == 0 &&
+			    attribute->type == GNOME_KEYRING_ATTRIBUTE_TYPE_STRING) {
+				data->user = g_strdup (attribute->value.string);
+			} else if (strcmp (attribute->name, "domain") == 0 &&
+				   attribute->type == GNOME_KEYRING_ATTRIBUTE_TYPE_STRING) {
+				data->domain = g_strdup (attribute->value.string);
+			} else if (strcmp (attribute->name, "server") == 0 &&
+				   attribute->type == GNOME_KEYRING_ATTRIBUTE_TYPE_STRING) {
+				data->server = g_strdup (attribute->value.string);
+			} else if (strcmp (attribute->name, "object") == 0 &&
+				   attribute->type == GNOME_KEYRING_ATTRIBUTE_TYPE_STRING) {
+				data->object = g_strdup (attribute->value.string);
+			} else if (strcmp (attribute->name, "protocol") == 0 &&
+				   attribute->type == GNOME_KEYRING_ATTRIBUTE_TYPE_STRING) {
+				data->protocol = g_strdup (attribute->value.string);
+			} else if (strcmp (attribute->name, "authtype") == 0 &&
+				   attribute->type == GNOME_KEYRING_ATTRIBUTE_TYPE_STRING) {
+				data->authtype = g_strdup (attribute->value.string);
+			} else if (strcmp (attribute->name, "port") == 0 &&
+				   attribute->type == GNOME_KEYRING_ATTRIBUTE_TYPE_UINT32) {
+				data->port = attribute->value.integer;
 			}
 		}
 	}
