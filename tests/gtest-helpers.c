@@ -39,7 +39,6 @@
 
 static GStaticMutex memory_mutex = G_STATIC_MUTEX_INIT;
 static const gchar *test_path = NULL;
-static pid_t daemon_pid = 0;
 
 void
 egg_memory_lock (void)
@@ -161,12 +160,23 @@ chdir_base_dir (char* argv0)
 	g_free (dir);
 }
 
-static void
+#ifdef TEST_WITH_DAEMON
+
+static pid_t daemon_pid = 0;
+
+static gboolean
 daemon_start ()
 {
 	GError *err = NULL;
 	gchar *args[5];
-	const gchar *path, *service;
+	const gchar *path, *service, *address;
+
+	/* Need to have DBUS running */
+	address = g_getenv ("DBUS_SESSION_BUS_ADDRESS");
+	if (!address || !address[0]) {
+		g_printerr ("\nNo DBUS session available, skipping tests!\n\n");
+		return FALSE;
+	}
 
 	path = g_getenv ("GNOME_KEYRING_TEST_PATH");
 	if (path && !path[0])
@@ -199,6 +209,8 @@ daemon_start ()
 		/* Let it startup properly */
 		sleep (2);
 	}
+
+	return TRUE;
 }
 
 static void
@@ -209,11 +221,13 @@ daemon_stop (void)
 	daemon_pid = 0;
 }
 
+#endif /* TEST_WITH_DAEMON */
+
 int
 main (int argc, char* argv[])
 {
 	GLogLevelFlags fatal_mask;
-	int ret;
+	int ret = 0;
 
 	chdir_base_dir (argv[0]);
 	g_test_init (&argc, &argv, NULL);
@@ -224,13 +238,19 @@ main (int argc, char* argv[])
 	g_log_set_always_fatal (fatal_mask);
 
 	initialize_tests ();
-	daemon_start ();
 
-	start_tests ();
-	ret = g_test_run ();
-	stop_tests();
+#ifdef TEST_WITH_DAEMON
+	if (daemon_start ()) {
+#endif
 
-	daemon_stop();
+		start_tests ();
+		ret = g_test_run ();
+		stop_tests();
+
+#ifdef TEST_WITH_DAEMON
+		daemon_stop();
+	}
+#endif
 
 	return ret;
 }

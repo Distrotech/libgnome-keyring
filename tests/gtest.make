@@ -1,7 +1,8 @@
 
 # The following need to be declared before this file is included:
-#   UNIT_AUTO     A list of C files with tests
-#   UNIT_LIBS     Libraries to link the tests to
+#   TEST_AUTO     A list of C files with tests
+#   TEST_LIBS     Libraries to link the tests to
+#   TEST_FLAGS    Flags for the tests
 
 # ------------------------------------------------------------------------------
 
@@ -18,21 +19,21 @@ LIBS = \
 noinst_PROGRAMS= \
 	run-auto-test
 
-run-auto-test.h: $(UNIT_AUTO) Makefile.am $(top_srcdir)/tests/prep-gtest.sh
-	sh $(top_srcdir)/tests/prep-gtest.sh -b run-auto-test $(UNIT_AUTO)
+run-auto-test.h: $(TEST_AUTO) Makefile.am $(top_srcdir)/tests/prep-gtest.sh
+	sh $(top_srcdir)/tests/prep-gtest.sh -b run-auto-test $(TEST_AUTO)
 
 run-auto-test.c: run-auto-test.h
 
 run_auto_test_SOURCES = \
 	run-auto-test.c run-auto-test.h \
-	$(UNIT_AUTO)
+	$(TEST_AUTO)
 
 run_auto_test_LDADD = \
-	$(UNIT_LIBS) \
+	$(TEST_LIBS) \
 	$(LIBRARY_LIBS)
 
 run_auto_test_CFLAGS = \
-	$(UNIT_FLAGS)
+	$(TEST_FLAGS)
 
 BUILT_SOURCES = \
 	run-auto-test.c \
