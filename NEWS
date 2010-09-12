@@ -1,3 +1,9 @@
+Changes in version 2.31.92 are:
+ * Require automake 1.7
+ * Fix assertion in secure memory code.
+ * Don't try to run daemon tests if DBus is not running.
+ * Fix build warnings on ARM
+
 Changes in version 2.31.91 are:
  * Use newer tar version for tarballs so we don't truncate file names.
  * Remove erroneous egg-dbus dependency.
