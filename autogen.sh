@@ -1,10 +1,12 @@
 #!/bin/sh
 # Run this to generate all the initial makefiles, etc.
 
+PKG_NAME="libgnome-keyring"
+USE_GNOME2_MACROS=1
+REQUIRED_AUTOMAKE_VERSION=1.7
+
 srcdir=`dirname $0`
 test -z "$srcdir" && srcdir=.
-
-PKG_NAME="libgnome-keyring"
 
 # Some boiler plate to get git setup as expected
 if test -d $srcdir/.git; then
@@ -25,4 +27,4 @@ which gnome-autogen.sh || {
 	exit 1
 }
 
-USE_GNOME2_MACROS=1 . gnome-autogen.sh
+. gnome-autogen.sh
