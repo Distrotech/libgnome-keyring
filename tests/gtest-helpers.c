@@ -160,16 +160,17 @@ chdir_base_dir (char* argv0)
 	g_free (dir);
 }
 
-#ifdef TEST_WITH_DAEMON
-
 static pid_t daemon_pid = 0;
 
 static gboolean
-daemon_start ()
+daemon_start (void)
 {
 	GError *err = NULL;
 	gchar *args[5];
 	const gchar *path, *service, *address;
+	gchar *output = NULL;
+	gint exit_status = 1;
+	GError *error = NULL;
 
 	/* Need to have DBUS running */
 	address = g_getenv ("DBUS_SESSION_BUS_ADDRESS");
@@ -177,6 +178,23 @@ daemon_start ()
 		g_printerr ("\nNo DBUS session available, skipping tests!\n\n");
 		return FALSE;
 	}
+
+	/* Check if gnome-keyring-daemon has testing enabled */
+	if (!g_spawn_command_line_sync (GNOME_KEYRING_DAEMON_PATH " --version",
+	                                &output, NULL, &exit_status, &error)) {
+		g_printerr ("Couldn't launch '%s': %s", GNOME_KEYRING_DAEMON_PATH,
+		            error->message);
+		return FALSE;
+	}
+
+	/* For some reason --version failed */
+	if (exit_status != 0 || strstr (output, "testing: enabled") == NULL) {
+		g_printerr ("Skipping tests since no testing enabled gnome-keyring-daemin is available\n");
+		g_free (output);
+		return FALSE;
+	}
+
+	g_free (output);
 
 	path = g_getenv ("GNOME_KEYRING_TEST_PATH");
 	if (path && !path[0])
@@ -221,8 +239,6 @@ daemon_stop (void)
 	daemon_pid = 0;
 }
 
-#endif /* TEST_WITH_DAEMON */
-
 int
 main (int argc, char* argv[])
 {
@@ -239,18 +255,12 @@ main (int argc, char* argv[])
 
 	initialize_tests ();
 
-#ifdef TEST_WITH_DAEMON
 	if (daemon_start ()) {
-#endif
-
 		start_tests ();
 		ret = g_test_run ();
 		stop_tests();
-
-#ifdef TEST_WITH_DAEMON
 		daemon_stop();
 	}
-#endif
 
 	return ret;
 }
