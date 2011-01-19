@@ -2,15 +2,11 @@
 TEST_AUTO = \
 	test-memory.c \
 	test-keyrings.c \
-	test-other.c \
-	test-daemon-setup.c
+	test-other.c
 
 TEST_LIBS = \
 	$(top_builddir)/egg/libegg.la \
 	$(top_builddir)/library/libgnome-keyring.la
-
-TEST_FLAGS = \
-	-DTEST_WITH_DAEMON
 
 include $(top_srcdir)/tests/gtest.make
 
