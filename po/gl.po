@@ -1,16 +1,17 @@
 # Galician translation for libgnome-keyring.
 # Copyright (C) 2010 libgnome-keyring's COPYRIGHT HOLDER
 # This file is distributed under the same license as the libgnome-keyring package.
-# Fran Diéguez <frandieguez@ubuntu.com>, 2010.
+# Fran Diéguez <frandieguez@ubuntu.com>, 2010, 2011.
 #
 msgid ""
 msgstr ""
 "Project-Id-Version: libgnome-keyring master\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2010-07-21 13:37+0200\n"
-"PO-Revision-Date: 2010-07-21 13:37+0200\n"
+"POT-Creation-Date: 2011-01-27 03:19+0100\n"
+"PO-Revision-Date: 2011-01-24 19:43+0100\n"
 "Last-Translator: Fran Diéguez <frandieguez@ubuntu.com>\n"
 "Language-Team: Galician <gnome-gl-list@gnome.org>\n"
+"Language: gl\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
@@ -49,6 +50,6 @@ msgid "The keyring has already been unlocked."
 msgstr "O anel de chaves xa foi desbloqueado."
 
 #. TRANSLATORS: This is the name of an automatically created default keyring.
-#: ../library/gnome-keyring.c:2807
+#: ../library/gnome-keyring.c:2819
 msgid "Default"
-msgstr "Predefinido"
+msgstr "Predeterminado"
