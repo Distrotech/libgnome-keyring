@@ -101,6 +101,8 @@ run-auto-test.h
 # /egg/tests
 /egg/tests/Makefile
 /egg/tests/Makefile.in
+/egg/tests/test-dh
+/egg/tests/test-secmem
 
 # /library
 /library/*.pc
@@ -111,6 +113,9 @@ run-auto-test.h
 /library/tests/Makefile
 /library/tests/Makefile.in
 /library/tests/test-prompting
+/library/tests/test-keyrings
+/library/tests/test-memory
+/library/tests/test-other
 
 # /po
 /po/*.gmo

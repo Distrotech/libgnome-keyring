@@ -1205,11 +1205,11 @@ egg_secure_clear (void *p, size_t length)
 	if (p == NULL)
 		return;
 
-        vp = (volatile char*)p;
-        while (length) {
-	        *vp = 0xAA;
-	        vp++;
-	        length--;
+	vp = (volatile char*)p;
+	while (length) {
+		*vp = 0xAA;
+		vp++;
+		length--;
 	}
 }
 

@@ -1,14 +1,8 @@
-if WITH_TESTS
-TESTS_DIR = tests
-else
-TESTS_DIR =
-endif
 
 SUBDIRS = \
 	. \
 	egg \
 	library \
-	$(TESTS_DIR) \
 	po \
 	docs
 

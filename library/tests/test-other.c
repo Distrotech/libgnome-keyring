@@ -21,32 +21,18 @@
    Author: Stef Walter <stef@memberwebs.com>
 */
 
+#include "config.h"
+
+#include "gnome-keyring.h"
+
+#include <glib.h>
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
 
-#include "run-auto-test.h"
-
-#include "library/gnome-keyring.h"
-
-DEFINE_TEST(set_display)
-{
-	GnomeKeyringResult res;
-
-	/* Deprecated method */
-	res = gnome_keyring_daemon_set_display_sync (":0.0");
-	g_assert_cmpint (GNOME_KEYRING_RESULT_DENIED, ==, res);
-}
-
-DEFINE_TEST(setup_environment)
-{
-	GnomeKeyringResult res;
-
-	res = gnome_keyring_daemon_prepare_environment_sync ();
-	g_assert_cmpint (GNOME_KEYRING_RESULT_OK, ==, res);
-}
-
-DEFINE_TEST(result_string)
+static void
+test_result_string (void)
 {
 	const gchar *msg;
 
@@ -83,11 +69,12 @@ DEFINE_TEST(result_string)
 	g_assert (msg && msg[0]);
 }
 
-DEFINE_TEST(is_available)
+int
+main (int argc, char **argv)
 {
-	gboolean ret;
+	g_test_init (&argc, &argv, NULL);
 
-	ret = gnome_keyring_is_available ();
-	/* "gnome_keyring_is_available returned false" */
-	g_assert (ret == TRUE);
+	g_test_add_func ("/other/result-string", test_result_string);
+
+	return g_test_run ();
 }

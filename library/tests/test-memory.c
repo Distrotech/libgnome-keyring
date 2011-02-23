@@ -21,13 +21,15 @@
    Author: Stef Walter <stef@memberwebs.com>
 */
 
+#include "config.h"
+
+#include "gnome-keyring-memory.h"
+
+#include <glib.h>
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <string.h>
-
-#include "run-auto-test.h"
-
-#include "library/gnome-keyring-memory.h"
 
 #define IS_ZERO -1
 
@@ -44,7 +46,8 @@ find_non_zero (gpointer mem, gsize len)
 	return -1;
 }
 
-DEFINE_TEST(alloc_free)
+static void
+test_alloc_free (void)
 {
 	gpointer p;
 	gboolean ret;
@@ -61,7 +64,8 @@ DEFINE_TEST(alloc_free)
 	gnome_keyring_memory_free (p);
 }
 
-DEFINE_TEST(alloc_two)
+static void
+test_alloc_two (void)
 {
 	gpointer p, p2;
 	gboolean ret;
@@ -85,7 +89,8 @@ DEFINE_TEST(alloc_two)
 	gnome_keyring_memory_free (p);
 }
 
-DEFINE_TEST(realloc)
+static void
+test_realloc (void)
 {
 	gchar *str = "a test string to see if realloc works properly";
 	gpointer p, p2;
@@ -110,7 +115,8 @@ DEFINE_TEST(realloc)
 	g_assert (p == NULL);
 }
 
-DEFINE_TEST(realloc_across)
+static void
+test_realloc_across (void)
 {
 	gpointer p, p2;
 
@@ -125,4 +131,17 @@ DEFINE_TEST(realloc_across)
 	g_assert_cmpint (IS_ZERO, ==, find_non_zero (p2, 16200));
 
 	gnome_keyring_memory_free (p2);
+}
+
+int
+main (int argc, char **argv)
+{
+	g_test_init (&argc, &argv, NULL);
+
+	g_test_add_func ("/memory/alloc-free", test_alloc_free);
+	g_test_add_func ("/memory/alloc-two", test_alloc_two);
+	g_test_add_func ("/memory/realloc", test_realloc);
+	g_test_add_func ("/memory/realloc-across", test_realloc_across);
+
+	return g_test_run ();
 }

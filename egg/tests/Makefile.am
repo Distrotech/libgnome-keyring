@@ -1,11 +1,19 @@
 
-# Test files should be listed in order they need to run
-TEST_AUTO = \
-	test-dh.c \
-	unit-test-secmem.c
+INCLUDES = \
+	-I$(top_srcdir)/egg \
+	$(LIBRARY_CFLAGS)
 
-TEST_LIBS =  \
-	$(top_builddir)/egg/libegg.la
+LDADD =  \
+	$(top_builddir)/egg/libegg.la \
+	$(LIBRARY_LIBS)
 
-include $(top_srcdir)/tests/gtest.make
+TEST_PROGS = \
+	test-dh \
+	test-secmem
 
+check_PROGRAMS = $(TEST_PROGS)
+
+test: ${TEST_PROGS}
+	gtester -k --verbose ${TEST_PROGS}
+
+check-local: test

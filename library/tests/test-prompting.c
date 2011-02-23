@@ -1,5 +1,5 @@
 /* -*- Mode: C; indent-tabs-mode: t; c-basic-offset: 8; tab-width: 8 -*- */
-/* unit-test-other.c: Test some prompts
+/* test-prompting.c: Test some prompts
 
    Copyright (C) 2010 Stefan Walter
 
@@ -22,6 +22,7 @@
 */
 
 #include "config.h"
+
 #include "gnome-keyring.h"
 
 #include <glib.h>
