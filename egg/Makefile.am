@@ -14,9 +14,10 @@ libegg_la_CFLAGS = \
 libegg_la_SOURCES = \
 	egg-dbus.c egg-dbus.h \
 	egg-dh.c egg-dh.h \
+	egg-hkdf.c egg-hkdf.h \
 	egg-libgcrypt.c egg-libgcrypt.h \
 	egg-secure-memory.c egg-secure-memory.h \
-	egg-testing.h
+	egg-testing.c egg-testing.h
 
 # -------------------------------------------------------------------
 

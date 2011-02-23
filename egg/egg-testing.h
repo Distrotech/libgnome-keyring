@@ -25,8 +25,22 @@
 #define EGG_TESTING_H_
 
 #include <glib.h>
+#include <string.h>
 
 #define egg_assert_cmpsize(a, o, b) \
 	g_assert_cmpuint ((guint)(a), o, (guint)(b))
+
+#define egg_assert_cmpmem(a, na, cmp, b, nb) \
+	do { gconstpointer __p1 = (a), __p2 = (b); gsize __n1 = (na), __n2 = (nb); \
+	     if (__n1 cmp __n2 && memcmp (__p1, __p2, __n1) cmp 0) ; else \
+	        egg_assertion_message_cmpmem (G_LOG_DOMAIN, __FILE__, __LINE__, \
+	            G_STRFUNC, #a "[" #na"] " #cmp " " #b "[" #nb "]", \
+                    __p1, __n1, #cmp, __p2, __n2); } while (0)
+
+void       egg_assertion_message_cmpmem        (const char *domain, const char *file,
+                                                int line, const char *func,
+                                                const char *expr, gconstpointer arg1,
+                                                gsize n_arg1, const char *cmp,
+                                                gconstpointer arg2, gsize n_arg2);
 
 #endif /* EGG_DH_H_ */
