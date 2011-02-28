@@ -412,6 +412,7 @@ session_encode_secret (DBusMessageIter *iter, const gchar *path, gconstpointer p
                        gsize n_parameter, gconstpointer secret, gsize n_secret)
 {
 	DBusMessageIter struc, array;
+	const gchar *content_type = "text/plain; charset=utf8";
 
 	/* Write out the result message */
 	dbus_message_iter_open_container (iter, DBUS_TYPE_STRUCT, NULL, &struc);
@@ -422,6 +423,7 @@ session_encode_secret (DBusMessageIter *iter, const gchar *path, gconstpointer p
 	dbus_message_iter_open_container (&struc, DBUS_TYPE_ARRAY, "y", &array);
 	dbus_message_iter_append_fixed_array (&array, DBUS_TYPE_BYTE, &secret, n_secret);
 	dbus_message_iter_close_container (&struc, &array);
+	dbus_message_iter_append_basic (&struc, DBUS_TYPE_STRING, &content_type);
 	dbus_message_iter_close_container (iter, &struc);
 
 	return TRUE;
@@ -538,6 +540,14 @@ session_decode_secret (DBusMessageIter *iter, const char **path, gconstpointer *
 	dbus_message_iter_recurse (&struc, &array);
 	dbus_message_iter_get_fixed_array (&array, secret, &n_elements);
 	*n_secret = n_elements;
+
+	/*
+	 * content_type: We have no use for the content-type, but check
+	 * that it's there...
+	 */
+	if (!dbus_message_iter_next (&struc) ||
+	    dbus_message_iter_get_arg_type (&struc) != DBUS_TYPE_STRING)
+		return FALSE;
 
 	return TRUE;
 }
