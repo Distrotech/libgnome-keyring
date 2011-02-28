@@ -719,35 +719,38 @@ daemon_stop (void)
 int
 main (int argc, char **argv)
 {
+	int ret = 0;
+
 	g_test_init (&argc, &argv, NULL);
 
 	mainloop = g_main_loop_new (NULL, FALSE);
 
-	if (daemon_start ()) {
-		g_test_add_func ("/keyrings/remove-incomplete", test_remove_incomplete);
-		g_test_add_func ("/keyrings/create-keyring", test_create_keyring);
-		g_test_add_func ("/keyrings/create-keyring-already-exists", test_create_keyring_already_exists);
-		g_test_add_func ("/keyrings/set-default-keyring", test_set_default_keyring);
-		g_test_add_func ("/keyrings/delete-keyring", test_delete_keyring);
-		g_test_add_func ("/keyrings/recreate-keyring", test_recreate_keyring);
-		g_test_add_func ("/keyrings/create-list-items", test_create_list_items);
-		g_test_add_func ("/keyrings/find-keyrings", test_find_keyrings);
-		g_test_add_func ("/keyrings/find-invalid", test_find_invalid);
-		g_test_add_func ("/keyrings/lock-keyrings", test_lock_keyrings);
-		g_test_add_func ("/keyrings/change-password", test_change_password);
-		g_test_add_func ("/keyrings/keyring-info", test_keyring_info);
-		g_test_add_func ("/keyrings/list-keyrings", test_list_keyrings);
-		g_test_add_func ("/keyrings/keyring-grant-access", test_keyring_grant_access);
-		g_test_add_func ("/keyrings/store-password", test_store_password);
-		g_test_add_func ("/keyrings/find-password", test_find_password);
-		g_test_add_func ("/keyrings/find-no-password", test_find_no_password);
-		g_test_add_func ("/keyrings/delete-password", test_delete_password);
-		g_test_add_func ("/keyrings/cleanup", test_cleanup);
-		g_test_add_func ("/keyrings/set-display", test_set_display);
-		g_test_add_func ("/keyrings/setup-environment", test_setup_environment);
+	g_test_add_func ("/keyrings/remove-incomplete", test_remove_incomplete);
+	g_test_add_func ("/keyrings/create-keyring", test_create_keyring);
+	g_test_add_func ("/keyrings/create-keyring-already-exists", test_create_keyring_already_exists);
+	g_test_add_func ("/keyrings/set-default-keyring", test_set_default_keyring);
+	g_test_add_func ("/keyrings/delete-keyring", test_delete_keyring);
+	g_test_add_func ("/keyrings/recreate-keyring", test_recreate_keyring);
+	g_test_add_func ("/keyrings/create-list-items", test_create_list_items);
+	g_test_add_func ("/keyrings/find-keyrings", test_find_keyrings);
+	g_test_add_func ("/keyrings/find-invalid", test_find_invalid);
+	g_test_add_func ("/keyrings/lock-keyrings", test_lock_keyrings);
+	g_test_add_func ("/keyrings/change-password", test_change_password);
+	g_test_add_func ("/keyrings/keyring-info", test_keyring_info);
+	g_test_add_func ("/keyrings/list-keyrings", test_list_keyrings);
+	g_test_add_func ("/keyrings/keyring-grant-access", test_keyring_grant_access);
+	g_test_add_func ("/keyrings/store-password", test_store_password);
+	g_test_add_func ("/keyrings/find-password", test_find_password);
+	g_test_add_func ("/keyrings/find-no-password", test_find_no_password);
+	g_test_add_func ("/keyrings/delete-password", test_delete_password);
+	g_test_add_func ("/keyrings/cleanup", test_cleanup);
+	g_test_add_func ("/keyrings/set-display", test_set_display);
+	g_test_add_func ("/keyrings/setup-environment", test_setup_environment);
 
+	if (daemon_start ()) {
+		ret = g_test_run ();
 		daemon_stop ();
 	}
 
-	return g_test_run ();
+	return ret;
 }
