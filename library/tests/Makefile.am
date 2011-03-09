@@ -11,7 +11,8 @@ LDADD =  \
 TEST_PROGS = \
 	test-memory \
 	test-keyrings \
-	test-other
+	test-other \
+	test-any-daemon
 
 check_PROGRAMS = \
 	test-prompting \

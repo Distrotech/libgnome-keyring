@@ -103,6 +103,7 @@ run-auto-test.h
 /egg/tests/Makefile.in
 /egg/tests/test-dh
 /egg/tests/test-secmem
+/egg/tests/test-hkdf
 
 # /library
 /library/*.pc
@@ -112,6 +113,7 @@ run-auto-test.h
 # /library/tests
 /library/tests/Makefile
 /library/tests/Makefile.in
+/library/tests/test-any-daemon
 /library/tests/test-prompting
 /library/tests/test-keyrings
 /library/tests/test-memory

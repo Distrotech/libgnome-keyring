@@ -44,6 +44,7 @@ test_dh_perform (void)
 	gcry_mpi_t x2, X2;
 	gpointer k1, k2;
 	gboolean ret;
+	gsize n1, n2;
 
 	/* Load up the parameters */
 	if (!egg_dh_default_params ("ietf-ike-grp-modp-768", &p, &g))
@@ -56,13 +57,14 @@ test_dh_perform (void)
 	g_assert (ret);
 
 	/* Calculate keys */
-	k1 = egg_dh_gen_secret (X2, x1, p, 96);
+	k1 = egg_dh_gen_secret (X2, x1, p, &n1);
 	g_assert (k1);
-	k2 = egg_dh_gen_secret (X1, x2, p, 96);
+	k2 = egg_dh_gen_secret (X1, x2, p, &n2);
 	g_assert (k2);
 
 	/* Keys must be the same */
-	g_assert (memcmp (k1, k2, 96) == 0);
+	egg_assert_cmpsize (n1, ==, n2);
+	g_assert (memcmp (k1, k2, n1) == 0);
 
 	gcry_mpi_release (p);
 	gcry_mpi_release (g);
