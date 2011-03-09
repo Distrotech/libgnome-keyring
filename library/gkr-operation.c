@@ -358,15 +358,21 @@ on_pending_call_notify (DBusPendingCall *pending, void *user_data)
 void
 gkr_operation_request (GkrOperation *op, DBusMessage *req)
 {
+	int timeout = -1;
+
 	g_return_if_fail (req);
 	g_assert (op);
+
+#if WITH_TESTS
+	timeout = INT_MAX;
+#endif
 
 	if (!op->conn)
 		op->conn = connect_to_service ();
 
 	if (op->conn) {
 		g_assert (!op->pending);
-		if (!dbus_connection_send_with_reply (op->conn, req, &op->pending, -1))
+		if (!dbus_connection_send_with_reply (op->conn, req, &op->pending, timeout))
 			g_return_if_reached ();
 	}
 
