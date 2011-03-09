@@ -975,6 +975,7 @@ create_keyring_check_reply (GkrOperation *op, DBusMessage *reply, gpointer user_
 	create_keyring_args *args = user_data;
 	DBusMessageIter iter;
 	DBusMessage *req;
+	const gchar *alias = "";
 
 	/* If no such object, then no such keyring exists and we're good to go. */
 	if (!dbus_message_is_error (reply, ERROR_NO_SUCH_OBJECT)) {
@@ -995,6 +996,7 @@ create_keyring_check_reply (GkrOperation *op, DBusMessage *reply, gpointer user_
 		                                    SERVICE_INTERFACE, "CreateCollection");
 		dbus_message_iter_init_append (req, &iter);
 		create_keyring_encode_properties (&iter, args->keyring_name);
+		dbus_message_iter_append_basic (&iter, DBUS_TYPE_STRING, &alias);
 		gkr_operation_push (op, create_keyring_reply, GKR_CALLBACK_OP_MSG, NULL, NULL);
 		gkr_operation_request (op, req);
 		dbus_message_unref (req);
@@ -2651,38 +2653,6 @@ item_create_2_session_request (GkrOperation *op, gpointer data)
 }
 
 static void
-item_create_1_default_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
-{
-	/* Called after setting newly created keyring to default */
-
-	if (gkr_operation_handle_errors (op, reply))
-		return;
-
-	item_create_2_session_request (op, data);
-}
-
-static void
-item_create_1_default_request (GkrOperation *op, const gchar *path, gpointer data)
-{
-	/* Called to request setting newly created keyring to default */
-
-	DBusMessage *req;
-	const char *string;
-
-	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
-	                                    SERVICE_INTERFACE, "SetAlias");
-
-	string = "default";
-	dbus_message_append_args (req, DBUS_TYPE_STRING, &string,
-	                          DBUS_TYPE_OBJECT_PATH, &path, DBUS_TYPE_INVALID);
-
-	gkr_operation_push (op, item_create_1_default_reply, GKR_CALLBACK_OP_MSG, data, NULL);
-	gkr_operation_set_keyring_hint (op);
-	gkr_operation_request (op, req);
-	dbus_message_unref (req);
-}
-
-static void
 item_create_1_create_prompt_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
 {
 	/* Called after prompting to create default collection for item */
@@ -2719,8 +2689,8 @@ item_create_1_create_prompt_reply (GkrOperation *op, DBusMessage *reply, gpointe
 	g_return_if_fail (dbus_message_iter_get_arg_type (&variant) == DBUS_TYPE_OBJECT_PATH);
 	dbus_message_iter_get_basic (&variant, &path);
 
-	/* Set this keyring as the default keyring */
-	item_create_1_default_request (op, path, data);
+	/* Start the session */
+	item_create_2_session_request (op, data);
 }
 
 static void
@@ -2745,7 +2715,7 @@ item_create_1_collection_reply (GkrOperation *op, DBusMessage *reply, gpointer d
 	/* No prompt, set keyring as default */
 	g_return_if_fail (prompt);
 	if (g_str_equal (prompt, "/")) {
-		item_create_1_default_request (op, collection, data);
+		item_create_2_session_request (op, data);
 
 	/* A prompt, display it get the response */
 	} else {
@@ -2793,6 +2763,7 @@ item_create_1_unlock_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
 	DBusMessage *req;
 	gboolean unlocked = FALSE;
 	const char *prompt;
+	const char *alias = "default";
 
 	if (gkr_operation_handle_errors (op, reply))
 		return;
@@ -2817,6 +2788,7 @@ item_create_1_unlock_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
 			dbus_message_iter_init_append (req, &iter);
 			/* TRANSLATORS: This is the name of an automatically created default keyring. */
 			create_keyring_encode_properties (&iter, _("Default"));
+			dbus_message_iter_append_basic (&iter, DBUS_TYPE_STRING, &alias);
 			gkr_operation_push (op, item_create_1_collection_reply, GKR_CALLBACK_OP_MSG, args, NULL);
 			gkr_operation_request (op, req);
 			dbus_message_unref (req);
