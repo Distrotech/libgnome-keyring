@@ -257,154 +257,6 @@ decode_open_session_aes (DBusMessage *message, gcry_mpi_t *peer, const char **pa
 	return (gcry == 0);
 }
 
-/*
- * This less secure algorithm is supported by some old versions of
- * gnome-keyring-daemon. We support it purely as an interim thing,
- * while all version of gnome-keyring-daemon are being upgraded.
- */
-
-#if GKR_VERSION >= 003001000
-  #error "Support for dh-ietf1024-aes128-cbc-pkcs7 should be removed in 3.1.x"
-#else
-
-static gboolean
-reply_says_not_supported (DBusMessage *reply)
-{
-	/*
-	 * In old versions of the spec we used
-	 * org.freedesktop.Secret.Error.NotSupported instead of the standard
-	 * dbus not supported error.
-	 */
-	return (dbus_message_is_error (reply, DBUS_ERROR_NOT_SUPPORTED) ||
-	        dbus_message_is_error (reply, "org.freedesktop.Secret.Error.NotSupported"));
-}
-
-static void
-on_open_session_broken (GkrOperation *op, DBusMessage *reply, gpointer user_data)
-{
-	gcry_mpi_t priv, prime, peer;
-	GkrSession *session;
-	const char *path;
-	gpointer ikm;
-	gsize n_ikm;
-
-	g_assert (op);
-	g_assert (user_data);
-
-	/* If 'broken' is not supported then skip on over to plain */
-	if (reply_says_not_supported (reply)) {
-		session_negotiate_plain (op);
-		return;
-	}
-
-	/* Handle any other errors */
-	if (gkr_operation_handle_errors (op, reply))
-		return;
-
-	/* Parse the result from OpenSession */
-	if (!decode_open_session_aes (reply, &peer, &path)) {
-		g_message ("received an invalid response to Service.OpenSession()");
-		gkr_operation_complete (op, GNOME_KEYRING_RESULT_IO_ERROR);
-		return;
-	}
-
-	if (!egg_dh_default_params ("ietf-ike-grp-modp-1024", &prime, NULL))
-		g_return_if_reached ();
-
-	/* Generate the actual secret */
-	priv = user_data;
-	ikm = egg_dh_gen_secret (peer, priv, prime, &n_ikm);
-
-	gcry_mpi_release (peer);
-	gcry_mpi_release (prime);
-
-	if (ikm == NULL) {
-		g_message ("couldn't negotiate a valid session key");
-		gkr_operation_complete (op, GNOME_KEYRING_RESULT_IO_ERROR);
-		return;
-	}
-
-	session = session_new ();
-	session->path = g_strdup (path);
-	session->n_key = 16;
-
-	/* Now truncate this into our aes key. This is the 'broken' part*/
-	session->key = egg_secure_alloc (session->n_key);
-	g_assert (session->n_key < n_ikm);
-	memcpy (session->key, (guchar*)ikm + (n_ikm - session->n_key),
-	        session->n_key);
-	egg_secure_free (ikm);
-
-	G_LOCK (session_globals);
-	{
-		if (the_session)
-			gkr_session_unref (the_session);
-		the_session = gkr_session_ref (session);
-	}
-	G_UNLOCK (session_globals);
-
-	gkr_callback_invoke_op_session (gkr_operation_pop (op), session);
-	gkr_session_unref (session);
-}
-
-static void
-session_negotiate_broken (GkrOperation *op)
-{
-	/* The old broken algorithm, without digesting the dh result */
-	const char *algorithm = "dh-ietf1024-aes128-cbc-pkcs7";
-	DBusMessageIter iter, variant, array;
-	gcry_mpi_t prime, base, pub, priv;
-	gboolean ret;
-	guchar *buffer;
-	gsize n_buffer;
-	gcry_error_t gcry;
-	DBusMessage *req;
-
-	g_assert (op);
-
-	egg_libgcrypt_initialize ();
-
-	prime = base = pub = priv = NULL;
-	ret = egg_dh_default_params ("ietf-ike-grp-modp-1024", &prime, &base) &&
-	      egg_dh_gen_pair (prime, base, 0, &pub, &priv);
-
-	gcry_mpi_release (prime);
-	gcry_mpi_release (base);
-
-	if (ret == TRUE) {
-		req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
-		                                    SERVICE_INTERFACE, "OpenSession");
-
-		dbus_message_iter_init_append (req, &iter);
-		dbus_message_iter_append_basic (&iter, DBUS_TYPE_STRING, &algorithm);
-		dbus_message_iter_open_container (&iter, DBUS_TYPE_VARIANT, "ay", &variant);
-		dbus_message_iter_open_container (&variant, DBUS_TYPE_ARRAY, "y", &array);
-
-		gcry = gcry_mpi_aprint (GCRYMPI_FMT_USG, &buffer, &n_buffer, pub);
-		g_return_if_fail (gcry == 0);
-		dbus_message_iter_append_fixed_array (&array, DBUS_TYPE_BYTE, &buffer, n_buffer);
-		gcry_free (buffer);
-
-		dbus_message_iter_close_container (&variant, &array);
-		dbus_message_iter_close_container (&iter, &variant);
-
-		gkr_operation_push (op, on_open_session_broken, GKR_CALLBACK_OP_MSG,
-		                    priv, (GDestroyNotify)gcry_mpi_release);
-		priv = NULL;
-
-		gkr_operation_request (op, req);
-		dbus_message_unref (req);
-	}
-
-	gcry_mpi_release (pub);
-	gcry_mpi_release (priv);
-
-	if (ret == FALSE)
-		gkr_operation_complete_later (op, GNOME_KEYRING_RESULT_IO_ERROR);
-}
-
-#endif /* GKR_VERSION >= 003001000 */
-
 static void
 on_open_session_aes (GkrOperation *op, DBusMessage *reply, gpointer user_data)
 {
@@ -417,9 +269,9 @@ on_open_session_aes (GkrOperation *op, DBusMessage *reply, gpointer user_data)
 	g_assert (op);
 	g_assert (user_data);
 
-	/* If AES is not supported then try the old 'broken' method */
-	if (reply_says_not_supported (reply)) {
-		session_negotiate_broken (op);
+	/* If AES is not supported then try plain method */
+	if (dbus_message_is_error (reply, DBUS_ERROR_NOT_SUPPORTED)) {
+		session_negotiate_plain (op);
 		return;
 	}
 
