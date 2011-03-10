@@ -404,7 +404,6 @@ gkr_operation_block_and_unref (GkrOperation *op)
 			if (op->pending == pending) {
 				g_return_val_if_fail (dbus_pending_call_get_completed (pending), BROKEN);
 				on_pending_call_notify (pending, op);
-				g_assert (op->pending != pending);
 			}
 		} else if (op->prompting) {
 			dbus_connection_flush (op->conn);
