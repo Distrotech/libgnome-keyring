@@ -1,3 +1,13 @@
+Changes in version 2.91.92 are:
+ * Use HKDF for hashing of key used to transport secrets.
+ * Fix race condition when multiple applications try to create the
+   default keyring at once.
+ * Use a longer DBus timeout when tests are enabled.
+ * Send content-type along with each secret. This is currently
+   stubbed out and not exposed in the API.
+ * Refactor tests.
+ * Don't run tests if testing in gnome-keyring-daemon is not enabled.
+
 Changes in version 2.32.0 are:
  * Make builds silent by default.
 
