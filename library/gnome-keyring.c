@@ -907,7 +907,7 @@ static void
 create_keyring_encode_properties (DBusMessageIter *iter, const gchar *keyring_name)
 {
 	DBusMessageIter array, dict, variant;
-	const gchar *label = "Label";
+	const gchar *label = COLLECTION_INTERFACE ".Label";
 
 	dbus_message_iter_open_container (iter, DBUS_TYPE_ARRAY, "{sv}", &array);
 	dbus_message_iter_open_container (&array, DBUS_TYPE_DICT_ENTRY, NULL, &dict);
@@ -2575,7 +2575,7 @@ item_create_prepare (const gchar *path, GnomeKeyringItemType type, const gchar *
 	dbus_message_iter_open_container (iter, DBUS_TYPE_ARRAY, "{sv}", &array);
 
 	/* Set the label */
-	string = "Label";
+	string = ITEM_INTERFACE ".Label";
 	dbus_message_iter_open_container (&array, DBUS_TYPE_DICT_ENTRY, NULL, &dict);
 	dbus_message_iter_append_basic (&dict, DBUS_TYPE_STRING, &string);
 	dbus_message_iter_open_container (&dict, DBUS_TYPE_VARIANT, "s", &variant);
@@ -2584,7 +2584,7 @@ item_create_prepare (const gchar *path, GnomeKeyringItemType type, const gchar *
 	dbus_message_iter_close_container (&array, &dict);
 
 	/* Set the attributes */
-	string = "Attributes";
+	string = ITEM_INTERFACE ".Attributes";
 	dbus_message_iter_open_container (&array, DBUS_TYPE_DICT_ENTRY, NULL, &dict);
 	dbus_message_iter_append_basic (&dict, DBUS_TYPE_STRING, &string);
 	dbus_message_iter_open_container (&dict, DBUS_TYPE_VARIANT, "a{ss}", &variant);
