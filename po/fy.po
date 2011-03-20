@@ -24,7 +24,7 @@ msgstr "Tagong ûntsizzen"
 
 #: ../library/gnome-keyring-utils.c:102
 msgid "The gnome-keyring-daemon application is not running."
-msgstr "De applikaasje 'gnome-keyring-daemon' rint net."
+msgstr "De tapassing 'gnome-keyring-daemon' rint net."
 
 #: ../library/gnome-keyring-utils.c:104
 msgid "Error communicating with gnome-keyring-daemon"
@@ -36,7 +36,7 @@ msgstr "In slútring mei dizze namme bestiet al"
 
 #: ../library/gnome-keyring-utils.c:108
 msgid "Programmer error: The application sent invalid data."
-msgstr "Ûntwikkeldersflater: de applikaasje hat ûnjildige data ferstjoerd"
+msgstr "Ûntwikkeldersflater: de tapassing hat ûnjildige data ferstjoerd"
 
 #: ../library/gnome-keyring-utils.c:110
 msgid "No matching results"
