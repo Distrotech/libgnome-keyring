@@ -50,6 +50,7 @@ int
 main (int argc, char *argv[])
 {
 	g_setenv ("GNOME_KEYRING_TEST_SERVICE", "org.gnome.keyring.Test", TRUE);
+	g_set_prgname ("test-prompting");
 
 	if (argc == 2) {
 		if (g_str_equal (argv[1], "--create-item")) {

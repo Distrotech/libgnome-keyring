@@ -25,9 +25,12 @@
 
 #include "config.h"
 
+#define DEBUG_FLAG GKR_DEBUG_OPERATION
+#include "gkr-debug.h"
 #include "gkr-misc.h"
 #include "gkr-operation.h"
 #include "gkr-session.h"
+
 #include "gnome-keyring.h"
 #include "gnome-keyring-private.h"
 
@@ -68,7 +71,10 @@ static void
 operation_clear_callbacks (GkrOperation *op)
 {
 	GSList *l;
+
 	g_assert (op);
+	gkr_debug ("%p", op);
+
 	while (!g_queue_is_empty (&op->callbacks))
 		gkr_callback_free (g_queue_pop_head (&op->callbacks));
 	g_queue_clear (&op->callbacks);
@@ -88,12 +94,15 @@ operation_unref (gpointer data)
 		return FALSE;
 
 	if (op->pending) {
+		gkr_debug ("%p: cancelling: %p", op, op->pending);
 		dbus_pending_call_cancel (op->pending);
 		dbus_pending_call_unref (op->pending);
 		op->pending = NULL;
 	}
 
 	operation_clear_callbacks (op);
+
+	gkr_debug ("%p: freeing", op);
 
 	if (op->conn) {
 		dbus_connection_unref (op->conn);
@@ -120,7 +129,7 @@ gkr_operation_pending_and_unref (GkrOperation *op)
 		return op;
 
 	/* Not sure what to do here, but at least we can print a message */
-	g_message ("an libgnome-keyring operation completed unsafely before "
+	g_message ("a libgnome-keyring operation completed unsafely before "
 	           "the function starting the operation returned.");
 	return NULL;
 }
@@ -140,6 +149,7 @@ gkr_operation_new (gpointer callback, GkrCallbackType callback_type,
 	GkrOperation *op;
 
 	op = g_slice_new0 (GkrOperation);
+	gkr_debug ("%p", op);
 
 	op->refs = 1;
 	op->result = INCOMPLETE;
@@ -201,6 +211,8 @@ on_complete (GkrOperation *op)
 	cb = g_queue_pop_tail (&op->callbacks);
 	g_assert (cb);
 
+	gkr_debug ("%p", op);
+
 	/* Free all the other callbacks */
 	operation_clear_callbacks (op);
 
@@ -232,9 +244,11 @@ void
 gkr_operation_complete_later (GkrOperation *op, GnomeKeyringResult res)
 {
 	g_return_if_fail (op);
-	if (gkr_operation_set_result (op, res))
+	if (gkr_operation_set_result (op, res)) {
+		gkr_debug ("%p", op);
 		g_idle_add_full (G_PRIORITY_DEFAULT_IDLE, on_complete_later,
 		                 gkr_operation_ref (op), gkr_operation_unref);
+	}
 }
 
 static DBusHandlerResult
@@ -255,6 +269,7 @@ on_name_changed_filter (DBusConnection *connection, DBusMessage *message, void *
 		    new_owner && g_str_equal ("", new_owner)) {
 
 			/* Clear any session, when the service goes away */
+			gkr_debug ("secret service went away");
 			gkr_session_clear ();
 		}
 
@@ -277,8 +292,10 @@ connect_to_service (void)
 	 */
 
 	if (!dbus_connection) {
-		if (!g_getenv ("DBUS_SESSION_BUS_ADDRESS"))
+		if (!g_getenv ("DBUS_SESSION_BUS_ADDRESS")) {
+			gkr_debug ("no DBUS_SESSION_BUS_ADDRESS var set");
 			return NULL;
+		}
 
 		conn = dbus_bus_get_private (DBUS_BUS_SESSION, &derr);
 		if (conn == NULL) {
@@ -302,9 +319,11 @@ connect_to_service (void)
 		{
 			if (dbus_connection) {
 				dbus_connection_unref (conn);
+				gkr_debug ("race. already have a dbus connection");
 			} else {
 				egg_dbus_connect_with_mainloop (conn, NULL);
 				dbus_connection = conn;
+				gkr_debug ("created and initialized dbus connection");
 			}
 		}
 		G_UNLOCK (dbus_connection);
@@ -339,6 +358,7 @@ on_pending_call_notify (DBusPendingCall *pending, void *user_data)
 	GkrOperation *op = user_data;
 	DBusMessage *reply;
 
+	gkr_debug ("%p: notified: %p", op, pending);
 	g_assert (pending == op->pending);
 
 	reply = dbus_pending_call_steal_reply (pending);
@@ -372,6 +392,7 @@ gkr_operation_request (GkrOperation *op, DBusMessage *req)
 
 	if (op->conn) {
 		g_assert (!op->pending);
+		gkr_debug ("%p: sending request", op);
 		if (!dbus_connection_send_with_reply (op->conn, req, &op->pending, timeout))
 			g_return_if_reached ();
 	}
@@ -379,6 +400,7 @@ gkr_operation_request (GkrOperation *op, DBusMessage *req)
 	if (op->pending) {
 		if (gkr_decode_is_keyring (dbus_message_get_path (req)))
 			gkr_operation_set_keyring_hint (op);
+		gkr_debug ("%p: has pending: %p", op, op->pending);
 		dbus_pending_call_set_notify (op->pending, on_pending_call_notify,
 		                              gkr_operation_ref (op), gkr_operation_unref);
 	} else {
@@ -394,19 +416,24 @@ gkr_operation_block_and_unref (GkrOperation *op)
 
 	while ((int) gkr_operation_get_result (op) == INCOMPLETE) {
 		if (op->pending) {
+			pending = op->pending;
+			gkr_debug ("%p: blocking on pending: %p", op, pending);
+			dbus_pending_call_block (pending);
+
 			/*
 			 * DBus has strange behavior that can complete a pending call
 			 * in another thread and somehow does this without calling our
 			 * on_pending_call_notify. So guard against this brokenness.
 			 */
-			pending = op->pending;
-			dbus_pending_call_block (pending);
 			if (op->pending == pending) {
 				g_return_val_if_fail (dbus_pending_call_get_completed (pending), BROKEN);
+				gkr_debug ("%p: trying to rescue broken dbus threading behavior: %p", op, pending);
 				on_pending_call_notify (pending, op);
 			}
+
 		} else if (op->prompting) {
 			dbus_connection_flush (op->conn);
+			gkr_debug ("%p: blocking on prompt", op);
 			while (op->prompting && (int) gkr_operation_get_result (op) == INCOMPLETE) {
 				if (!dbus_connection_read_write_dispatch (op->conn, 200))
 					break;
@@ -444,6 +471,7 @@ gkr_operation_handle_errors (GkrOperation *op, DBusMessage *reply)
 
 	if (dbus_set_error_from_message (&derr, reply)) {
 		if (dbus_error_has_name (&derr, ERROR_NO_SUCH_OBJECT)) {
+			gkr_debug ("%p: no-such-object", op);
 			if (was_keyring)
 				res = GNOME_KEYRING_RESULT_NO_SUCH_KEYRING;
 			else
@@ -470,7 +498,10 @@ static void
 on_prompt_completed (void *user_data)
 {
 	on_prompt_args *args = user_data;
+
 	g_return_if_fail (args->op->prompting);
+	gkr_debug ("%p", args->op);
+
 	gkr_operation_unref (args->op);
 	args->op->prompting = FALSE;
 }
@@ -488,8 +519,10 @@ on_prompt_signal (DBusConnection *connection, DBusMessage *message, void *user_d
 
 	g_assert (args);
 
-	if (!args->path || !args->op->prompting)
+	if (!args->path || !args->op->prompting) {
+		gkr_debug ("%p: received prompt signal while not prompting", args->op);
 		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+	}
 
 	/* org.freedesktop.Secret.Prompt.Completed(BOOLEAN dismissed, VARIANT result) */
 	if (dbus_message_has_path (message, args->path) &&
@@ -506,10 +539,13 @@ on_prompt_signal (DBusConnection *connection, DBusMessage *message, void *user_d
 
 		op = gkr_operation_ref (args->op);
 
-		if (dismissed)
+		if (dismissed) {
+			gkr_debug ("%p: prompt was dismissed", op);
 			gkr_operation_complete (op, GNOME_KEYRING_RESULT_CANCELLED);
-		else
+		} else {
+			gkr_debug ("%p: prompt was completed", op);
 			callback_with_message (op, message);
+		}
 
 		if (op->prompting)
 			dbus_connection_remove_filter (args->op->conn, on_prompt_signal, args);
@@ -528,7 +564,7 @@ on_prompt_signal (DBusConnection *connection, DBusMessage *message, void *user_d
 		if (object_name && g_str_equal (gkr_service_name (), object_name) &&
 		    new_owner && g_str_equal ("", new_owner)) {
 
-			g_message ("Secret service disappeared while waiting for prompt");
+			g_message ("secret service disappeared while waiting for prompt");
 			op = gkr_operation_ref (args->op);
 			gkr_operation_complete (op, GNOME_KEYRING_RESULT_IO_ERROR);
 			if (op->prompting)
@@ -590,6 +626,8 @@ gkr_operation_prompt (GkrOperation *op, const gchar *prompt)
 
 	window_id = "";
 	dbus_message_append_args (req, DBUS_TYPE_STRING, &window_id, DBUS_TYPE_INVALID);
+
+	gkr_debug ("%p: calling prompt method", op);
 
 	gkr_operation_push (op, on_prompt_result, GKR_CALLBACK_OP_MSG, args, on_prompt_free);
 	gkr_operation_request (op, req);

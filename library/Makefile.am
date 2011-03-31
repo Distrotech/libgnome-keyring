@@ -7,6 +7,7 @@ INCLUDES= \
 	-DBINDIR=\""$(bindir)"\" \
 	-DLIBEXECDIR=\""$(libexecdir)"\" \
 	-DGNOMELOCALEDIR=\""$(datadir)/locale"\" \
+	-DG_LOG_DOMAIN=\""Gkr"\" \
 	-I$(top_srcdir) \
 	-I$(top_builddir) \
 	$(LIBRARY_CFLAGS) \
@@ -14,6 +15,7 @@ INCLUDES= \
 
 libgnome_keyring_la_SOURCES = \
 	gkr-callback.c gkr-callback.h \
+	gkr-debug.c gkr-debug.h \
 	gkr-misc.c gkr-misc.h \
 	gkr-operation.c gkr-operation.h \
 	gkr-session.c gkr-session.h \
