@@ -133,27 +133,27 @@ AC_SUBST([LIBGCRYPT_LIBS])
 #
 
 AC_ARG_ENABLE(debug,
-              AC_HELP_STRING([--enable-debug],
-              [Compile binaries in debug mode]))
+              AC_HELP_STRING([--enable-debug=no/yes/full],
+              [Turn on or off debugging]))
 
-if test "$enable_debug" = "yes"; then
-	CFLAGS="$CFLAGS -g -O0 -Wall"
-	CFLAGS="$CFLAGS -DG_DISABLE_DEPRECATED -DGDK_PIXBUF_DISABLE_DEPRECATED"
-	CFLAGS="$CFLAGS -DGDK_DISABLE_DEPRECATED -DGTK_DISABLE_DEPRECATED"
-	AC_DEFINE_UNQUOTED(_DEBUG, 1, [In debug mode])
-	echo "enabling debug compile mode"
-	debug_status="yes"
-else
-	dnl AC_DEFINE_UNQUOTED(G_DISABLE_ASSERT, 1, [Disable glib assertions])
-	echo "disabling debug compile mode"
-	debug_status="no"
+if test "$enable_debug" != "no"; then
+	AC_DEFINE_UNQUOTED(WITH_DEBUG, 1, [Print debug output])
 fi
 
-# -------------------------------------------------------------------
-# More warnings
+if test "$enable_debug" = "full"; then
+	debug_status="full"
+	CFLAGS="$CFLAGS -g -O0 -Werror"
+	CFLAGS="$CFLAGS -DG_DISABLE_DEPRECATED -DGDK_PIXBUF_DISABLE_DEPRECATED"
+	CFLAGS="$CFLAGS -DGDK_DISABLE_DEPRECATED -DGTK_DISABLE_DEPRECATED"
+elif test "$enable_debug" = "no"; then
+	debug_status="no"
+	AC_DEFINE_UNQUOTED(G_DISABLE_ASSERT, 1, [Disable glib assertions])
+else
+	debug_status="yes"
+fi
 
 AC_MSG_CHECKING(for more warnings)
-if test "$GCC" = "yes"; then
+if test "$enale_debug" != "no" -a "$GCC" = "yes"; then
 	AC_MSG_RESULT(yes)
 	CFLAGS="\
 	-Wall \
@@ -185,19 +185,17 @@ fi
 # Tests and Unit Tests
 
 AC_ARG_ENABLE(tests,
-              AC_HELP_STRING([--enable-tests],
+              AC_HELP_STRING([--disable-tests],
               [Build test tools, unit tests, and -Werror]))
 
-AC_MSG_CHECKING([build test tools, unit tests, and -Werror])
-if test "$enable_tests" = "yes"; then
+AC_MSG_CHECKING([build test tools, unit tests])
+if test "$enable_tests" != "no"; then
 	AC_DEFINE_UNQUOTED(WITH_TESTS, 1, [Build with unit test support])
-	AC_MSG_RESULT(yes)
-	CFLAGS="$CFLAGS -Werror"
 	tests_status="yes"
 else
-	AC_MSG_RESULT(no)
 	tests_status="no"
 fi
+AC_MSG_RESULT($tests_status)
 
 AM_CONDITIONAL(WITH_TESTS, test "$enable_tests" = "yes")
 
@@ -205,6 +203,7 @@ AC_PATH_PROG(GNOME_KEYRING_DAEMON_PATH, gnome-keyring-daemon, "gnome-keyring-dae
 AC_DEFINE_UNQUOTED(GNOME_KEYRING_DAEMON_PATH, "$GNOME_KEYRING_DAEMON_PATH", [Path to gnome-keyring-daemon])
 
 # ----------------------------------------------------------------------
+# Status
 
 AC_SUBST(LIBRARY_CFLAGS)
 AC_SUBST(LIBRARY_LIBS)
@@ -228,8 +227,10 @@ po/Makefile.in
 #
 
 echo
-echo "BUILD"
+echo "CFLAGS: $CFLAGS"
+echo
+echo "OPTIONS:"
 echo "  Debug Build:          $debug_status"
-echo "  Tests, -Werror:       $tests_status"
+echo "  Tests:                $tests_status"
 echo
 
