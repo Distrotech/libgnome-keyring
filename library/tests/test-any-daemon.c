@@ -67,6 +67,7 @@ int
 main (int argc, char **argv)
 {
 	g_test_init (&argc, &argv, NULL);
+	g_set_prgname ("test-any-daemon");
 
 	if (!gnome_keyring_is_available ()) {
 		g_printerr ("skipping any-daemon tests, no daemon is running");

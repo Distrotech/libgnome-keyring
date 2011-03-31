@@ -722,6 +722,7 @@ main (int argc, char **argv)
 	int ret = 0;
 
 	g_test_init (&argc, &argv, NULL);
+	g_set_prgname ("test-keyrings");
 
 	mainloop = g_main_loop_new (NULL, FALSE);
 

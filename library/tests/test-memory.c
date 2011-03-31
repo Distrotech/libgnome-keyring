@@ -137,6 +137,7 @@ int
 main (int argc, char **argv)
 {
 	g_test_init (&argc, &argv, NULL);
+	g_set_prgname ("test-memory");
 
 	g_test_add_func ("/memory/alloc-free", test_alloc_free);
 	g_test_add_func ("/memory/alloc-two", test_alloc_two);

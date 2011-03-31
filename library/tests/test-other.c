@@ -73,6 +73,7 @@ int
 main (int argc, char **argv)
 {
 	g_test_init (&argc, &argv, NULL);
+	g_set_prgname ("test-other");
 
 	g_test_add_func ("/other/result-string", test_result_string);
 
