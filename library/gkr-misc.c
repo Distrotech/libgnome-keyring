@@ -29,6 +29,22 @@
 #include <stdlib.h>
 #include <string.h>
 
+/**
+ * GnomeKeyringAttributeType:
+ * @GNOME_KEYRING_ATTRIBUTE_TYPE_STRING: A UTF-8 encoded string attribute.
+ * @GNOME_KEYRING_ATTRIBUTE_TYPE_UINT32: A unsigned integer attribute.
+ *
+ * The data type of the item attribute.
+ */
+
+/**
+ * GnomeKeyringItemInfoFlags:
+ * @GNOME_KEYRING_ITEM_INFO_BASICS: Retrieve just the basic info about the item.
+ * @GNOME_KEYRING_ITEM_INFO_SECRET: Retrieve the item secret.
+ *
+ * The type of item info to retrieve with gnome_keyring_item_get_info_full().
+ */
+
 const gchar*
 gkr_service_name (void)
 {

@@ -42,6 +42,7 @@ struct GnomeKeyringAccessControl {
 };
 
 struct GnomeKeyringInfo {
+	/* <private> */
 	gboolean lock_on_idle;
 	guint32 lock_timeout;
 	time_t mtime;

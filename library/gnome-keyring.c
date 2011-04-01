@@ -521,12 +521,16 @@ gnome_keyring_cancel_request (gpointer request)
  * @title: Keyrings
  * @short_description: Listing and managing keyrings
  *
- * %gnome-keyring-daemon manages multiple keyrings. Each keyring can store one or more items containing secrets.
+ * <code>gnome-keyring-daemon</code> manages multiple keyrings. Each keyring can
+ * store one or more items containing secrets.
  *
- * One of the keyrings is the default keyring, which can in many cases be used by specifying %NULL for a keyring name.
+ * One of the keyrings is the default keyring, which can in many cases be used
+ * by specifying %NULL for a keyring name.
  *
- * Each keyring can be in a locked or unlocked state. A password must be specified, either by the user or the calling application, to unlock the keyring.
- **/
+ * Each keyring can be in a locked or unlocked state. A password must be
+ * specified, either by the user or the calling application, to unlock the
+ * keyring.
+ */
 
 static GkrOperation*
 set_default_keyring_start (const gchar *keyring, GnomeKeyringOperationDoneCallback callback,
@@ -792,7 +796,7 @@ list_keyring_names_start (GnomeKeyringOperationGetListCallback callback,
  * the @callback. If no keyrings exist then an empty list will be passed to the
  * @callback. The list is freed after @callback returns.
  *
- * For a synchronous version of this function see gnome_keyring_list_keyrings_sync().
+ * For a synchronous version of this function see gnome_keyring_list_keyring_names_sync().
  *
  * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
  **/
@@ -1771,7 +1775,7 @@ set_keyring_info_start (const char *keyring, GnomeKeyringInfo *info,
  * @destroy_data: A function to free @data when it's no longer needed.
  *
  * Set flags and info for the @keyring. The only fields in @info that are used
- * are %lock_on_idle and %lock_timeout.
+ * are lock_on_idle and lock_timeout.
  *
  * For a synchronous version of this function see gnome_keyring_set_info_sync().
  *
@@ -1794,7 +1798,7 @@ gnome_keyring_set_info (const char                                  *keyring,
  * @info: A structure containing flags and info for the keyring.
  *
  * Set flags and info for @keyring. The only fields in @info that are used
- * are %lock_on_idle and %lock_timeout.
+ * are lock_on_idle and lock_timeout.
  *
  * For an asynchronous version of this function see gnome_keyring_set_info().
  *
@@ -2529,11 +2533,6 @@ gnome_keyring_find_itemsv_sync  (GnomeKeyringItemType        type,
  * Attributes allow various other pieces of information to be associated with an item.
  * These can also be used to search for relevant items. Attributes are accessed with
  * #GnomeKeyringAttribute structures and built into lists using #GnomeKeyringAttributeList.
- *
- * Each item has an access control list, which specifies the applications that
- * can read, write or delete an item. The read access applies only to reading the secret.
- * All applications can read other parts of the item. ACLs are accessed and changed
- * through #GnomeKeyringAccessControl pointers.
  **/
 
 typedef struct _item_create_args {
@@ -2889,7 +2888,7 @@ gnome_keyring_item_create (const char                          *keyring,
 }
 
 /**
- * gnome_keyring_item_create_sync():
+ * gnome_keyring_item_create_sync:
  * @keyring: The name of the keyring in which to create the item, or NULL for the default keyring.
  * @type: The item type.
  * @display_name: The name of the item. This will be displayed to the user where necessary.
@@ -2915,7 +2914,7 @@ gnome_keyring_item_create (const char                          *keyring,
  *
  * Return value: %GNOME_KEYRING_RESULT_OK if the operation was succcessful or
  * an error result otherwise.
- **/
+ */
 GnomeKeyringResult
 gnome_keyring_item_create_sync (const char                                 *keyring,
                                 GnomeKeyringItemType                        type,
@@ -3720,7 +3719,7 @@ item_get_acl_reply (GnomeKeyringResult res, gpointer user_data)
  * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
  *
  * Deprecated: Never returns any ACL values.
- **/
+ */
 gpointer
 gnome_keyring_item_get_acl (const char                                 *keyring,
                             guint32                                     id,
@@ -3817,7 +3816,7 @@ gnome_keyring_item_set_acl_sync (const char *keyring,
  * Since: 2.20
  *
  * Deprecated: This function no longer has any effect.
- **/
+ */
 gpointer
 gnome_keyring_item_grant_access_rights (const gchar *keyring,
                                         const gchar *display_name,
@@ -3849,7 +3848,7 @@ gnome_keyring_item_grant_access_rights (const gchar *keyring,
  * an error result otherwise.
  *
  * Deprecated: This function no longer has any effect.
- **/
+ */
 GnomeKeyringResult
 gnome_keyring_item_grant_access_rights_sync (const char                   *keyring,
                                              const char                   *display_name,
@@ -4767,6 +4766,17 @@ gnome_keyring_find_password (const GnomeKeyringPasswordSchema* schema,
 
 	return gkr_operation_pending_and_unref (op);
 }
+
+/**
+ * GnomeKeyringFound:
+ * @keyring: The keyring the item was found in.
+ * @item_id: The identifier for the item.
+ * @attributes: The item's attributes.
+ * @secret: The item's secret.
+ *
+ * A found structure returned by a found operation. Use gnome_keyring_found_list_free()
+ * to free a list of these structures.
+ */
 
 /**
  * gnome_keyring_find_password_sync:

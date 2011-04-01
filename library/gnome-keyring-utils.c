@@ -51,6 +51,86 @@
  * after doing this. You should use this function instead of g_free() for
  * secret information.
  **/
+
+/**
+ * GnomeKeyringAccessControl:
+ *
+ * A structure which contains access control information.
+ */
+
+/**
+ * GnomeKeyringItemType:
+ * @GNOME_KEYRING_ITEM_GENERIC_SECRET: Generic secret
+ * @GNOME_KEYRING_ITEM_NETWORK_PASSWORD: Network password
+ * @GNOME_KEYRING_ITEM_NOTE: Note
+ * @GNOME_KEYRING_ITEM_CHAINED_KEYRING_PASSWORD: Keyring password
+ * @GNOME_KEYRING_ITEM_ENCRYPTION_KEY_PASSWORD: Password for encryption key
+ * @GNOME_KEYRING_ITEM_PK_STORAGE: Key storage password
+ * @GNOME_KEYRING_ITEM_LAST_TYPE: Not used
+ *
+ * The types of items.
+ */
+
+/**
+ * GnomeKeyringResult:
+ * @GNOME_KEYRING_RESULT_OK: The operation completed successfully.
+ * @GNOME_KEYRING_RESULT_DENIED: Either the user or daemon denied access.
+ * @GNOME_KEYRING_RESULT_NO_KEYRING_DAEMON: Keyring daemon is not available.
+ * @GNOME_KEYRING_RESULT_ALREADY_UNLOCKED: Keyring was already unlocked.
+ * @GNOME_KEYRING_RESULT_NO_SUCH_KEYRING: No such keyring exists.
+ * @GNOME_KEYRING_RESULT_BAD_ARGUMENTS: Bad arguments to function.
+ * @GNOME_KEYRING_RESULT_IO_ERROR: Problem communicating with daemon.
+ * @GNOME_KEYRING_RESULT_CANCELLED: Operation was cancelled.
+ * @GNOME_KEYRING_RESULT_KEYRING_ALREADY_EXISTS: The keyring already exists.
+ * @GNOME_KEYRING_RESULT_NO_MATCH: No such match found.
+ *
+ * Various result codes returned by functions.
+ */
+
+/**
+ * GnomeKeyringAttribute:
+ * @name: The name of the attribute.
+ * @type: The data type.
+ *
+ * An item attribute. Set <code>string</code> if data type is
+ * %GNOME_KEYRING_ATTRIBUTE_TYPE_STRING or <code>integer</code> if data type is
+ * %GNOME_KEYRING_ATTRIBUTE_TYPE_UINT32
+ */
+
+/**
+ * GnomeKeyringAccessType:
+ * @GNOME_KEYRING_ACCESS_READ: Read access
+ * @GNOME_KEYRING_ACCESS_WRITE: Write access
+ * @GNOME_KEYRING_ACCESS_REMOVE: Delete access
+ *
+ * Type of access.
+ */
+
+/**
+ * GnomeKeyringAccessRestriction:
+ * @GNOME_KEYRING_ACCESS_ASK: Ask permission.
+ * @GNOME_KEYRING_ACCESS_DENY: Deny permission.
+ * @GNOME_KEYRING_ACCESS_ALLOW: Give permission.
+ *
+ * Type of access restriction.
+ */
+
+/**
+ * GnomeKeyringNetworkPasswordData:
+ * @keyring: Keyring item stored in.
+ * @item_id: The identifier of the item.
+ * @protocol: Network protocol or scheme.
+ * @server: Server or host name.
+ * @object: Share or other object on server.
+ * @authtype: Type of authentication.
+ * @port: TCP port.
+ * @user: User name.
+ * @domain: User domain
+ * @password: The password.
+ *
+ * Network password info.
+ */
+
 void
 gnome_keyring_free_password (gchar *password)
 {
@@ -124,14 +204,14 @@ gnome_keyring_result_to_message (GnomeKeyringResult res)
 }
 
 /**
- * gnome_keyring_found_free():
+ * gnome_keyring_found_free:
  * @found: a #GnomeKeyringFound
  *
  * Free the memory used by a #GnomeKeyringFound item.
  *
  * You usually want to use gnome_keyring_found_list_free() on the list of
  * results.
- **/
+ */
 void
 gnome_keyring_found_free (GnomeKeyringFound *found)
 {
@@ -490,7 +570,7 @@ gnome_keyring_access_control_free (GnomeKeyringAccessControl *ac)
 
 /**
  * gnome_keyring_access_control_copy:
- * @ac: A #GnomeKeyringAcessControl pointer
+ * @ac: A #GnomeKeyringAccessControl pointer
  *
  * Copy an access control for an item.
  *
@@ -809,7 +889,7 @@ gnome_keyring_item_ac_get_display_name (GnomeKeyringAccessControl *ac)
 
 /**
  * gnome_keyring_item_ac_set_display_name:
- * @ac: A #GnomeKeyringAcccessControl pointer.
+ * @ac: A #GnomeKeyringAccessControl pointer.
  * @value: The new application display name.
  *
  * Set the access control application's display name.

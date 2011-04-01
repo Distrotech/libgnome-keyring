@@ -55,25 +55,11 @@ typedef enum {
 #define	GNOME_KEYRING_ITEM_APPLICATION_SECRET 0x01000000
 
 typedef enum {
-	GNOME_KEYRING_ACCESS_ASK,
-	GNOME_KEYRING_ACCESS_DENY,
-	GNOME_KEYRING_ACCESS_ALLOW
-} GnomeKeyringAccessRestriction;
-
-typedef enum {
 	GNOME_KEYRING_ATTRIBUTE_TYPE_STRING,
 	GNOME_KEYRING_ATTRIBUTE_TYPE_UINT32
 } GnomeKeyringAttributeType;
 
-typedef struct GnomeKeyringAccessControl GnomeKeyringAccessControl;
-typedef struct GnomeKeyringApplicationRef GnomeKeyringApplicationRef;
 typedef GArray GnomeKeyringAttributeList;
-
-typedef enum {
-	GNOME_KEYRING_ACCESS_READ = 1<<0,
-	GNOME_KEYRING_ACCESS_WRITE = 1<<1,
-	GNOME_KEYRING_ACCESS_REMOVE = 1<<2
-} GnomeKeyringAccessType;
 
 typedef enum {
 	GNOME_KEYRING_ITEM_INFO_BASICS = 0,
@@ -316,38 +302,6 @@ gpointer           gnome_keyring_item_set_attributes      (const char           
 GnomeKeyringResult gnome_keyring_item_set_attributes_sync (const char                                 *keyring,
                                                            guint32                                     id,
                                                            GnomeKeyringAttributeList                  *attributes);
-gpointer           gnome_keyring_item_get_acl             (const char                                 *keyring,
-                                                           guint32                                     id,
-                                                           GnomeKeyringOperationGetListCallback        callback,
-                                                           gpointer                                    data,
-                                                           GDestroyNotify                              destroy_data);
-GnomeKeyringResult gnome_keyring_item_get_acl_sync        (const char                                 *keyring,
-                                                           guint32                                     id,
-                                                           GList                                     **acl);
-gpointer           gnome_keyring_item_set_acl             (const char                                 *keyring,
-                                                           guint32                                     id,
-                                                           GList                                      *acl,
-                                                           GnomeKeyringOperationDoneCallback           callback,
-                                                           gpointer                                    data,
-                                                           GDestroyNotify                              destroy_data);
-GnomeKeyringResult gnome_keyring_item_set_acl_sync        (const char                                 *keyring,
-                                                           guint32                                     id,
-                                                           GList                                      *acl);
-
-gpointer           gnome_keyring_item_grant_access_rights      (const gchar                       *keyring,
-                                                                const gchar                       *display_name,
-                                                                const gchar                       *full_path,
-                                                                const guint32                      id,
-                                                                const GnomeKeyringAccessType       rights,
-                                                                GnomeKeyringOperationDoneCallback  callback,
-                                                                gpointer                           data,
-                                                                GDestroyNotify                     destroy_data);
-
-GnomeKeyringResult gnome_keyring_item_grant_access_rights_sync (const char                   *keyring,
-                                                                const char                   *display_name,
-                                                                const char                   *full_path,
-                                                                const guint32                id,
-                                                                const GnomeKeyringAccessType rights);
 
 void                  gnome_keyring_item_info_free             (GnomeKeyringItemInfo *item_info);
 GnomeKeyringItemInfo *gnome_keyring_item_info_new              (void);
@@ -363,33 +317,6 @@ void                  gnome_keyring_item_info_set_display_name (GnomeKeyringItem
                                                                 const char           *value);
 time_t                gnome_keyring_item_info_get_mtime        (GnomeKeyringItemInfo *item_info);
 time_t                gnome_keyring_item_info_get_ctime        (GnomeKeyringItemInfo *item_info);
-
-GnomeKeyringApplicationRef * gnome_keyring_application_ref_new          (void);
-GnomeKeyringApplicationRef * gnome_keyring_application_ref_copy         (const GnomeKeyringApplicationRef *app);
-void                         gnome_keyring_application_ref_free         (GnomeKeyringApplicationRef       *app);
-
-GnomeKeyringAccessControl *  gnome_keyring_access_control_new  (const GnomeKeyringApplicationRef *application,
-                                                                GnomeKeyringAccessType            types_allowed);
-GnomeKeyringAccessControl *  gnome_keyring_access_control_copy (GnomeKeyringAccessControl        *ac);
-
-
-void    gnome_keyring_access_control_free (GnomeKeyringAccessControl *ac);
-GList * gnome_keyring_acl_copy            (GList                     *list);
-void    gnome_keyring_acl_free            (GList                     *acl);
-
-
-char *                gnome_keyring_item_ac_get_display_name   (GnomeKeyringAccessControl *ac);
-void                  gnome_keyring_item_ac_set_display_name   (GnomeKeyringAccessControl *ac,
-                                                                const char           *value);
-
-char *                gnome_keyring_item_ac_get_path_name      (GnomeKeyringAccessControl *ac);
-void                  gnome_keyring_item_ac_set_path_name      (GnomeKeyringAccessControl *ac,
-                                                                const char           *value);
-
-
-GnomeKeyringAccessType gnome_keyring_item_ac_get_access_type   (GnomeKeyringAccessControl *ac);
-void                   gnome_keyring_item_ac_set_access_type   (GnomeKeyringAccessControl *ac,
-                                                                const GnomeKeyringAccessType value);
 
 /* ------------------------------------------------------------------------------
  * A Simpler API
@@ -510,13 +437,92 @@ GnomeKeyringResult gnome_keyring_set_network_password_sync  (const char         
                                                              guint32                               *item_id);
 
 /* -----------------------------------------------------------------------------
- * USED ONLY BY THE SESSION
+ * DEPRECATED STUFF
  */
 
-/* Deprecated */
-GnomeKeyringResult    gnome_keyring_daemon_set_display_sync         (const char *display);
+#ifndef GNOME_KEYRING_DISABLE_DEPRECATED
 
-GnomeKeyringResult    gnome_keyring_daemon_prepare_environment_sync (void);
+typedef enum {
+	GNOME_KEYRING_ACCESS_ASK,
+	GNOME_KEYRING_ACCESS_DENY,
+	GNOME_KEYRING_ACCESS_ALLOW
+} GnomeKeyringAccessRestriction;
+
+typedef struct GnomeKeyringAccessControl GnomeKeyringAccessControl;
+typedef struct GnomeKeyringApplicationRef GnomeKeyringApplicationRef;
+
+typedef enum {
+	GNOME_KEYRING_ACCESS_READ = 1<<0,
+	GNOME_KEYRING_ACCESS_WRITE = 1<<1,
+	GNOME_KEYRING_ACCESS_REMOVE = 1<<2
+} GnomeKeyringAccessType;
+
+GnomeKeyringResult gnome_keyring_daemon_set_display_sync       (const char *display);
+
+GnomeKeyringResult gnome_keyring_daemon_prepare_environment_sync (void);
+
+gpointer           gnome_keyring_item_grant_access_rights      (const gchar                       *keyring,
+                                                                const gchar                       *display_name,
+                                                                const gchar                       *full_path,
+                                                                const guint32                      id,
+                                                                const GnomeKeyringAccessType       rights,
+                                                                GnomeKeyringOperationDoneCallback  callback,
+                                                                gpointer                           data,
+                                                                GDestroyNotify                     destroy_data);
+
+GnomeKeyringResult gnome_keyring_item_grant_access_rights_sync (const char                   *keyring,
+                                                                const char                   *display_name,
+                                                                const char                   *full_path,
+                                                                const guint32                id,
+                                                                const GnomeKeyringAccessType rights);
+
+
+GnomeKeyringApplicationRef * gnome_keyring_application_ref_new          (void);
+GnomeKeyringApplicationRef * gnome_keyring_application_ref_copy         (const GnomeKeyringApplicationRef *app);
+void                         gnome_keyring_application_ref_free         (GnomeKeyringApplicationRef       *app);
+
+GnomeKeyringAccessControl *  gnome_keyring_access_control_new  (const GnomeKeyringApplicationRef *application,
+                                                                GnomeKeyringAccessType            types_allowed);
+GnomeKeyringAccessControl *  gnome_keyring_access_control_copy (GnomeKeyringAccessControl        *ac);
+
+
+void    gnome_keyring_access_control_free (GnomeKeyringAccessControl *ac);
+GList * gnome_keyring_acl_copy            (GList                     *list);
+void    gnome_keyring_acl_free            (GList                     *acl);
+
+
+char *                gnome_keyring_item_ac_get_display_name   (GnomeKeyringAccessControl *ac);
+void                  gnome_keyring_item_ac_set_display_name   (GnomeKeyringAccessControl *ac,
+                                                                const char           *value);
+
+char *                gnome_keyring_item_ac_get_path_name      (GnomeKeyringAccessControl *ac);
+void                  gnome_keyring_item_ac_set_path_name      (GnomeKeyringAccessControl *ac,
+                                                                const char           *value);
+
+
+GnomeKeyringAccessType gnome_keyring_item_ac_get_access_type   (GnomeKeyringAccessControl *ac);
+void                   gnome_keyring_item_ac_set_access_type   (GnomeKeyringAccessControl *ac,
+                                                                const GnomeKeyringAccessType value);
+
+gpointer           gnome_keyring_item_get_acl             (const char                                 *keyring,
+                                                           guint32                                     id,
+                                                           GnomeKeyringOperationGetListCallback        callback,
+                                                           gpointer                                    data,
+                                                           GDestroyNotify                              destroy_data);
+GnomeKeyringResult gnome_keyring_item_get_acl_sync        (const char                                 *keyring,
+                                                           guint32                                     id,
+                                                           GList                                     **acl);
+gpointer           gnome_keyring_item_set_acl             (const char                                 *keyring,
+                                                           guint32                                     id,
+                                                           GList                                      *acl,
+                                                           GnomeKeyringOperationDoneCallback           callback,
+                                                           gpointer                                    data,
+                                                           GDestroyNotify                              destroy_data);
+GnomeKeyringResult gnome_keyring_item_set_acl_sync        (const char                                 *keyring,
+                                                           guint32                                     id,
+                                                           GList                                      *acl);
+
+#endif /* GNOME_KEYRING_DISABLE_DEPRECATED */
 
 G_END_DECLS
 
