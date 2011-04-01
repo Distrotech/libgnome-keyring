@@ -78,6 +78,10 @@ gnome_keyring_item_set_acl
 gnome_keyring_item_set_acl_sync
 gnome_keyring_item_grant_access_rights
 gnome_keyring_item_grant_access_rights_sync
+GNOME_KEYRING_ITEM_APPLICATION_SECRET
+GNOME_KEYRING_ITEM_INFO_ALL
+GNOME_KEYRING_ITEM_NO_TYPE
+GNOME_KEYRING_ITEM_TYPE_MASK
 </SECTION>
 <SECTION>
 <FILE>gnome-keyring-item-info</FILE>
@@ -122,6 +126,7 @@ gnome_keyring_attribute_list_copy
 GnomeKeyringAccessControl
 GnomeKeyringApplicationRef
 GnomeKeyringAccessType
+GnomeKeyringAccessRestriction
 gnome_keyring_application_ref_new
 gnome_keyring_application_ref_copy
 gnome_keyring_application_ref_free
@@ -173,6 +178,7 @@ gnome_keyring_memory_strdup
 <FILE>gnome-keyring-result</FILE>
 gnome_keyring_result_to_message
 GnomeKeyringResult
+GNOME_KEYRING_RESULT_ALREADY_EXISTS
 </SECTION>
 <SECTION>
 <FILE>gnome-keyring-generic-callbacks</FILE>
