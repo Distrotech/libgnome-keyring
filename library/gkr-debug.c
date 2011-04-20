@@ -33,6 +33,10 @@
 
 #ifdef WITH_DEBUG
 
+#if FOR_WHEN_ALL_ELSE_FAILS
+#include <syslog.h>
+#endif
+
 static GkrDebugFlags current_flags = 0;
 
 static GDebugKey keys[] = {
@@ -73,6 +77,11 @@ gkr_debug_message (GkrDebugFlags flag, const gchar *format, ...)
 	if (g_once_init_enter (&initialized_flags)) {
 		gkr_debug_set_flags (g_getenv ("GKR_DEBUG"));
 		g_once_init_leave (&initialized_flags, 1);
+
+#if FOR_WHEN_ALL_ELSE_FAILS
+		openlog ("libgnome-keyring", LOG_NDELAY | LOG_PID, LOG_AUTHPRIV);
+		gkr_debug_set_flags ("all");
+#endif
 	}
 
 	va_start (args, format);
@@ -82,6 +91,9 @@ gkr_debug_message (GkrDebugFlags flag, const gchar *format, ...)
 	if (flag & current_flags)
 		g_log (G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, "%s", message);
 
+#if FOR_WHEN_ALL_ELSE_FAILS
+	syslog (LOG_ERR, "%s", message);
+#endif
 	g_free (message);
 }
 
