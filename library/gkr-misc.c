@@ -48,7 +48,7 @@
 const gchar*
 gkr_service_name (void)
 {
-#ifdef WITH_TESTS
+#ifdef WITH_TESTABLE
 	const gchar *service = g_getenv ("GNOME_KEYRING_TEST_SERVICE");
 	if (service && service[0])
 		return service;

@@ -19,6 +19,4 @@ test: ${TEST_PROGS}
 
 check-local: test
 
-if WITH_TESTS
 all-local: $(check_PROGRAMS)
-endif

@@ -377,7 +377,7 @@ send_with_pending (GkrOperation *op)
 	g_assert (op->request);
 	g_assert (!op->pending);
 
-#if WITH_TESTS
+#if WITH_TESTABLE
 	timeout = INT_MAX;
 #endif
 
@@ -485,7 +485,7 @@ gkr_operation_block_and_unref (GkrOperation *op)
 
 	g_return_val_if_fail (op, BROKEN);
 
-#if WITH_TESTS
+#if WITH_TESTABLE
 	timeout = INT_MAX;
 #endif
 

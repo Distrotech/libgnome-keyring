@@ -154,6 +154,9 @@ test_multialloc (void)
 	gsize size;
 	int i, action, index;
 
+	if (g_test_quick ())
+		return;
+
 	/* A predetermined seed to get a predetermined pattern */
 	g_random_set_seed (15);
 	memory = g_ptr_array_new ();

@@ -46,6 +46,9 @@ test_dh_perform (void)
 	gboolean ret;
 	gsize n1, n2;
 
+	if (g_test_quick ())
+		return;
+
 	/* Load up the parameters */
 	if (!egg_dh_default_params ("ietf-ike-grp-modp-768", &p, &g))
 		g_assert_not_reached ();
@@ -82,6 +85,9 @@ test_dh_short_pair (void)
 	gcry_mpi_t p, g;
 	gcry_mpi_t x1, X1;
 	gboolean ret;
+
+	if (g_test_quick ())
+		return;
 
 	/* Load up the parameters */
 	ret = egg_dh_default_params ("ietf-ike-grp-modp-1024", &p, &g);
