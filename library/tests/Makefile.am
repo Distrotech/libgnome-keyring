@@ -21,8 +21,6 @@ check_PROGRAMS = \
 test: $(TEST_PROGS)
 	gtester -k --verbose $(TEST_PROGS)
 
-if WITH_TESTS
 all-local: $(check_PROGRAMS)
-endif
 
 check-local: test

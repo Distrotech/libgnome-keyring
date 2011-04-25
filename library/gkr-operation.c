@@ -48,13 +48,19 @@ struct _GkrOperation {
 	gint refs;
 	gint result;
 
+	/* Call information */
 	DBusConnection *conn;
-	DBusPendingCall *pending;
 	gboolean prompting;
+	DBusMessage *request;
+
+	/* Asynchronous calls */
+	gboolean asynchronous;
+	DBusPendingCall *pending;
 
 	/* Some strange status fields */
 	gboolean was_keyring;
 
+	/* Callback information */
 	GQueue callbacks;
 	GSList *completed;
 };
@@ -119,19 +125,6 @@ gkr_operation_unref (gpointer data)
 	GkrOperation *op = data;
 	g_assert (op);
 	operation_unref (op);
-}
-
-gpointer
-gkr_operation_pending_and_unref (GkrOperation *op)
-{
-	/* Return op, if not the last reference */
-	if (!operation_unref (op))
-		return op;
-
-	/* Not sure what to do here, but at least we can print a message */
-	g_message ("a libgnome-keyring operation completed unsafely before "
-	           "the function starting the operation returned.");
-	return NULL;
 }
 
 GnomeKeyringResult
@@ -375,15 +368,16 @@ on_pending_call_notify (DBusPendingCall *pending, void *user_data)
 	gkr_operation_unref (op);
 }
 
-void
-gkr_operation_request (GkrOperation *op, DBusMessage *req)
+static void
+send_with_pending (GkrOperation *op)
 {
 	int timeout = -1;
 
-	g_return_if_fail (req);
 	g_assert (op);
+	g_assert (op->request);
+	g_assert (!op->pending);
 
-#if WITH_TESTS
+#if WITH_TESTABLE
 	timeout = INT_MAX;
 #endif
 
@@ -391,15 +385,15 @@ gkr_operation_request (GkrOperation *op, DBusMessage *req)
 		op->conn = connect_to_service ();
 
 	if (op->conn) {
-		g_assert (!op->pending);
 		gkr_debug ("%p: sending request", op);
-		if (!dbus_connection_send_with_reply (op->conn, req, &op->pending, timeout))
+		if (!dbus_connection_send_with_reply (op->conn, op->request,
+		                                      &op->pending, timeout))
 			g_return_if_reached ();
+		dbus_message_unref (op->request);
+		op->request = NULL;
 	}
 
 	if (op->pending) {
-		if (gkr_decode_is_keyring (dbus_message_get_path (req)))
-			gkr_operation_set_keyring_hint (op);
 		gkr_debug ("%p: has pending: %p", op, op->pending);
 		dbus_pending_call_set_notify (op->pending, on_pending_call_notify,
 		                              gkr_operation_ref (op), gkr_operation_unref);
@@ -408,29 +402,121 @@ gkr_operation_request (GkrOperation *op, DBusMessage *req)
 	}
 }
 
+void
+gkr_operation_request (GkrOperation *op, DBusMessage *req)
+{
+	g_return_if_fail (req);
+
+	g_assert (op);
+	g_assert (op->request == NULL);
+	g_assert (op->pending == NULL);
+
+	op->request = dbus_message_ref (req);
+
+	if (gkr_decode_is_keyring (dbus_message_get_path (req)))
+		gkr_operation_set_keyring_hint (op);
+
+	/*
+	 * The first requests waits until we know if we're asynchronous or not.
+	 * Thereafter all async requests are sent directly from here. See
+	 * gkr_operation_pending_and_unref() and gkr_operation_block_and_unref().
+	 */
+
+	if (op->asynchronous)
+		send_with_pending (op);
+}
+
+gpointer
+gkr_operation_pending_and_unref (GkrOperation *op)
+{
+	g_assert (op);
+
+	/*
+	 * Only the first asynch requests waits until here to be sent. Further
+	 * requests on this operation get sent from gkr_operation_request() directly.
+	 */
+
+	g_assert (!op->asynchronous);
+	op->asynchronous = TRUE;
+
+	if (op->request)
+		send_with_pending (op);
+
+	/* Return op, if not the last reference */
+	if (!operation_unref (op))
+		return op;
+
+	/* Not sure what to do here, but at least we can print a message */
+	g_message ("a libgnome-keyring operation completed unsafely before "
+	           "the function starting the operation returned.");
+	return NULL;
+}
+
+static DBusMessage*
+send_with_reply_and_block (DBusConnection *conn, DBusMessage *message,
+                           int timeout)
+{
+	DBusMessage *reply;
+	DBusPendingCall *pending;
+
+	g_assert (conn);
+	g_assert (message);
+
+	if (!dbus_connection_send_with_reply (conn, message, &pending, timeout))
+		g_return_val_if_reached (NULL);
+
+	if (pending == NULL) {
+		gkr_debug ("couldn't send message");
+		return NULL;
+	}
+
+	dbus_pending_call_block (pending);
+	reply = dbus_pending_call_steal_reply (pending);
+	dbus_pending_call_unref (pending);
+
+	return reply;
+}
+
 GnomeKeyringResult
 gkr_operation_block_and_unref (GkrOperation *op)
 {
-	DBusPendingCall *pending;
+	DBusMessage *reply = NULL;
+	int timeout = -1;
+
 	g_return_val_if_fail (op, BROKEN);
 
-	while ((int) gkr_operation_get_result (op) == INCOMPLETE) {
-		if (op->pending) {
-			pending = op->pending;
-			gkr_debug ("%p: blocking on pending: %p", op, pending);
-			dbus_pending_call_block (pending);
+#if WITH_TESTABLE
+	timeout = INT_MAX;
+#endif
 
-			/*
-			 * DBus has strange behavior that can complete a pending call
-			 * in another thread and somehow does this without calling our
-			 * on_pending_call_notify. So guard against this brokenness.
-			 */
-			if (op->pending == pending) {
-				g_return_val_if_fail (dbus_pending_call_get_completed (pending), BROKEN);
-				gkr_debug ("%p: trying to rescue broken dbus threading behavior: %p", op, pending);
-				on_pending_call_notify (pending, op);
+	gkr_debug ("%p: processing", op);
+
+	g_assert (!op->pending);
+	g_assert (!op->asynchronous);
+
+	while ((int) gkr_operation_get_result (op) == INCOMPLETE) {
+
+		/* No connection then connect */
+		if (!op->conn) {
+			op->conn = connect_to_service ();
+			if (!op->conn)
+				gkr_operation_complete (op, GNOME_KEYRING_RESULT_IO_ERROR);
+
+		/* A dbus request, then send and wait for reply */
+		} else if (op->request) {
+			gkr_debug ("%p: blocking request", op);
+			reply = send_with_reply_and_block (op->conn, op->request, timeout);
+			dbus_message_unref (op->request);
+			op->request = NULL;
+
+			if (reply != NULL) {
+				callback_with_message (op, reply);
+				dbus_message_unref (reply);
+			} else {
+				gkr_operation_complete (op, GNOME_KEYRING_RESULT_IO_ERROR);
 			}
 
+		/* Prompting then wait until prompting done */
 		} else if (op->prompting) {
 			dbus_connection_flush (op->conn);
 			gkr_debug ("%p: blocking on prompt", op);
@@ -438,6 +524,8 @@ gkr_operation_block_and_unref (GkrOperation *op)
 				if (!dbus_connection_read_write_dispatch (op->conn, 200))
 					break;
 			}
+
+		/* Not prompting and not requesting == bug in the code */
 		} else {
 			g_assert_not_reached ();
 		}
@@ -446,6 +534,8 @@ gkr_operation_block_and_unref (GkrOperation *op)
 	/* Make sure we have run our callbacks if complete */
 	if (!g_queue_is_empty (&op->callbacks))
 		on_complete (op);
+
+	gkr_debug ("%p: done", op);
 
 	return gkr_operation_unref_get_result (op);
 }
