@@ -16,7 +16,7 @@ if test -d $srcdir/.git; then
 	fi
 fi
 
-(test -f $srcdir/configure.in && test -f $srcdir/library/gnome-keyring.h) || {
+(test -f $srcdir/configure.ac && test -f $srcdir/library/gnome-keyring.h) || {
 	echo -n "**Error**: Directory "\`$srcdir\'" does not look like the"
 	echo " top-level $PKG_NAME directory"
 	exit 1
