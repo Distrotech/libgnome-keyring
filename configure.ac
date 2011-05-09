@@ -1,4 +1,4 @@
-AC_INIT([libgnome-keyring], [3.1.1])
+AC_INIT([libgnome-keyring], [3.1.2])
 AC_CONFIG_SRCDIR([library/gnome-keyring.h])
 AM_INIT_AUTOMAKE([tar-ustar])
 
