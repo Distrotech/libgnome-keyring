@@ -1,3 +1,7 @@
+Changes in version 3.0.2 are:
+ * Fix memory leak
+ * Build fixes
+
 Changes in version 3.0.1 are:
  * Better testing configure options: --enable-tests=yes/no/full
  * Cleanup documentation warnings.
