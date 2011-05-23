@@ -18,7 +18,8 @@ check_PROGRAMS = \
 	$(TEST_PROGS)
 
 noinst_PROGRAMS = \
-	frob-any-daemon
+	frob-any-daemon \
+	frob-unlock-keyring
 
 test: $(TEST_PROGS)
 	gtester -k --verbose $(TEST_PROGS)
