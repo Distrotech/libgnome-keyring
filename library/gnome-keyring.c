@@ -2443,7 +2443,7 @@ gnome_keyring_find_itemsv (GnomeKeyringItemType                  type,
 	va_end (args);
 
 	ret = gnome_keyring_find_items (type, attributes, callback, data, destroy_data);
-	gnome_keyring_attribute_list_free (attributes);
+	g_array_free (attributes, TRUE);
 	return ret;
 }
 
@@ -2520,7 +2520,7 @@ gnome_keyring_find_itemsv_sync  (GnomeKeyringItemType        type,
 	va_end (args);
 
 	ret = gnome_keyring_find_items_sync (type, attributes, found);
-	gnome_keyring_attribute_list_free (attributes);
+	g_array_free (attributes, TRUE);
 	return ret;
 }
 
