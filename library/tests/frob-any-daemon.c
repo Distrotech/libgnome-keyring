@@ -74,6 +74,6 @@ main (int argc, char **argv)
 		return 0;
 	}
 
-	g_test_add_func ("/any-daemon/create-find-ready-password", test_create_find_read_password);
-	return g_test_run ();
+	test_create_find_read_password ();
+	return 0;
 }

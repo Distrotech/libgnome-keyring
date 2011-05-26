@@ -1,6 +1,14 @@
 Changes in version 3.1.1 are:
  * Build fixes.
 
+Changes in version 3.0.3 are:
+ * Add test tool for unlocking keyrings.
+ * Fix crasher for memory leak fix.
+
+Changes in version 3.0.2 are:
+ * Fix memory leak
+ * Build fixes
+
 Changes in version 3.0.1 are:
  * Better testing configure options: --enable-tests=yes/no/full
  * Cleanup documentation warnings.

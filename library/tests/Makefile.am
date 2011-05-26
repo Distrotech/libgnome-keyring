@@ -11,12 +11,15 @@ LDADD =  \
 TEST_PROGS = \
 	test-memory \
 	test-keyrings \
-	test-other \
-	test-any-daemon
+	test-other
 
 check_PROGRAMS = \
 	test-prompting \
 	$(TEST_PROGS)
+
+noinst_PROGRAMS = \
+	frob-any-daemon \
+	frob-unlock-keyring
 
 test: $(TEST_PROGS)
 	gtester -k --verbose $(TEST_PROGS)

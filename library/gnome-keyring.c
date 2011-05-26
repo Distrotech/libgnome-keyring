@@ -2279,6 +2279,8 @@ find_items_1_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
 	/* Did we find anything? */
 	if (!n_unlocked && !n_locked) {
 		gkr_operation_complete (op, GNOME_KEYRING_RESULT_NO_MATCH);
+		dbus_free_string_array (locked);
+		dbus_free_string_array (unlocked);
 		return;
 	}
 
@@ -2434,12 +2436,15 @@ gnome_keyring_find_itemsv (GnomeKeyringItemType                  type,
 {
 	GnomeKeyringAttributeList *attributes;
 	va_list args;
+	gpointer ret;
 
 	va_start (args, destroy_data);
 	attributes = make_attribute_list_va (args);
 	va_end (args);
 
-	return gnome_keyring_find_items (type, attributes, callback, data, destroy_data);
+	ret = gnome_keyring_find_items (type, attributes, callback, data, destroy_data);
+	g_array_free (attributes, TRUE);
+	return ret;
 }
 
 /**
@@ -2506,6 +2511,7 @@ gnome_keyring_find_itemsv_sync  (GnomeKeyringItemType        type,
 {
 	GnomeKeyringAttributeList *attributes;
 	va_list args;
+	GnomeKeyringResult ret;
 
 	g_return_val_if_fail (found, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
 
@@ -2513,7 +2519,9 @@ gnome_keyring_find_itemsv_sync  (GnomeKeyringItemType        type,
 	attributes = make_attribute_list_va (args);
 	va_end (args);
 
-	return gnome_keyring_find_items_sync (type, attributes, found);
+	ret = gnome_keyring_find_items_sync (type, attributes, found);
+	g_array_free (attributes, TRUE);
+	return ret;
 }
 
 /**
