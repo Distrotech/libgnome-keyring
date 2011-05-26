@@ -1,3 +1,7 @@
+Changes in version 3.0.3 are:
+ * Add test tool for unlocking keyrings.
+ * Fix crasher for memory leak fix.
+
 Changes in version 3.0.2 are:
  * Fix memory leak
  * Build fixes
