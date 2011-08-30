@@ -3931,7 +3931,6 @@ find_network_password_filter (GnomeKeyringResult res, GList *found_list, gpointe
 	GkrCallback *cb = user_data;
 	GnomeKeyringNetworkPasswordData *data;
 	GnomeKeyringFound *found;
-	GnomeKeyringAttribute *attributes;
 	GList *result, *l;
 	int i;
 
@@ -3953,7 +3952,6 @@ find_network_password_filter (GnomeKeyringResult res, GList *found_list, gpointe
 		data->password = found->secret;
 		found->secret = NULL;
 
-		attributes = (GnomeKeyringAttribute *) found->attributes->data;
 		for (i = 0; i < found->attributes->len; i++) {
 			GnomeKeyringAttribute *attribute = &(g_array_index (found->attributes, GnomeKeyringAttribute, i));
 			if (strcmp (attribute->name, "user") == 0 &&
