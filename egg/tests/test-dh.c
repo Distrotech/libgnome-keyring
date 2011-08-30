@@ -24,6 +24,7 @@
 #include "config.h"
 
 #include "egg-dh.h"
+#include "egg-libgcrypt.h"
 #include "egg-secure-memory.h"
 #include "egg-testing.h"
 
@@ -196,6 +197,8 @@ int
 main (int argc, char **argv)
 {
 	g_test_init (&argc, &argv, NULL);
+
+	egg_libgcrypt_initialize ();
 
 	g_test_add_func ("/dh/perform", test_dh_perform);
 	g_test_add_func ("/dh/short-pair", test_dh_short_pair);
