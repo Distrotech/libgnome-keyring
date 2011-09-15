@@ -33,6 +33,7 @@
 #include <unistd.h>
 
 static GList* keyrings = NULL;
+static gchar *default_name = NULL;
 
 #define PASSWORD "my-keyring-password"
 #define KEYRING_NAME "unit-test-keyring"
@@ -95,6 +96,9 @@ test_set_default_keyring (void)
 {
 	GnomeKeyringResult res;
 	gchar* name;
+
+	res = gnome_keyring_get_default_keyring_sync (&default_name);
+	g_assert_cmpint (GNOME_KEYRING_RESULT_OK, ==, res);
 
 	res = gnome_keyring_set_default_keyring_sync (KEYRING_NAME);
 	g_assert_cmpint (GNOME_KEYRING_RESULT_OK, ==, res);
@@ -750,6 +754,12 @@ main (int argc, char **argv)
 
 	if (daemon_start ()) {
 		ret = g_test_run ();
+
+		if (default_name) {
+			gnome_keyring_set_default_keyring_sync (default_name);
+			g_free (default_name);
+		}
+
 		daemon_stop ();
 	}
 
