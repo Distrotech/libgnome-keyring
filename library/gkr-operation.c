@@ -36,6 +36,9 @@
 
 #include "egg/egg-dbus.h"
 
+/* Exposed in gkr-operation.h */
+gboolean gkr_inited = FALSE;
+
 static DBusConnection *dbus_connection = NULL;
 G_LOCK_DEFINE_STATIC(dbus_connection);
 
@@ -64,6 +67,30 @@ struct _GkrOperation {
 	GQueue callbacks;
 	GSList *completed;
 };
+
+void
+gkr_operation_init (void)
+{
+	static gsize onced = 0;
+
+	if (g_once_init_enter (&onced)) {
+		gkr_inited = TRUE;
+
+		/*
+		 * Make sure we initialize dbus thread primitives as apps may
+		 * (and do) call g-k in threads. This isn't 100% safe, because
+		 * someone might have been doing dbus calls before without
+		 * initializing threads. However, there is no safe solution to
+		 * this other than just making all such places initialze threads
+		 * (or port to GDBus), so we do it anyway. (GVfs does it too, so
+		 * most apps end up doing it that way.)
+		 */
+
+		dbus_threads_init_default ();
+
+		g_once_init_leave (&onced, 1);
+	}
+}
 
 GkrOperation*
 gkr_operation_ref (GkrOperation *op)

@@ -490,6 +490,8 @@ gnome_keyring_is_available (void)
 	GkrOperation *op;
 	DBusMessage *req;
 
+	gkr_init ();
+
 	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
 	                                    DBUS_INTERFACE_PEER, "Ping");
 
@@ -512,6 +514,9 @@ void
 gnome_keyring_cancel_request (gpointer request)
 {
 	GkrOperation *op = request;
+
+	gkr_init ();
+
 	g_return_if_fail (request);
 	gkr_operation_complete_later (op, GNOME_KEYRING_RESULT_CANCELLED);
 }
@@ -580,7 +585,11 @@ gnome_keyring_set_default_keyring (const gchar                             *keyr
                                    gpointer                                data,
                                    GDestroyNotify                          destroy_data)
 {
-	GkrOperation *op = set_default_keyring_start (keyring, callback, data, destroy_data);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = set_default_keyring_start (keyring, callback, data, destroy_data);
 	return gkr_operation_pending_and_unref (op);
 }
 
@@ -601,6 +610,8 @@ gnome_keyring_set_default_keyring_sync (const char *keyring)
 	GkrOperation *op;
 
 	g_return_val_if_fail (keyring, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
+
+	gkr_init ();
 
 	op = set_default_keyring_start (keyring, gkr_callback_empty, NULL, NULL);
 	return gkr_operation_block_and_unref (op);
@@ -688,7 +699,11 @@ gnome_keyring_get_default_keyring (GnomeKeyringOperationGetStringCallback  callb
                                    gpointer                                data,
                                    GDestroyNotify                          destroy_data)
 {
-	GkrOperation *op = get_default_keyring_start (callback, data, destroy_data);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = get_default_keyring_start (callback, data, destroy_data);
 	return gkr_operation_pending_and_unref (op);
 }
 
@@ -711,6 +726,8 @@ gnome_keyring_get_default_keyring_sync (char **keyring)
 	GkrOperation *op;
 
 	g_return_val_if_fail (keyring, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
+
+	gkr_init ();
 
 	op = get_default_keyring_start (get_default_keyring_sync, keyring, NULL);
 	return gkr_operation_block_and_unref (op);
@@ -805,7 +822,11 @@ gnome_keyring_list_keyring_names (GnomeKeyringOperationGetListCallback    callba
                                   gpointer                                data,
                                   GDestroyNotify                          destroy_data)
 {
-	GkrOperation *op = list_keyring_names_start (callback, data, destroy_data);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = list_keyring_names_start (callback, data, destroy_data);
 	return gkr_operation_pending_and_unref (op);
 }
 
@@ -829,6 +850,8 @@ gnome_keyring_list_keyring_names_sync (GList **keyrings)
 	GkrOperation *op;
 
 	g_return_val_if_fail (keyrings, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
+
+	gkr_init ();
 
 	op = list_keyring_names_start (list_keyring_names_sync, keyrings, NULL);
 	return gkr_operation_block_and_unref (op);
@@ -871,7 +894,11 @@ gnome_keyring_lock_all (GnomeKeyringOperationDoneCallback       callback,
                         gpointer                                data,
                         GDestroyNotify                          destroy_data)
 {
-	GkrOperation *op = lock_all_start (callback, data, destroy_data);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = lock_all_start (callback, data, destroy_data);
 	return gkr_operation_pending_and_unref (op);
 }
 
@@ -889,7 +916,11 @@ gnome_keyring_lock_all (GnomeKeyringOperationDoneCallback       callback,
 GnomeKeyringResult
 gnome_keyring_lock_all_sync (void)
 {
-	GkrOperation *op = lock_all_start (gkr_callback_empty, NULL, NULL);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = lock_all_start (gkr_callback_empty, NULL, NULL);
 	return gkr_operation_block_and_unref (op);
 }
 
@@ -1067,7 +1098,11 @@ gnome_keyring_create (const char                                  *keyring_name,
                       gpointer                                     data,
                       GDestroyNotify                               destroy_data)
 {
-	GkrOperation *op = create_keyring_start (keyring_name, password, callback, data, destroy_data);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = create_keyring_start (keyring_name, password, callback, data, destroy_data);
 	return gkr_operation_pending_and_unref (op);
 }
 
@@ -1089,7 +1124,11 @@ GnomeKeyringResult
 gnome_keyring_create_sync (const char *keyring_name,
                            const char *password)
 {
-	GkrOperation *op = create_keyring_start (keyring_name, password, gkr_callback_empty, NULL, NULL);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = create_keyring_start (keyring_name, password, gkr_callback_empty, NULL, NULL);
 	return gkr_operation_block_and_unref (op);
 }
 
@@ -1273,7 +1312,11 @@ gnome_keyring_unlock (const char                                  *keyring,
                       gpointer                                     data,
                       GDestroyNotify                               destroy_data)
 {
-	GkrOperation *op = unlock_keyring_start (keyring, password, callback, data, destroy_data);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = unlock_keyring_start (keyring, password, callback, data, destroy_data);
 	return gkr_operation_pending_and_unref (op);
 }
 
@@ -1298,7 +1341,11 @@ GnomeKeyringResult
 gnome_keyring_unlock_sync (const char *keyring,
                            const char *password)
 {
-	GkrOperation *op = unlock_keyring_start (keyring, password, gkr_callback_empty, NULL, NULL);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = unlock_keyring_start (keyring, password, gkr_callback_empty, NULL, NULL);
 	return gkr_operation_block_and_unref (op);
 }
 
@@ -1333,7 +1380,11 @@ gnome_keyring_lock (const char                                  *keyring,
                     gpointer                                     data,
                     GDestroyNotify                               destroy_data)
 {
-	GkrOperation* op = lock_keyring_start (keyring, callback, data, destroy_data);
+	GkrOperation* op;
+
+	gkr_init ();
+
+	op = lock_keyring_start (keyring, callback, data, destroy_data);
 	return gkr_operation_pending_and_unref (op);
 }
 
@@ -1355,7 +1406,11 @@ gnome_keyring_lock (const char                                  *keyring,
 GnomeKeyringResult
 gnome_keyring_lock_sync (const char *keyring)
 {
-	GkrOperation *op = lock_keyring_start (keyring, gkr_callback_empty, NULL, NULL);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = lock_keyring_start (keyring, gkr_callback_empty, NULL, NULL);
 	return gkr_operation_block_and_unref (op);
 }
 
@@ -1401,7 +1456,11 @@ gnome_keyring_delete (const char                                  *keyring,
                       gpointer                                     data,
                       GDestroyNotify                               destroy_data)
 {
-	GkrOperation *op = delete_keyring_start (keyring, callback, data, destroy_data);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = delete_keyring_start (keyring, callback, data, destroy_data);
 	return gkr_operation_pending_and_unref (op);
 }
 
@@ -1420,7 +1479,11 @@ gnome_keyring_delete (const char                                  *keyring,
 GnomeKeyringResult
 gnome_keyring_delete_sync (const char *keyring)
 {
-	GkrOperation *op = delete_keyring_start (keyring, gkr_callback_empty, NULL, NULL);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = delete_keyring_start (keyring, gkr_callback_empty, NULL, NULL);
 	return gkr_operation_block_and_unref (op);
 }
 
@@ -1579,7 +1642,11 @@ gnome_keyring_change_password (const char                                  *keyr
                                gpointer                                     data,
                                GDestroyNotify                               destroy_data)
 {
-	GkrOperation *op = change_password_start (keyring, original, password, callback, data, destroy_data);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = change_password_start (keyring, original, password, callback, data, destroy_data);
 	return gkr_operation_pending_and_unref (op);
 }
 
@@ -1603,7 +1670,11 @@ GnomeKeyringResult
 gnome_keyring_change_password_sync (const char *keyring_name,
                                     const char *original, const char *password)
 {
-	GkrOperation *op = change_password_start (keyring_name, original, password, gkr_callback_empty, NULL, NULL);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = change_password_start (keyring_name, original, password, gkr_callback_empty, NULL, NULL);
 	return gkr_operation_block_and_unref (op);
 }
 
@@ -1709,7 +1780,11 @@ gnome_keyring_get_info (const char                                  *keyring,
                         gpointer                                     data,
                         GDestroyNotify                               destroy_data)
 {
-	GkrOperation *op = get_keyring_info_start (keyring, callback, data, destroy_data);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = get_keyring_info_start (keyring, callback, data, destroy_data);
 	return gkr_operation_pending_and_unref (op);
 }
 
@@ -1735,6 +1810,8 @@ gnome_keyring_get_info_sync (const char        *keyring,
 	GkrOperation *op;
 
 	g_return_val_if_fail (info, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
+
+	gkr_init ();
 
 	op = get_keyring_info_start (keyring, get_keyring_info_sync, info, NULL);
 	return gkr_operation_block_and_unref (op);
@@ -1788,7 +1865,11 @@ gnome_keyring_set_info (const char                                  *keyring,
                         gpointer                                     data,
                         GDestroyNotify                               destroy_data)
 {
-	GkrOperation *op = set_keyring_info_start (keyring, info, callback, data, destroy_data);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = set_keyring_info_start (keyring, info, callback, data, destroy_data);
 	return gkr_operation_pending_and_unref (op);
 }
 
@@ -1812,6 +1893,8 @@ gnome_keyring_set_info_sync (const char       *keyring,
 	gchar *path;
 
 	g_return_val_if_fail (info, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
+
+	gkr_init ();
 
 	path = gkr_encode_keyring_name (keyring);
 
@@ -1923,7 +2006,11 @@ gnome_keyring_list_item_ids (const char                                  *keyrin
                              gpointer                                     data,
                              GDestroyNotify                               destroy_data)
 {
-	GkrOperation *op = list_item_ids_start (keyring, callback, data, destroy_data);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = list_item_ids_start (keyring, callback, data, destroy_data);
 	return gkr_operation_pending_and_unref (op);
 }
 
@@ -1949,6 +2036,8 @@ gnome_keyring_list_item_ids_sync (const char  *keyring,
 	GkrOperation *op;
 
 	g_return_val_if_fail (ids, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
+
+	gkr_init ();
 
 	op = list_item_ids_start (keyring, list_item_ids_sync, ids, NULL);
 	return gkr_operation_block_and_unref (op);
@@ -2364,7 +2453,11 @@ gnome_keyring_find_items  (GnomeKeyringItemType                  type,
                            gpointer                              data,
                            GDestroyNotify                        destroy_data)
 {
-	GkrOperation *op = find_items_start (type, attributes, callback, data, destroy_data);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = find_items_start (type, attributes, callback, data, destroy_data);
 	return gkr_operation_pending_and_unref (op);
 }
 
@@ -2438,6 +2531,8 @@ gnome_keyring_find_itemsv (GnomeKeyringItemType                  type,
 	va_list args;
 	gpointer ret;
 
+	gkr_init ();
+
 	va_start (args, destroy_data);
 	attributes = make_attribute_list_va (args);
 	va_end (args);
@@ -2473,7 +2568,11 @@ gnome_keyring_find_items_sync (GnomeKeyringItemType        type,
                                GnomeKeyringAttributeList  *attributes,
                                GList                     **found)
 {
-	GkrOperation *op = find_items_start (type, attributes, find_items_sync, found, NULL);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = find_items_start (type, attributes, find_items_sync, found, NULL);
 	return gkr_operation_block_and_unref (op);
 }
 
@@ -2514,6 +2613,8 @@ gnome_keyring_find_itemsv_sync  (GnomeKeyringItemType        type,
 	GnomeKeyringResult ret;
 
 	g_return_val_if_fail (found, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
+
+	gkr_init ();
 
 	va_start (args, found);
 	attributes = make_attribute_list_va (args);
@@ -2922,8 +3023,12 @@ gnome_keyring_item_create (const char                          *keyring,
                            gpointer                             data,
                            GDestroyNotify                       destroy_data)
 {
-	GkrOperation *op = item_create_start (keyring, type, display_name, attributes, secret,
-	                                      update_if_exists, callback, data, destroy_data);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = item_create_start (keyring, type, display_name, attributes, secret,
+	                        update_if_exists, callback, data, destroy_data);
 	return gkr_operation_pending_and_unref (op);
 }
 
@@ -2964,8 +3069,12 @@ gnome_keyring_item_create_sync (const char                                 *keyr
                                 gboolean                                    update_if_exists,
                                 guint32                                    *item_id)
 {
-	GkrOperation *op = item_create_start (keyring, type, display_name, attributes, secret,
-	                                      update_if_exists, item_create_sync, item_id, NULL);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = item_create_start (keyring, type, display_name, attributes, secret,
+	                        update_if_exists, item_create_sync, item_id, NULL);
 	return gkr_operation_block_and_unref (op);
 }
 
@@ -3012,7 +3121,11 @@ gnome_keyring_item_delete (const char                                 *keyring,
                            gpointer                                    data,
                            GDestroyNotify                              destroy_data)
 {
-	GkrOperation *op = item_delete_start (keyring, id, callback, data, destroy_data);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = item_delete_start (keyring, id, callback, data, destroy_data);
 	return gkr_operation_pending_and_unref (op);
 }
 
@@ -3035,7 +3148,11 @@ GnomeKeyringResult
 gnome_keyring_item_delete_sync (const char *keyring,
                                 guint32     id)
 {
-	GkrOperation *op = item_delete_start (keyring, id, gkr_callback_empty, NULL, NULL);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = item_delete_start (keyring, id, gkr_callback_empty, NULL, NULL);
 	return gkr_operation_block_and_unref (op);
 }
 
@@ -3066,6 +3183,8 @@ gnome_keyring_item_get_info (const char                                 *keyring
                              gpointer                                    data,
                              GDestroyNotify                              destroy_data)
 {
+	gkr_init ();
+
 	return gnome_keyring_item_get_info_full (keyring, id, GNOME_KEYRING_ITEM_INFO_ALL,
 	                                         callback, data, destroy_data);
 }
@@ -3094,6 +3213,8 @@ gnome_keyring_item_get_info_sync (const char            *keyring,
                                   guint32                id,
                                   GnomeKeyringItemInfo **info)
 {
+	gkr_init ();
+
 	return gnome_keyring_item_get_info_full_sync (keyring, id, GNOME_KEYRING_ITEM_INFO_ALL, info);
 }
 
@@ -3304,7 +3425,11 @@ gnome_keyring_item_get_info_full (const char                                 *ke
                                   gpointer                                    data,
                                   GDestroyNotify                              destroy_data)
 {
-	GkrOperation *op = item_get_info_start (keyring, id, flags, callback, data, destroy_data);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = item_get_info_start (keyring, id, flags, callback, data, destroy_data);
 	return gkr_operation_pending_and_unref (op);
 }
 
@@ -3336,7 +3461,11 @@ gnome_keyring_item_get_info_full_sync (const char              *keyring,
                                        guint32                  flags,
                                        GnomeKeyringItemInfo   **info)
 {
-	GkrOperation *op = item_get_info_start (keyring, id, flags, item_get_info_sync, info, NULL);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = item_get_info_start (keyring, id, flags, item_get_info_sync, info, NULL);
 	return gkr_operation_block_and_unref (op);
 }
 
@@ -3497,7 +3626,11 @@ gnome_keyring_item_set_info (const char                                 *keyring
                              gpointer                                    data,
                              GDestroyNotify                              destroy_data)
 {
-	GkrOperation *op = item_set_info_start (keyring, id, info, callback, data, destroy_data);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = item_set_info_start (keyring, id, info, callback, data, destroy_data);
 	return gkr_operation_pending_and_unref (op);
 }
 
@@ -3522,7 +3655,11 @@ gnome_keyring_item_set_info_sync (const char           *keyring,
                                   guint32               id,
                                   GnomeKeyringItemInfo *info)
 {
-	GkrOperation *op = item_set_info_start (keyring, id, info, gkr_callback_empty, NULL, NULL);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = item_set_info_start (keyring, id, info, gkr_callback_empty, NULL, NULL);
 	return gkr_operation_block_and_unref (op);
 }
 
@@ -3602,7 +3739,11 @@ gnome_keyring_item_get_attributes (const char                                 *k
                                    gpointer                                    data,
                                    GDestroyNotify                              destroy_data)
 {
-	GkrOperation *op = item_get_attributes_start (keyring, id, callback, data, destroy_data);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = item_get_attributes_start (keyring, id, callback, data, destroy_data);
 	return gkr_operation_pending_and_unref (op);
 }
 
@@ -3627,7 +3768,11 @@ gnome_keyring_item_get_attributes_sync (const char                 *keyring,
                                         guint32                     id,
                                         GnomeKeyringAttributeList **attributes)
 {
-	GkrOperation *op = item_get_attributes_start (keyring, id, item_get_attributes_sync, attributes, NULL);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = item_get_attributes_start (keyring, id, item_get_attributes_sync, attributes, NULL);
 	return gkr_operation_block_and_unref (op);
 }
 
@@ -3700,7 +3845,11 @@ gnome_keyring_item_set_attributes (const char                                 *k
                                    gpointer                                    data,
                                    GDestroyNotify                              destroy_data)
 {
-	GkrOperation *op = item_set_attributes_start (keyring, id, attributes, callback, data, destroy_data);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = item_set_attributes_start (keyring, id, attributes, callback, data, destroy_data);
 	return gkr_operation_pending_and_unref (op);
 }
 
@@ -3723,7 +3872,11 @@ gnome_keyring_item_set_attributes_sync (const char                *keyring,
                                         guint32                    id,
                                         GnomeKeyringAttributeList *attributes)
 {
-	GkrOperation *op = item_set_attributes_start (keyring, id, attributes, gkr_callback_empty, NULL, NULL);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = item_set_attributes_start (keyring, id, attributes, gkr_callback_empty, NULL, NULL);
 	return gkr_operation_block_and_unref (op);
 }
 
@@ -3755,6 +3908,9 @@ gnome_keyring_item_get_acl (const char                                 *keyring,
 {
 	GkrOperation *op;
 	GkrCallback *cb;
+
+	gkr_init ();
+
 	cb = gkr_callback_new (NULL, callback, GKR_CALLBACK_RES_LIST, data, destroy_data);
 	op = gkr_operation_new (item_get_acl_reply, GKR_CALLBACK_RES, cb, gkr_callback_free);
 	gkr_operation_complete_later (op, GNOME_KEYRING_RESULT_OK);
@@ -3803,6 +3959,9 @@ gnome_keyring_item_set_acl (const char                                 *keyring,
                             GDestroyNotify                              destroy_data)
 {
 	GkrOperation *op;
+
+	gkr_init ();
+
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
 	gkr_operation_complete_later (op, GNOME_KEYRING_RESULT_OK);
 	return gkr_operation_pending_and_unref (op);
@@ -3854,6 +4013,9 @@ gnome_keyring_item_grant_access_rights (const gchar *keyring,
                                         GDestroyNotify destroy_data)
 {
 	GkrOperation *op;
+
+	gkr_init ();
+
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
 	gkr_operation_complete_later (op, GNOME_KEYRING_RESULT_OK);
 	return gkr_operation_pending_and_unref (op);
@@ -4091,8 +4253,12 @@ gnome_keyring_find_network_password      (const char                            
                                           gpointer                               user_data,
                                           GDestroyNotify                         destroy_data)
 {
-	GkrOperation *op = find_network_password_start (user, domain, server, object, protocol,
-	                                                authtype, port, callback, user_data, destroy_data);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = find_network_password_start (user, domain, server, object, protocol,
+	                                  authtype, port, callback, user_data, destroy_data);
 	return gkr_operation_pending_and_unref (op);
 }
 
@@ -4130,8 +4296,12 @@ gnome_keyring_find_network_password_sync (const char                            
                                           guint32                                port,
                                           GList                                **results)
 {
-	GkrOperation *op = find_network_password_start (user, domain, server, object, protocol,
-	                                                authtype, port, find_network_password_sync, results, NULL);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = find_network_password_start (user, domain, server, object, protocol,
+	                                  authtype, port, find_network_password_sync, results, NULL);
 	return gkr_operation_block_and_unref (op);
 }
 
@@ -4234,8 +4404,12 @@ gnome_keyring_set_network_password      (const char                            *
                                          gpointer                               data,
                                          GDestroyNotify                         destroy_data)
 {
-	GkrOperation *op = set_network_password_start (keyring, user, domain, server, object, protocol,
-	                                               authtype, port, password, callback, data, destroy_data);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = set_network_password_start (keyring, user, domain, server, object, protocol,
+	                                 authtype, port, password, callback, data, destroy_data);
 	return gkr_operation_pending_and_unref (op);
 }
 
@@ -4276,8 +4450,12 @@ gnome_keyring_set_network_password_sync (const char                            *
                                          const char                            *password,
                                          guint32                               *item_id)
 {
-	GkrOperation *op = set_network_password_start (keyring, user, domain, server, object, protocol,
-	                                               authtype, port, password, set_network_password_sync, item_id, NULL);
+	GkrOperation *op;
+
+	gkr_init ();
+
+	op = set_network_password_start (keyring, user, domain, server, object, protocol,
+	                                 authtype, port, password, set_network_password_sync, item_id, NULL);
 	return gkr_operation_block_and_unref (op);
 }
 
@@ -4482,6 +4660,8 @@ gnome_keyring_store_password (const GnomeKeyringPasswordSchema* schema, const gc
 	GkrCallback *cb;
 	va_list args;
 
+	gkr_init ();
+
 	va_start (args, destroy_data);
 	attributes = schema_attribute_list_va (schema, args);
 	va_end (args);
@@ -4534,6 +4714,8 @@ gnome_keyring_store_password_sync (const GnomeKeyringPasswordSchema* schema, con
 	va_list args;
 
 	g_return_val_if_fail (schema, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
+
+	gkr_init ();
 
 	va_start (args, password);
 	attributes = schema_attribute_list_va (schema, args);
@@ -4784,6 +4966,8 @@ gnome_keyring_find_password (const GnomeKeyringPasswordSchema* schema,
 	g_return_val_if_fail (schema, NULL);
 	g_return_val_if_fail (callback, NULL);
 
+	gkr_init ();
+
 	va_start (va, destroy_data);
 	op = find_password_va_start (schema, va, callback, data, destroy_data);
 	va_end (va);
@@ -4836,6 +5020,8 @@ gnome_keyring_find_password_sync (const GnomeKeyringPasswordSchema* schema,
 
 	g_return_val_if_fail (schema, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
 	g_return_val_if_fail (password, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
+
+	gkr_init ();
 
 	va_start (va, password);
 	op = find_password_va_start (schema, va, find_password_sync, password, NULL);
@@ -4918,6 +5104,8 @@ gnome_keyring_delete_password (const GnomeKeyringPasswordSchema* schema,
 	g_return_val_if_fail (schema, NULL);
 	g_return_val_if_fail (callback, NULL);
 
+	gkr_init ();
+
 	va_start (va, destroy_data);
 	op = delete_password_va_start (schema, va, callback, data, destroy_data);
 	va_end (va);
@@ -4955,6 +5143,8 @@ gnome_keyring_delete_password_sync (const GnomeKeyringPasswordSchema* schema, ..
 	va_list va;
 
 	g_return_val_if_fail (schema, GNOME_KEYRING_RESULT_BAD_ARGUMENTS);
+
+	gkr_init ();
 
 	va_start (va, schema);
 	op = delete_password_va_start (schema, va, gkr_callback_empty, NULL, NULL);

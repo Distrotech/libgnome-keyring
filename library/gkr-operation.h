@@ -79,4 +79,10 @@ gboolean            gkr_operation_handle_errors     (GkrOperation *op,
 void                gkr_operation_prompt            (GkrOperation *op,
                                                      const gchar *prompt);
 
+extern gboolean     gkr_inited;
+
+#define             gkr_init()                      do { if (!gkr_inited) gkr_operation_init (); } while (0)
+
+void                gkr_operation_init              (void);
+
 #endif /* GKR_OPERATION_H */
