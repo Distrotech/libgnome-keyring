@@ -2567,6 +2567,27 @@ item_create_sync (GnomeKeyringResult res, guint32 item_id, gpointer data)
 	*result = item_id;
 }
 
+static const gchar *
+item_type_to_string (GnomeKeyringItemType item_type)
+{
+	switch (item_type) {
+	case GNOME_KEYRING_ITEM_GENERIC_SECRET:
+		return "org.freedesktop.Secret.Generic";
+	case GNOME_KEYRING_ITEM_NETWORK_PASSWORD:
+		return "org.gnome.keyring.NetworkPassword";
+	case GNOME_KEYRING_ITEM_NOTE:
+		return "org.gnome.keyring.Note";
+	case GNOME_KEYRING_ITEM_CHAINED_KEYRING_PASSWORD:
+		return "org.gnome.keyring.ChainedKeyring";
+	case GNOME_KEYRING_ITEM_ENCRYPTION_KEY_PASSWORD:
+		return "org.gnome.keyring.EncryptionKey";
+	case GNOME_KEYRING_ITEM_PK_STORAGE:
+		return "org.gnome.keyring.PkStorage";
+	default:
+		return "org.freedesktop.Secret.Generic";
+	}
+}
+
 static DBusMessage*
 item_create_prepare (const gchar *path, GnomeKeyringItemType type, const gchar *label,
                      GnomeKeyringAttributeList *attrs, DBusMessageIter *iter)
@@ -2574,6 +2595,7 @@ item_create_prepare (const gchar *path, GnomeKeyringItemType type, const gchar *
 	DBusMessageIter array, variant, dict;
 	DBusMessage *req;
 	const char *string;
+	const gchar *type_string;
 
 	req = dbus_message_new_method_call (gkr_service_name (), path,
 	                                    COLLECTION_INTERFACE, "CreateItem");
@@ -2596,6 +2618,16 @@ item_create_prepare (const gchar *path, GnomeKeyringItemType type, const gchar *
 	dbus_message_iter_append_basic (&dict, DBUS_TYPE_STRING, &string);
 	dbus_message_iter_open_container (&dict, DBUS_TYPE_VARIANT, "a{ss}", &variant);
 	encode_attribute_list (&variant, attrs);
+	dbus_message_iter_close_container (&dict, &variant);
+	dbus_message_iter_close_container (&array, &dict);
+
+	/* Set the item type */
+	string = ITEM_INTERFACE ".Type";
+	type_string = item_type_to_string (type);
+	dbus_message_iter_open_container (&array, DBUS_TYPE_DICT_ENTRY, NULL, &dict);
+	dbus_message_iter_append_basic (&dict, DBUS_TYPE_STRING, &string);
+	dbus_message_iter_open_container (&dict, DBUS_TYPE_VARIANT, "s", &variant);
+	dbus_message_iter_append_basic (&variant, DBUS_TYPE_STRING, &type_string);
 	dbus_message_iter_close_container (&dict, &variant);
 	dbus_message_iter_close_container (&array, &dict);
 
@@ -3394,21 +3426,7 @@ item_set_info_1_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data)
 	dbus_message_iter_append_basic (&iter, DBUS_TYPE_STRING, &string);
 	dbus_message_iter_open_container (&iter, DBUS_TYPE_VARIANT, "s", &variant);
 
-	if (args->info->type == GNOME_KEYRING_ITEM_GENERIC_SECRET)
-		string = "org.freedesktop.Secret.Generic";
-	else if (args->info->type == GNOME_KEYRING_ITEM_NETWORK_PASSWORD)
-		string = "org.gnome.keyring.NetworkPassword";
-	else if (args->info->type == GNOME_KEYRING_ITEM_NOTE)
-		string = "org.gnome.keyring.Note";
-	else if (args->info->type == GNOME_KEYRING_ITEM_CHAINED_KEYRING_PASSWORD)
-		string = "org.gnome.keyring.ChainedKeyring";
-	else if (args->info->type == GNOME_KEYRING_ITEM_ENCRYPTION_KEY_PASSWORD)
-		string = "org.gnome.keyring.EncryptionKey";
-	else if (args->info->type == GNOME_KEYRING_ITEM_PK_STORAGE)
-		string = "org.gnome.keyring.PkStorage";
-	else
-		string = "org.freedesktop.Secret.Generic";
-
+	string = item_type_to_string (args->info->type);
 	dbus_message_iter_append_basic (&variant, DBUS_TYPE_STRING, &string);
 	dbus_message_iter_close_container (&iter, &variant);
 

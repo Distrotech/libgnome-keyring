@@ -238,6 +238,33 @@ test_create_list_items (void)
 }
 
 static void
+test_create_item_with_type (void)
+{
+	GnomeKeyringResult res;
+	guint id;
+	GList *ids;
+	GnomeKeyringItemInfo *info;
+
+	/* Try in an invalid keyring */
+	res = gnome_keyring_item_create_sync (KEYRING_NAME, GNOME_KEYRING_ITEM_NOTE,
+	                                      DISPLAY_NAME, NULL, SECRET, FALSE, &id);
+	g_assert_cmpint (GNOME_KEYRING_RESULT_OK, ==, res);
+
+	/* List ids that were created */
+	res = gnome_keyring_list_item_ids_sync (KEYRING_NAME, &ids);
+	g_assert_cmpint (GNOME_KEYRING_RESULT_OK, ==, res);
+
+	/* Now make sure both have that same secret */
+	res = gnome_keyring_item_get_info_sync (KEYRING_NAME, id, &info);
+	g_assert_cmpint (GNOME_KEYRING_RESULT_OK, ==, res);
+	g_assert_cmpint (gnome_keyring_item_info_get_type (info), ==, GNOME_KEYRING_ITEM_NOTE);
+
+	/* Now delete the item */
+	res = gnome_keyring_item_delete_sync (NULL, id);
+	g_assert_cmpint (GNOME_KEYRING_RESULT_OK, ==, res);
+}
+
+static void
 test_find_keyrings (void)
 {
 	GnomeKeyringResult res;
@@ -737,6 +764,7 @@ main (int argc, char **argv)
 	g_test_add_func ("/keyrings/delete-keyring", test_delete_keyring);
 	g_test_add_func ("/keyrings/recreate-keyring", test_recreate_keyring);
 	g_test_add_func ("/keyrings/create-list-items", test_create_list_items);
+	g_test_add_func ("/keyrings/create-item-with-type", test_create_item_with_type);
 	g_test_add_func ("/keyrings/find-keyrings", test_find_keyrings);
 	g_test_add_func ("/keyrings/find-invalid", test_find_invalid);
 	g_test_add_func ("/keyrings/lock-keyrings", test_lock_keyrings);
