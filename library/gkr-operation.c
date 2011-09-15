@@ -245,11 +245,19 @@ gkr_operation_complete_later (GkrOperation *op, GnomeKeyringResult res)
 }
 
 static DBusHandlerResult
-on_name_changed_filter (DBusConnection *connection, DBusMessage *message, void *user_data)
+on_connection_filter (DBusConnection *connection,
+                      DBusMessage *message,
+                      void *user_data)
 {
 	const char *object_name;
 	const char *new_owner;
 	const char *old_owner;
+
+	/* org.freedesktop.DBus.Local.Disconnected() */
+	if (dbus_message_is_signal (message, DBUS_INTERFACE_LOCAL, "Disconnected")) {
+		g_warning ("dbus connection disconnected for unknown reason");
+		return DBUS_HANDLER_RESULT_NOT_YET_HANDLED;
+	}
 
 	/* org.freedesktop.DBus.NameOwnerChanged(STRING name, STRING old_owner, STRING new_owner) */
 	if (dbus_message_is_signal (message, DBUS_INTERFACE_DBUS, "NameOwnerChanged") &&
@@ -306,7 +314,7 @@ connect_to_service (void)
 		/* Listen for name owner changed signals */
 		rule = "type='signal',member='NameOwnerChanged',interface='org.freedesktop.DBus'";
 		dbus_bus_add_match (conn, rule, NULL);
-		dbus_connection_add_filter (conn, on_name_changed_filter, NULL, NULL);
+		dbus_connection_add_filter (conn, on_connection_filter, NULL, NULL);
 
 		G_LOCK (dbus_connection);
 		{
@@ -466,7 +474,7 @@ send_with_reply_and_block (DBusConnection *conn, DBusMessage *message,
 		g_return_val_if_reached (NULL);
 
 	if (pending == NULL) {
-		gkr_debug ("couldn't send message");
+		gkr_debug ("couldn't send message, dbus connection disconnected");
 		return NULL;
 	}
 
