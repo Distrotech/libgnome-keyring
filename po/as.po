@@ -7,7 +7,7 @@ msgstr ""
 "Project-Id-Version: \n"
 "Report-Msgid-Bugs-To: http://bugzilla.gnome.org/enter_bug.cgi?product=gnome-"
 "keyring&keywords=I18N+L10N&component=libgnome-keyring\n"
-"POT-Creation-Date: 2011-09-15 18:46+0000\n"
+"POT-Creation-Date: 2011-05-29 16:53+0000\n"
 "PO-Revision-Date: 2011-03-22 19:17+0000\n"
 "Last-Translator: Nilamdyuti Goswami <ngoswami@redhat.com>\n"
 "Language-Team: Assamese <kde-i18n-doc@kde.org>\n"
@@ -50,6 +50,6 @@ msgid "The keyring has already been unlocked."
 msgstr "keyringটো ইতিমধ্যে আনলক কৰা হৈছে।"
 
 #. TRANSLATORS: This is the name of an automatically created default keyring.
-#: ../library/gnome-keyring.c:2930
+#: ../library/gnome-keyring.c:2797
 msgid "Default"
 msgstr "অবিকল্পিত"
