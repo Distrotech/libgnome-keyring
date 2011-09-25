@@ -1,3 +1,6 @@
+Changes in version 3.2.0 are:
+ * Translations
+
 Changes in version 3.1.92 are:
  * Make sure we initialize dbus thread primitives
  * Print warning when we get kicked off the bus for some reason.
