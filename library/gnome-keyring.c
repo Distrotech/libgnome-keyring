@@ -3241,7 +3241,7 @@ item_get_info_foreach (const gchar *property, DBusMessageIter *iter, gpointer us
 		if (dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_INT64)
 			return FALSE;
 		dbus_message_iter_get_basic (iter, &i64val);
-		info->ctime = (time_t)i64val;
+		info->mtime = (time_t)i64val;
 
 	} else if (g_str_equal (property, "Type")) {
 		if (dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_STRING)
