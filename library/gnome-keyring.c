@@ -2215,6 +2215,9 @@ find_items_6_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
 	/* Do we have any more items? */
 	if (!args->queued) {
 		if (args->found) {
+			/* Back to the original order returned from daemon */
+			args->found = g_list_reverse (args->found);
+
 			cb = gkr_operation_pop (op);
 			gkr_callback_invoke_ok_list (cb, args->found);
 			if (cb->callback == find_items_sync)
