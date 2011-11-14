@@ -1,3 +1,7 @@
+Changes in version 3.2.2 are:
+ * Make sure to return find results in original order from daemon
+ * Fill in the gnome_keyring_item_info_get_mtime() field correctly
+
 Changes in version 3.2.0 are:
  * Translations
 
