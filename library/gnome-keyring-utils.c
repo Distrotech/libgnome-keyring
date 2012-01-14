@@ -467,8 +467,8 @@ gnome_keyring_item_info_copy (GnomeKeyringItemInfo *item_info)
 	copy = g_new (GnomeKeyringItemInfo, 1);
 	memcpy (copy, item_info, sizeof (GnomeKeyringItemInfo));
 
-	copy->display_name = g_strdup (copy->display_name);
-	copy->secret = egg_secure_strdup (copy->secret);
+	copy->display_name = g_strdup (item_info->display_name);
+	copy->secret = egg_secure_strdup (item_info->secret);
 
 	return copy;
 }
