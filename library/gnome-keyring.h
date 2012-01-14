@@ -117,16 +117,17 @@ GType                      gnome_keyring_attribute_get_type           (void) G_G
 #define GNOME_KEYRING_TYPE_ATTRIBUTE (gnome_keyring_attribute_get_type ())
 
 #define gnome_keyring_attribute_list_index(a, i) g_array_index ((a), GnomeKeyringAttribute, (i))
-#define gnome_keyring_attribute_list_new() (g_array_new (FALSE, FALSE, sizeof (GnomeKeyringAttribute)))
 void                       gnome_keyring_attribute_list_append_string (GnomeKeyringAttributeList *attributes,
                                                                        const char                *name,
                                                                        const char                *value);
 void                       gnome_keyring_attribute_list_append_uint32 (GnomeKeyringAttributeList *attributes,
                                                                        const char                *name,
                                                                        guint32                    value);
+GnomeKeyringAttributeList *gnome_keyring_attribute_list_new           (void);
 void                       gnome_keyring_attribute_list_free          (GnomeKeyringAttributeList *attributes);
 GnomeKeyringAttributeList *gnome_keyring_attribute_list_copy          (GnomeKeyringAttributeList *attributes);
 GType                      gnome_keyring_attribute_list_get_type      (void) G_GNUC_CONST;
+GList                     *gnome_keyring_attribute_list_to_glist      (GnomeKeyringAttributeList *attributes);
 
 #define GNOME_KEYRING_TYPE_ATTRIBUTE_LIST (gnome_keyring_attribute_list_get_type ())
 

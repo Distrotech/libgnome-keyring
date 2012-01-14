@@ -379,6 +379,19 @@ gnome_keyring_attribute_list_append_uint32 (GnomeKeyringAttributeList *attribute
 }
 
 /**
+ * gnome_keyring_attribute_list_new:
+ *
+ * Create a new #GnomeKeyringAttributeList.
+ *
+ * Return value: (transfer full): The new #GnomeKeyringAttributeList
+ **/
+GnomeKeyringAttributeList *
+gnome_keyring_attribute_list_new (void)
+{
+	return g_array_new (FALSE, FALSE, sizeof (GnomeKeyringAttribute));
+}
+
+/**
  * gnome_keyring_attribute_list_free:
  * @attributes: A #GnomeKeyringAttributeList
  *
@@ -437,6 +450,36 @@ gnome_keyring_attribute_list_copy (GnomeKeyringAttributeList *attributes)
 		}
 	}
 	return copy;
+}
+
+/**
+ * gnome_keyring_attribute_list_to_glist:
+ * @attributes: A #GnomeKeyringAttributeList
+ *
+ * Create #GList of #GnomeKeyringAttribute pointers from @attributes. This is
+ * mostly useful in language bindings which cannot directly use a #GArray.
+ *
+ * Returns: (transfer full) (element-type GnomeKeyringAttribute): #GList
+ * of #GnomeKeyringAttribute.
+ *
+ * Since: 3.4
+ **/
+GList*
+gnome_keyring_attribute_list_to_glist (GnomeKeyringAttributeList *attributes)
+{
+	GList *list = NULL;
+	GnomeKeyringAttribute *attr;
+	guint i;
+
+	if (attributes == NULL)
+		return NULL;
+
+	for (i = 0; i < attributes->len; ++i) {
+		attr = &g_array_index (attributes, GnomeKeyringAttribute, i);
+		list = g_list_append (list, gnome_keyring_attribute_copy (attr));
+	}
+
+	return list;
 }
 
 G_DEFINE_BOXED_TYPE (GnomeKeyringAttributeList,
