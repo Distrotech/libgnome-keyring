@@ -25,6 +25,7 @@
 #define GNOME_KEYRING_H
 
 #include <glib.h>
+#include <glib-object.h>
 #include <time.h>
 
 #include "gnome-keyring-result.h"
@@ -111,6 +112,10 @@ typedef void (*GnomeKeyringOperationGetAttributesCallback)  (GnomeKeyringResult 
                                                              GnomeKeyringAttributeList *attributes,
                                                              gpointer             data);
 
+GType                      gnome_keyring_attribute_get_type           (void) G_GNUC_CONST;
+
+#define GNOME_KEYRING_TYPE_ATTRIBUTE (gnome_keyring_attribute_get_type ())
+
 #define gnome_keyring_attribute_list_index(a, i) g_array_index ((a), GnomeKeyringAttribute, (i))
 #define gnome_keyring_attribute_list_new() (g_array_new (FALSE, FALSE, sizeof (GnomeKeyringAttribute)))
 void                       gnome_keyring_attribute_list_append_string (GnomeKeyringAttributeList *attributes,
@@ -121,14 +126,20 @@ void                       gnome_keyring_attribute_list_append_uint32 (GnomeKeyr
                                                                        guint32                    value);
 void                       gnome_keyring_attribute_list_free          (GnomeKeyringAttributeList *attributes);
 GnomeKeyringAttributeList *gnome_keyring_attribute_list_copy          (GnomeKeyringAttributeList *attributes);
+GType                      gnome_keyring_attribute_list_get_type      (void) G_GNUC_CONST;
 
+#define GNOME_KEYRING_TYPE_ATTRIBUTE_LIST (gnome_keyring_attribute_list_get_type ())
 
 const gchar*               gnome_keyring_result_to_message            (GnomeKeyringResult res);
 
 gboolean gnome_keyring_is_available (void);
 
-void gnome_keyring_found_free (GnomeKeyringFound *found);
-void gnome_keyring_found_list_free (GList *found_list);
+void gnome_keyring_found_free               (GnomeKeyringFound *found);
+void gnome_keyring_found_list_free          (GList *found_list);
+GnomeKeyringFound* gnome_keyring_found_copy (GnomeKeyringFound *found);
+GType gnome_keyring_found_get_type          (void) G_GNUC_CONST;
+
+#define GNOME_KEYRING_TYPE_FOUND (gnome_keyring_found_get_type ())
 
 void gnome_keyring_cancel_request (gpointer request);
 
@@ -207,6 +218,7 @@ GnomeKeyringResult gnome_keyring_list_item_ids_sync (const char                 
 
 void              gnome_keyring_info_free             (GnomeKeyringInfo *keyring_info);
 GnomeKeyringInfo *gnome_keyring_info_copy             (GnomeKeyringInfo *keyring_info);
+GType             gnome_keyring_info_get_type         (void) G_GNUC_CONST;
 void              gnome_keyring_info_set_lock_on_idle (GnomeKeyringInfo *keyring_info,
                                                        gboolean          value);
 gboolean          gnome_keyring_info_get_lock_on_idle (GnomeKeyringInfo *keyring_info);
@@ -216,6 +228,8 @@ guint32           gnome_keyring_info_get_lock_timeout (GnomeKeyringInfo *keyring
 time_t            gnome_keyring_info_get_mtime        (GnomeKeyringInfo *keyring_info);
 time_t            gnome_keyring_info_get_ctime        (GnomeKeyringInfo *keyring_info);
 gboolean          gnome_keyring_info_get_is_locked    (GnomeKeyringInfo *keyring_info);
+
+#define GNOME_KEYRING_TYPE_INFO (gnome_keyring_info_get_type ())
 
 gpointer gnome_keyring_find_items  (GnomeKeyringItemType                  type,
                                     GnomeKeyringAttributeList            *attributes,
@@ -306,6 +320,7 @@ GnomeKeyringResult gnome_keyring_item_set_attributes_sync (const char           
 void                  gnome_keyring_item_info_free             (GnomeKeyringItemInfo *item_info);
 GnomeKeyringItemInfo *gnome_keyring_item_info_new              (void);
 GnomeKeyringItemInfo *gnome_keyring_item_info_copy             (GnomeKeyringItemInfo *item_info);
+GType                 gnome_keyring_item_info_get_gtype        (void) G_GNUC_CONST;
 GnomeKeyringItemType  gnome_keyring_item_info_get_type         (GnomeKeyringItemInfo *item_info);
 void                  gnome_keyring_item_info_set_type         (GnomeKeyringItemInfo *item_info,
                                                                 GnomeKeyringItemType  type);
@@ -317,6 +332,8 @@ void                  gnome_keyring_item_info_set_display_name (GnomeKeyringItem
                                                                 const char           *value);
 time_t                gnome_keyring_item_info_get_mtime        (GnomeKeyringItemInfo *item_info);
 time_t                gnome_keyring_item_info_get_ctime        (GnomeKeyringItemInfo *item_info);
+
+#define GNOME_KEYRING_TYPE_ITEM_INFO (gnome_keyring_item_info_get_gtype ())
 
 /* ------------------------------------------------------------------------------
  * A Simpler API
@@ -480,13 +497,18 @@ GnomeKeyringResult gnome_keyring_item_grant_access_rights_sync (const char      
 GnomeKeyringApplicationRef * gnome_keyring_application_ref_new          (void);
 GnomeKeyringApplicationRef * gnome_keyring_application_ref_copy         (const GnomeKeyringApplicationRef *app);
 void                         gnome_keyring_application_ref_free         (GnomeKeyringApplicationRef       *app);
+GType                        gnome_keyring_application_ref_get_type     (void) G_GNUC_CONST;
+
+#define GNOME_KEYRING_TYPE_APPLICATION_REF (gnome_keyring_application_ref_get_type ())
 
 GnomeKeyringAccessControl *  gnome_keyring_access_control_new  (const GnomeKeyringApplicationRef *application,
                                                                 GnomeKeyringAccessType            types_allowed);
 GnomeKeyringAccessControl *  gnome_keyring_access_control_copy (GnomeKeyringAccessControl        *ac);
+GType                        gnome_keyring_access_control_get_type (void) G_GNUC_CONST;
+void                         gnome_keyring_access_control_free (GnomeKeyringAccessControl *ac);
 
+#define GNOME_KEYRING_TYPE_ACCESS_CONTROL (gnome_keyring_access_control_get_type ())
 
-void    gnome_keyring_access_control_free (GnomeKeyringAccessControl *ac);
 GList * gnome_keyring_acl_copy            (GList                     *list);
 void    gnome_keyring_acl_free            (GList                     *acl);
 

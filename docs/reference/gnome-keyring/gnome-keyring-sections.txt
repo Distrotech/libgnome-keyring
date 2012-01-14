@@ -40,6 +40,7 @@ gnome_keyring_change_password_sync
 gnome_keyring_list_item_ids
 gnome_keyring_list_item_ids_sync
 </SECTION>
+
 <SECTION>
 <FILE>gnome-keyring-keyring-info</FILE>
 GnomeKeyringInfo
@@ -52,7 +53,11 @@ gnome_keyring_info_get_lock_timeout
 gnome_keyring_info_get_mtime
 gnome_keyring_info_get_ctime
 gnome_keyring_info_get_is_locked
+<SUBSECTION Standard>
+gnome_keyring_info_get_type
+GNOME_KEYRING_TYPE_INFO
 </SECTION>
+
 <SECTION>
 <FILE>gnome-keyring-items</FILE>
 GnomeKeyringItemInfoFlags
@@ -83,6 +88,7 @@ GNOME_KEYRING_ITEM_INFO_ALL
 GNOME_KEYRING_ITEM_NO_TYPE
 GNOME_KEYRING_ITEM_TYPE_MASK
 </SECTION>
+
 <SECTION>
 <FILE>gnome-keyring-item-info</FILE>
 GnomeKeyringItemType
@@ -98,17 +104,26 @@ gnome_keyring_item_info_get_display_name
 gnome_keyring_item_info_set_display_name
 gnome_keyring_item_info_get_mtime
 gnome_keyring_item_info_get_ctime
+<SUBSECTION Standard>
+gnome_keyring_item_info_get_gtype
+GNOME_KEYRING_TYPE_ITEM_INFO
 </SECTION>
+
 <SECTION>
 <FILE>gnome-keyring-find</FILE>
 GnomeKeyringFound
+gnome_keyring_found_copy
 gnome_keyring_found_free
 gnome_keyring_found_list_free
 gnome_keyring_find_items
 gnome_keyring_find_itemsv
 gnome_keyring_find_items_sync
 gnome_keyring_find_itemsv_sync
+<SUBSECTION Standard>
+gnome_keyring_found_get_type
+GNOME_KEYRING_TYPE_FOUND
 </SECTION>
+
 <SECTION>
 <FILE>gnome-keyring-attributes</FILE>
 GnomeKeyringAttributeType
@@ -120,7 +135,16 @@ gnome_keyring_attribute_list_append_string
 gnome_keyring_attribute_list_append_uint32
 gnome_keyring_attribute_list_free
 gnome_keyring_attribute_list_copy
+gnome_keyring_attribute_get_string
+gnome_keyring_attribute_get_uint32
+<SUBSECTION Standard>
+gnome_keyring_attribute_get_type
+GNOME_KEYRING_TYPE_ATTRIBUTE
+gnome_keyring_attribute_list_get_type
+GNOME_KEYRING_TYPE_ATTRIBUTE_LIST
+gnome_keyring_attribute_list_to_glist
 </SECTION>
+
 <SECTION>
 <FILE>gnome-keyring-acl</FILE>
 GnomeKeyringAccessControl
@@ -141,7 +165,13 @@ gnome_keyring_item_ac_get_path_name
 gnome_keyring_item_ac_set_path_name
 gnome_keyring_item_ac_get_access_type
 gnome_keyring_item_ac_set_access_type
+<SUBSECTION Standard>
+gnome_keyring_access_control_get_type
+GNOME_KEYRING_TYPE_ACCESS_CONTROL
+gnome_keyring_application_ref_get_type
+GNOME_KEYRING_TYPE_APPLICATION_REF
 </SECTION>
+
 <SECTION>
 <FILE>gnome-keyring-network</FILE>
 GnomeKeyringNetworkPasswordData

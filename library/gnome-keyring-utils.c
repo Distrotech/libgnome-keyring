@@ -224,6 +224,36 @@ gnome_keyring_found_free (GnomeKeyringFound *found)
 }
 
 /**
+ * gnome_keyring_found_copy:
+ * @found: a #GnomeKeyringFound
+ *
+ * Copy a #GnomeKeyringFound item.
+ *
+ * Return value: (transfer full): The new #GnomeKeyringFound
+ */
+GnomeKeyringFound*
+gnome_keyring_found_copy (GnomeKeyringFound *found)
+{
+	GnomeKeyringFound *copy;
+
+	if (found == NULL)
+		return NULL;
+
+	copy = g_new (GnomeKeyringFound, 1);
+	copy->keyring = g_strdup (found->keyring);
+	copy->item_id = found->item_id;
+	copy->attributes = gnome_keyring_attribute_list_copy (found->attributes);
+	copy->secret = egg_secure_strdup (found->secret);
+
+	return copy;
+}
+
+G_DEFINE_BOXED_TYPE (GnomeKeyringFound,
+	gnome_keyring_found,
+	gnome_keyring_found_copy,
+	gnome_keyring_found_free);
+
+/**
  * gnome_keyring_found_list_free:
  * @found_list: (element-type GnomeKeyringFound): a #GList of #GnomeKeyringFound
  *
@@ -247,6 +277,59 @@ gnome_keyring_found_list_free (GList *found_list)
  *
  * Each attribute has either a string, or unsigned integer value.
  **/
+
+/**
+ * gnome_keyring_attribute_free:
+ * @attribute: a #GnomeKeyringAttribute.
+ *
+ * Free the memory used by the #GnomeKeyringAttribute @attribute.
+ **/
+static void
+gnome_keyring_attribute_free (GnomeKeyringAttribute *attribute)
+{
+	if (attribute == NULL)
+		return;
+
+	g_free (attribute->name);
+	if (attribute->type == GNOME_KEYRING_ATTRIBUTE_TYPE_STRING) {
+		g_free (attribute->value.string);
+	}
+	g_free (attribute);
+}
+
+/**
+ * gnome_keyring_attribute_copy:
+ * @attribute: a #GnomeKeyringAttribute to copy.
+ *
+ * Copy a #GnomeKeyringAttribute.
+ *
+ * Return value: (transfer full): The new #GnomeKeyringAttribute
+ **/
+static GnomeKeyringAttribute*
+gnome_keyring_attribute_copy (GnomeKeyringAttribute *attribute)
+{
+	GnomeKeyringAttribute *copy;
+
+	if (attribute == NULL)
+		return NULL;
+
+	copy = g_new (GnomeKeyringAttribute, 1);
+	copy->name = g_strdup (attribute->name);
+	copy->type = attribute->type;
+	if (attribute->type == GNOME_KEYRING_ATTRIBUTE_TYPE_STRING) {
+		copy->value.string = g_strdup (attribute->value.string);
+	} else {
+		copy->value.integer = attribute->value.integer;
+	}
+
+	return copy;
+}
+
+G_DEFINE_BOXED_TYPE (GnomeKeyringAttribute,
+	gnome_keyring_attribute,
+	gnome_keyring_attribute_copy,
+	gnome_keyring_attribute_free);
+
 
 /**
  * gnome_keyring_attribute_list_append_string:
@@ -356,6 +439,11 @@ gnome_keyring_attribute_list_copy (GnomeKeyringAttributeList *attributes)
 	return copy;
 }
 
+G_DEFINE_BOXED_TYPE (GnomeKeyringAttributeList,
+	gnome_keyring_attribute_list,
+	gnome_keyring_attribute_list_copy,
+	gnome_keyring_attribute_list_free);
+
 /**
  * SECTION:gnome-keyring-keyring-info
  * @title: Keyring Info
@@ -409,6 +497,11 @@ gnome_keyring_info_copy (GnomeKeyringInfo *keyring_info)
 
 	return copy;
 }
+
+G_DEFINE_BOXED_TYPE (GnomeKeyringInfo,
+	gnome_keyring_info,
+	gnome_keyring_info_copy,
+	gnome_keyring_info_free);
 
 /**
  * gnome_keyring_item_info_free:
@@ -473,6 +566,24 @@ gnome_keyring_item_info_copy (GnomeKeyringItemInfo *item_info)
 	return copy;
 }
 
+/* gnome_keyring_item_info_get_type() is already part of the API, cannot use
+ * G_DEFINE_BOXED_TYPE here */
+GType
+gnome_keyring_item_info_get_gtype (void)
+{
+    static volatile gsize initialized = 0;
+    static GType type = 0;
+
+    if (g_once_init_enter (&initialized)) {
+	type = g_boxed_type_register_static ("GnomeKeyringItemInfo",
+	    (GBoxedCopyFunc) gnome_keyring_item_info_copy,
+	    (GBoxedFreeFunc) gnome_keyring_item_info_free);
+	g_once_init_leave (&initialized, 1);
+    }
+
+    return type;
+}
+
 /**
  * gnome_keyring_application_ref_new:
  *
@@ -528,6 +639,11 @@ gnome_keyring_application_ref_copy (const GnomeKeyringApplicationRef *app)
 
 	return copy;
 }
+
+G_DEFINE_BOXED_TYPE (GnomeKeyringApplicationRef,
+	gnome_keyring_application_ref,
+	gnome_keyring_application_ref_copy,
+	gnome_keyring_application_ref_free);
 
 /**
  * gnome_keyring_access_control_new:
@@ -589,6 +705,11 @@ gnome_keyring_access_control_copy (GnomeKeyringAccessControl *ac)
 
 	return ret;
 }
+
+G_DEFINE_BOXED_TYPE (GnomeKeyringAccessControl,
+	gnome_keyring_access_control,
+	gnome_keyring_access_control_copy,
+	gnome_keyring_access_control_free);
 
 /**
  * gnome_keyring_acl_copy:
