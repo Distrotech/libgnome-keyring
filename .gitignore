@@ -109,6 +109,8 @@ run-auto-test.h
 /library/*.pc
 /library/Makefile
 /library/Makefile.in
+/library/*.gir
+/library/*.typelib
 
 # /library/tests
 /library/tests/Makefile

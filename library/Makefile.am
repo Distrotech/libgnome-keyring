@@ -47,6 +47,34 @@ pkgconfig_DATA = gnome-keyring-1.pc
 EXTRA_DIST = \
 	gnome-keyring-1-uninstalled.pc.in
 
+CLEANFILES=
+
+# build introspection typelib
+-include $(INTROSPECTION_MAKEFILE)
+INTROSPECTION_GIRS =
+INTROSPECTION_SCANNER_ARGS = --add-include-path=$(srcdir) --warn-all
+INTROSPECTION_COMPILER_ARGS = --includedir=$(srcdir)
+
+if HAVE_INTROSPECTION
+# the gkr-* files are not part of the public API
+introspection_sources = $(filter-out gkr-% %-private.h,$(libgnome_keyring_la_SOURCES))
+
+GnomeKeyring-1.0.gir: $(lib_LTLIBRARIES)
+GnomeKeyring_1_0_gir_INCLUDES = GObject-2.0
+GnomeKeyring_1_0_gir_CFLAGS = $(INCLUDES)
+GnomeKeyring_1_0_gir_LIBS = $(lib_LTLIBRARIES)
+GnomeKeyring_1_0_gir_FILES = $(introspection_sources)
+INTROSPECTION_GIRS += GnomeKeyring-1.0.gir
+
+girdir = $(datadir)/gir-1.0
+gir_DATA = $(INTROSPECTION_GIRS)
+
+typelibdir = $(libdir)/girepository-1.0
+typelib_DATA = $(INTROSPECTION_GIRS:.gir=.typelib)
+
+CLEANFILES += $(gir_DATA) $(typelib_DATA)
+endif
+
 if WITH_TESTS
 TESTS_DIR = tests
 else

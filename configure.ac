@@ -49,6 +49,9 @@ AC_SUBST(GETTEXT_PACKAGE)
 
 AM_GLIB_GNU_GETTEXT
 
+# Introspection
+GOBJECT_INTROSPECTION_CHECK([1.30.0])
+
 # --------------------------------------------------------------------
 # Check for various credentials.
 #
@@ -236,6 +239,7 @@ echo
 echo "CFLAGS: $CFLAGS"
 echo
 echo "OPTIONS:"
+echo "  Introspection:        $found_introspection"
 echo "  Debug Build:          $debug_status"
 echo "  Tests:                $tests_status"
 echo

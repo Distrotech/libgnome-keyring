@@ -11,10 +11,12 @@ EXTRA_DIST = \
 	intltool-merge.in \
 	intltool-update.in \
 	HACKING \
-	COPYING.GPL
+	COPYING.GPL \
+	m4/introspection.m4
 
 DISTCHECK_CONFIGURE_FLAGS = \
 	--enable-gtk-doc \
+	--enable-introspection \
 	--enable-tests=yes \
 	--enable-debug=yes
 
