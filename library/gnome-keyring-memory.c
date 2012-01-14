@@ -112,7 +112,7 @@ egg_memory_fallback (void *p, size_t sz)
  */
 
 /**
- * gnome_keyring_memory_alloc:
+ * gnome_keyring_memory_alloc: (skip)
  * @sz: The new desired size of the memory block.
  *
  * Allocate a block of gnome-keyring non-pageable memory.
@@ -120,8 +120,8 @@ egg_memory_fallback (void *p, size_t sz)
  * If non-pageable memory cannot be allocated then normal memory will be
  * returned.
  *
- * Return value:  The new memory block which should be freed with
- * gnome_keyring_memory_free()
+ * Return value: (transfer full): The new memory block which should be freed
+ * with gnome_keyring_memory_free()
  **/
 gpointer
 gnome_keyring_memory_alloc (gulong sz)
@@ -138,15 +138,15 @@ gnome_keyring_memory_alloc (gulong sz)
 }
 
 /**
- * gnome_keyring_memory_try_alloc:
+ * gnome_keyring_memory_try_alloc: (skip)
  * @sz: The new desired size of the memory block.
  *
  * Allocate a block of gnome-keyring non-pageable memory.
  *
- * If non-pageable memory cannot be allocated, then NULL is returned.
+ * If non-pageable memory cannot be allocated, then %NULL is returned.
  *
- * Return value: The new block, or NULL if memory cannot be allocated.
- * The memory block should be freed with gnome_keyring_memory_free()
+ * Return value: (transfer full): The new block, or %NULL if memory cannot be
+ * allocated. The memory block should be freed with gnome_keyring_memory_free()
  */
 gpointer
 gnome_keyring_memory_try_alloc (gulong sz)
@@ -155,8 +155,9 @@ gnome_keyring_memory_try_alloc (gulong sz)
 }
 
 /**
- * gnome_keyring_memory_realloc:
- * @p: The pointer to reallocate or NULL to allocate a new block.
+ * gnome_keyring_memory_realloc: (skip)
+ * @p: (allow-none): The pointer to reallocate or %NULL to allocate a new
+ *     block.
  * @sz: The new desired size of the memory block, or 0 to free the memory.
  *
  * Reallocate a block of gnome-keyring non-pageable memory.
@@ -168,8 +169,8 @@ gnome_keyring_memory_try_alloc (gulong sz)
  * If non-pageable memory cannot be allocated then normal memory will be
  * returned.
  *
- * Return value: The new block, or NULL if the block was freed.
- * The memory block should be freed with gnome_keyring_memory_free()
+ * Return value: (transfer full): The new block, or %NULL if the block was
+ * freed. The memory block should be freed with gnome_keyring_memory_free()
  */
 gpointer
 gnome_keyring_memory_realloc (gpointer p, gulong sz)
@@ -194,8 +195,8 @@ gnome_keyring_memory_realloc (gpointer p, gulong sz)
 }
 
 /**
- * gnome_keyring_memory_try_realloc:
- * @p: The pointer to reallocate or NULL to allocate a new block.
+ * gnome_keyring_memory_try_realloc: (skip)
+ * @p: (allow-none): The pointer to reallocate or %NULL to allocate a new block.
  * @sz: The new desired size of the memory block.
  *
  * Reallocate a block of gnome-keyring non-pageable memory.
@@ -204,11 +205,11 @@ gnome_keyring_memory_realloc (gpointer p, gulong sz)
  * If called with a null pointer, then a new block of memory is allocated.
  * If called with a zero size, then the block of memory is freed.
  *
- * If memory cannot be allocated, NULL is returned and the original block
+ * If memory cannot be allocated, %NULL is returned and the original block
  * of memory remains intact.
  *
- * Return value: The new block, or NULL if memory cannot be allocated.
- * The memory block should be freed with gnome_keyring_memory_free()
+ * Return value: (transfer full): The new block, or %NULL if memory cannot be
+ * allocated. The memory block should be freed with gnome_keyring_memory_free()
  */
 gpointer
 gnome_keyring_memory_try_realloc (gpointer p, gulong sz)
@@ -233,7 +234,7 @@ gnome_keyring_memory_try_realloc (gpointer p, gulong sz)
 }
 
 /**
- * gnome_keyring_memory_free:
+ * gnome_keyring_memory_free: (skip)
  * @p: The pointer to the beginning of the block of memory to free.
  *
  * Free a block of gnome-keyring non-pageable memory.
@@ -250,7 +251,7 @@ gnome_keyring_memory_free (gpointer p)
 }
 
 /**
- * gnome_keyring_memory_is_secure:
+ * gnome_keyring_memory_is_secure: (skip)
  * @p: The pointer to check
  *
  * Check if a pointer is in non-pageable memory allocated by gnome-keyring.
@@ -264,7 +265,7 @@ gnome_keyring_memory_is_secure (gpointer p)
 }
 
 /**
- * gnome_keyring_memory_strdup:
+ * gnome_keyring_memory_strdup: (skip)
  * @str: The null terminated string to copy
  *
  * Copy a string into non-pageable memory. If the input string is %NULL, then

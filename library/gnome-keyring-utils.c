@@ -139,7 +139,7 @@ gnome_keyring_free_password (gchar *password)
 
 /**
  * gnome_keyring_string_list_free:
- * @strings: A %GList of string pointers.
+ * @strings: (element-type utf8): A %GList of string pointers.
  *
  * Free a list of string pointers.
  **/
@@ -225,7 +225,7 @@ gnome_keyring_found_free (GnomeKeyringFound *found)
 
 /**
  * gnome_keyring_found_list_free:
- * @found_list: a #GList of #GnomeKeyringFound
+ * @found_list: (element-type GnomeKeyringFound): a #GList of #GnomeKeyringFound
  *
  * Free the memory used by the #GnomeKeyringFound items in @found_list.
  **/
@@ -329,7 +329,7 @@ gnome_keyring_attribute_list_free (GnomeKeyringAttributeList *attributes)
  *
  * Copy a list of item attributes.
  *
- * Return value: The new #GnomeKeyringAttributeList
+ * Return value: (transfer full): The new #GnomeKeyringAttributeList
  **/
 GnomeKeyringAttributeList *
 gnome_keyring_attribute_list_copy (GnomeKeyringAttributeList *attributes)
@@ -592,12 +592,14 @@ gnome_keyring_access_control_copy (GnomeKeyringAccessControl *ac)
 
 /**
  * gnome_keyring_acl_copy:
- * @list: A list of #GnomeKeyringAccessControl pointers.
+ * @list: (element-type GnomeKeyringAccessControl): A list of
+ *        #GnomeKeyringAccessControl pointers.
  *
  * Copy an access control list.
  *
- * Return value: A new list of #GnomeKeyringAccessControl items. Use
- * gnome_keyring_acl_free() to free the memory.
+ * Return value: (transfer full) (element-type GnomeKeyringAccessControl):
+ * A new list of #GnomeKeyringAccessControl items. Use gnome_keyring_acl_free()
+ * to free the memory.
  **/
 GList *
 gnome_keyring_acl_copy (GList *list)
@@ -614,7 +616,8 @@ gnome_keyring_acl_copy (GList *list)
 
 /**
  * gnome_keyring_acl_free:
- * @acl: A list of #GnomeKeyringAccessControl pointers.
+ * @acl: (element-type GnomeKeyringAccessControl): A list of
+ *       #GnomeKeyringAccessControl pointers.
  *
  * Free an access control list.
  **/

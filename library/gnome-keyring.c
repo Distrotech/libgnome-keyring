@@ -567,17 +567,19 @@ set_default_keyring_start (const gchar *keyring, GnomeKeyringOperationDoneCallba
 }
 
 /**
- * gnome_keyring_set_default_keyring:
+ * gnome_keyring_set_default_keyring: (skip)
  * @keyring: The keyring to make default
  * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @data: (allow-none): A pointer to arbitrary data that will be passed to the
+ *        @callback.
  * @destroy_data: A function to free @data when it's no longer needed.
  *
  * Change the default keyring.
  *
  * For a synchronous version of this function see gnome_keyring_set_default_keyring_sync().
  *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ * Return value: (transfer none): The asynchronous request, which can be passed
+ * to gnome_keyring_cancel_request().
  **/
 gpointer
 gnome_keyring_set_default_keyring (const gchar                             *keyring,
@@ -681,9 +683,10 @@ get_default_keyring_start (GnomeKeyringOperationGetStringCallback callback,
 }
 
 /**
- * gnome_keyring_get_default_keyring:
+ * gnome_keyring_get_default_keyring: (skip)
  * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @data: (allow-none): A pointer to arbitrary data that will be passed to the
+ *        @callback.
  * @destroy_data: A function to free @data when it's no longer needed.
  *
  * Get the default keyring name, which will be passed to the @callback. If no
@@ -692,7 +695,8 @@ get_default_keyring_start (GnomeKeyringOperationGetStringCallback callback,
  *
  * For a synchronous version of this function see gnome_keyring_get_default_keyring_sync().
  *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ * Return value: (transfer none): The asynchronous request, which can be passed
+ * to gnome_keyring_cancel_request().
  **/
 gpointer
 gnome_keyring_get_default_keyring (GnomeKeyringOperationGetStringCallback  callback,
@@ -709,7 +713,7 @@ gnome_keyring_get_default_keyring (GnomeKeyringOperationGetStringCallback  callb
 
 /**
  * gnome_keyring_get_default_keyring_sync:
- * @keyring: Location for the default keyring name to be returned.
+ * @keyring: (out): Location for the default keyring name to be returned.
  *
  * Get the default keyring name.
  *
@@ -802,9 +806,10 @@ list_keyring_names_start (GnomeKeyringOperationGetListCallback callback,
 }
 
 /**
- * gnome_keyring_list_keyring_names:
+ * gnome_keyring_list_keyring_names: (skip)
  * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @data: (allow-none): A pointer to arbitrary data that will be passed to the
+ *        @callback.
  * @destroy_data: A function to free @data when it's no longer needed.
  *
  * Get a list of keyring names.
@@ -815,7 +820,8 @@ list_keyring_names_start (GnomeKeyringOperationGetListCallback callback,
  *
  * For a synchronous version of this function see gnome_keyring_list_keyring_names_sync().
  *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ * Return value: (transfer none): The asynchronous request, which can be passed
+ * to gnome_keyring_cancel_request().
  **/
 gpointer
 gnome_keyring_list_keyring_names (GnomeKeyringOperationGetListCallback    callback,
@@ -832,7 +838,7 @@ gnome_keyring_list_keyring_names (GnomeKeyringOperationGetListCallback    callba
 
 /**
  * gnome_keyring_list_keyring_names_sync:
- * @keyrings: Location for a %GList of keyring names to be returned.
+ * @keyrings: (out) (element-type utf8): Location for a %GList of keyring names to be returned.
  *
  * Get a list of keyring names.
  *
@@ -877,9 +883,10 @@ lock_all_start (GnomeKeyringOperationDoneCallback callback,
 }
 
 /**
- * gnome_keyring_lock_all:
+ * gnome_keyring_lock_all: (skip)
  * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @data: (allow-none): A pointer to arbitrary data that will be passed to the
+ *        @callback.
  * @destroy_data: A function to free @data when it's no longer needed.
  *
  * Lock all the keyrings, so that their contents may not be accessed without
@@ -887,7 +894,8 @@ lock_all_start (GnomeKeyringOperationDoneCallback callback,
  *
  * For a synchronous version of this function see gnome_keyring_lock_all_sync().
  *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ * Return value: (transfer none): The asynchronous request, which can be passed
+ * to gnome_keyring_cancel_request().
  **/
 gpointer
 gnome_keyring_lock_all (GnomeKeyringOperationDoneCallback       callback,
@@ -1076,11 +1084,13 @@ create_keyring_start (const char *keyring_name, const char *password,
 }
 
 /**
- * gnome_keyring_create:
+ * gnome_keyring_create: (skip)
  * @keyring_name: The new keyring name. Must not be %NULL.
- * @password: The password for the new keyring. If %NULL user will be prompted.
+ * @password: (allow-none): The password for the new keyring. If %NULL user
+ *            will be prompted.
  * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @data: (allow-none): A pointer to arbitrary data that will be passed to the
+ *        @callback.
  * @destroy_data: A function to free @data when it's no longer needed.
  *
  * Create a new keyring with the specified name. In most cases %NULL will be
@@ -1089,7 +1099,8 @@ create_keyring_start (const char *keyring_name, const char *password,
  *
  * For a synchronous version of this function see gnome_keyring_create_sync().
  *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ * Return value: (transfer none): The asynchronous request, which can be passed
+ * to gnome_keyring_cancel_request().
  **/
 gpointer
 gnome_keyring_create (const char                                  *keyring_name,
@@ -1109,7 +1120,8 @@ gnome_keyring_create (const char                                  *keyring_name,
 /**
  * gnome_keyring_create_sync:
  * @keyring_name: The new keyring name. Must not be %NULL
- * @password: The password for the new keyring. If %NULL user will be prompted.
+ * @password: (allow-none): The password for the new keyring. If %NULL user
+ *            will be prompted.
  *
  * Create a new keyring with the specified name. In most cases %NULL will be
  * passed in as the @password, which will prompt the user to enter a password
@@ -1287,11 +1299,14 @@ unlock_keyring_start (const char *keyring, const char *password,
 }
 
 /**
- * gnome_keyring_unlock:
- * @keyring: The name of the keyring to unlock, or %NULL for the default keyring.
- * @password: The password to unlock the keyring with, or %NULL to prompt the user.
+ * gnome_keyring_unlock: (skip)
+ * @keyring: (allow-none): The name of the keyring to unlock, or %NULL for the
+ *           default keyring.
+ * @password: (allow-none): The password to unlock the keyring with, or %NULL
+ *            to prompt the user.
  * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @data: (allow-none): A pointer to arbitrary data that will be passed to the
+ *        @callback.
  * @destroy_data: A function to free @data when it's no longer needed.
  *
  * Unlock a @keyring, so that its contents may be accessed. In most cases %NULL
@@ -1303,7 +1318,8 @@ unlock_keyring_start (const char *keyring, const char *password,
  *
  * For a synchronous version of this function see gnome_keyring_unlock_sync().
  *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ * Return value: (transfer none): The asynchronous request, which can be passed
+ * to gnome_keyring_cancel_request().
  **/
 gpointer
 gnome_keyring_unlock (const char                                  *keyring,
@@ -1322,8 +1338,10 @@ gnome_keyring_unlock (const char                                  *keyring,
 
 /**
  * gnome_keyring_unlock_sync:
- * @keyring: The name of the keyring to unlock, or %NULL for the default keyring.
- * @password: The password to unlock the keyring with, or %NULL to prompt the user.
+ * @keyring: (allow-none): The name of the keyring to unlock, or %NULL for the
+ *           default keyring.
+ * @password: (allow-none): The password to unlock the keyring with, or %NULL
+ *            to prompt the user.
  *
  * Unlock a @keyring, so that its contents may be accessed. In most cases %NULL
  * will be passed in as the @password, which will prompt the user to enter the
@@ -1358,10 +1376,12 @@ lock_keyring_start (const char *keyring, GnomeKeyringOperationDoneCallback callb
 }
 
 /**
- * gnome_keyring_lock:
- * @keyring: The name of the keyring to lock, or %NULL for the default keyring.
+ * gnome_keyring_lock: (skip)
+ * @keyring: (allow-none): The name of the keyring to lock, or %NULL for the
+ *           default keyring.
  * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @data: (allow-none): A pointer to arbitrary data that will be passed to the
+ *        @callback.
  * @destroy_data: A function to free @data when it's no longer needed.
  *
  * Lock a @keyring, so that its contents may not be accessed without first
@@ -1372,7 +1392,8 @@ lock_keyring_start (const char *keyring, GnomeKeyringOperationDoneCallback callb
  *
  * For a synchronous version of this function see gnome_keyring_lock_sync().
  *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ * Return value: (transfer none): The asynchronous request, which can be passed
+ * to gnome_keyring_cancel_request().
  **/
 gpointer
 gnome_keyring_lock (const char                                  *keyring,
@@ -1390,7 +1411,8 @@ gnome_keyring_lock (const char                                  *keyring,
 
 /**
  * gnome_keyring_lock_sync:
- * @keyring: The name of the keyring to lock, or %NULL for the default keyring.
+ * @keyring: (allow-none): The name of the keyring to lock, or %NULL for the
+ *           default keyring.
  *
  * Lock a @keyring, so that its contents may not be accessed without first
  * supplying a password.
@@ -1437,10 +1459,11 @@ delete_keyring_start (const char *keyring, GnomeKeyringOperationDoneCallback cal
 }
 
 /**
- * gnome_keyring_delete:
+ * gnome_keyring_delete: (skip)
  * @keyring: The name of the keyring to delete. Cannot be %NULL.
  * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @data: (allow-none): A pointer to arbitrary data that will be passed to the
+ *        @callback.
  * @destroy_data: A function to free @data when it's no longer needed.
  *
  * Delete @keyring. Once a keyring is deleted there is no mechanism for
@@ -1448,7 +1471,8 @@ delete_keyring_start (const char *keyring, GnomeKeyringOperationDoneCallback cal
  *
  * For a synchronous version of this function see gnome_keyring_delete_sync().
  *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ * Return value: (transfer none): The asynchronous request, which can be passed
+ * to gnome_keyring_cancel_request().
  **/
 gpointer
 gnome_keyring_delete (const char                                  *keyring,
@@ -1618,12 +1642,15 @@ change_password_start (const char *keyring, const char *original, const char *pa
 }
 
 /**
- * gnome_keyring_change_password:
+ * gnome_keyring_change_password: (skip)
  * @keyring: The name of the keyring to change the password for. Cannot be %NULL.
- * @original: The old keyring password, or %NULL to prompt the user for it.
- * @password: The new keyring password, or %NULL to prompt the user for it.
+ * @original: (allow-none): The old keyring password, or %NULL to prompt the
+ *            user for it.
+ * @password: (allow-none): The new keyring password, or %NULL to prompt the
+ *            user for it.
  * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @data: (allow-none): A pointer to arbitrary data that will be passed to the
+ *        @callback.
  * @destroy_data: A function to free @data when it's no longer needed.
  *
  * Change the password for a @keyring. In most cases you would specify %NULL for
@@ -1632,7 +1659,8 @@ change_password_start (const char *keyring, const char *original, const char *pa
  *
  * For a synchronous version of this function see gnome_keyring_change_password_sync().
  *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ * Return value: (transfer none): The asynchronous request, which can be passed
+ * to gnome_keyring_cancel_request().
  **/
 gpointer
 gnome_keyring_change_password (const char                                  *keyring,
@@ -1654,8 +1682,10 @@ gnome_keyring_change_password (const char                                  *keyr
 /**
  * gnome_keyring_change_password_sync:
  * @keyring: The name of the keyring to change the password for. Cannot be %NULL
- * @original: The old keyring password, or %NULL to prompt the user for it.
- * @password: The new keyring password, or %NULL to prompt the user for it.
+ * @original: (allow-none): The old keyring password, or %NULL to prompt the
+ *            user for it.
+ * @password: (allow-none): The new keyring password, or %NULL to prompt the
+ *            user for it.
  *
  * Change the password for @keyring. In most cases you would specify %NULL for
  * both the @original and @password arguments and allow the user to type the
@@ -1761,10 +1791,12 @@ get_keyring_info_start (const char *keyring, GnomeKeyringOperationGetKeyringInfo
 }
 
 /**
- * gnome_keyring_get_info:
- * @keyring: The name of the keyring, or %NULL for the default keyring.
+ * gnome_keyring_get_info: (skip)
+ * @keyring: (allow-none): The name of the keyring, or %NULL for the default
+ *           keyring.
  * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @data: (allow-none): A pointer to arbitrary data that will be passed to the
+ *        @callback.
  * @destroy_data: A function to free @data when it's no longer needed.
  *
  * Get information about the @keyring. The resulting #GnomeKeyringInfo structure
@@ -1772,7 +1804,8 @@ get_keyring_info_start (const char *keyring, GnomeKeyringOperationGetKeyringInfo
  *
  * For a synchronous version of this function see gnome_keyring_get_info_sync().
  *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ * Return value: (transfer none): The asynchronous request, which can be passed
+ * to gnome_keyring_cancel_request().
  **/
 gpointer
 gnome_keyring_get_info (const char                                  *keyring,
@@ -1790,8 +1823,9 @@ gnome_keyring_get_info (const char                                  *keyring,
 
 /**
  * gnome_keyring_get_info_sync:
- * @keyring: The name of the keyring, or %NULL for the default keyring.
- * @info: Location for the information about the keyring to be returned.
+ * @keyring: (allow-none): The name of the keyring, or %NULL for the default
+ *           keyring.
+ * @info: (out): Location for the information about the keyring to be returned.
  *
  * Get information about @keyring.
  *
@@ -1844,11 +1878,13 @@ set_keyring_info_start (const char *keyring, GnomeKeyringInfo *info,
 }
 
 /**
- * gnome_keyring_set_info:
- * @keyring: The name of the keyring, or %NULL for the default keyring.
+ * gnome_keyring_set_info: (skip)
+ * @keyring: (allow-none): The name of the keyring, or %NULL for the default
+ *           keyring.
  * @info: A structure containing flags and info for the keyring.
  * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @data: (allow-none): A pointer to arbitrary data that will be passed to the
+ *        @callback.
  * @destroy_data: A function to free @data when it's no longer needed.
  *
  * Set flags and info for the @keyring. The only fields in @info that are used
@@ -1856,7 +1892,8 @@ set_keyring_info_start (const char *keyring, GnomeKeyringInfo *info,
  *
  * For a synchronous version of this function see gnome_keyring_set_info_sync().
  *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ * Return value: (transfer none): The asynchronous request, which can be passed
+ * to gnome_keyring_cancel_request().
  **/
 gpointer
 gnome_keyring_set_info (const char                                  *keyring,
@@ -1875,7 +1912,8 @@ gnome_keyring_set_info (const char                                  *keyring,
 
 /**
  * gnome_keyring_set_info_sync:
- * @keyring: The name of the keyring, or %NULL for the default keyring.
+ * @keyring: (allow-none): The name of the keyring, or %NULL for the default
+ *           keyring.
  * @info: A structure containing flags and info for the keyring.
  *
  * Set flags and info for @keyring. The only fields in @info that are used
@@ -1982,10 +2020,12 @@ list_item_ids_start (const char *keyring, GnomeKeyringOperationGetListCallback c
 }
 
 /**
- * gnome_keyring_list_item_ids:
- * @keyring: The name of the keyring, or %NULL for the default keyring.
+ * gnome_keyring_list_item_ids: (skip)
+ * @keyring: (allow-none): The name of the keyring, or %NULL for the default
+ *           keyring.
  * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @data: (allow-none): A pointer to arbitrary data that will be passed to the
+ *        @callback.
  * @destroy_data: A function to free @data when it's no longer needed.
  *
  * Get a list of all the ids for items in @keyring. These are passed in a %GList
@@ -1998,7 +2038,8 @@ list_item_ids_start (const char *keyring, GnomeKeyringOperationGetListCallback c
  *
  * For a synchronous version of this function see gnome_keyring_list_item_ids_sync().
  *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ * Return value: (transfer none): The asynchronous request, which can be passed
+ * to gnome_keyring_cancel_request().
  **/
 gpointer
 gnome_keyring_list_item_ids (const char                                  *keyring,
@@ -2016,8 +2057,10 @@ gnome_keyring_list_item_ids (const char                                  *keyrin
 
 /**
  * gnome_keyring_list_item_ids_sync:
- * @keyring: The name of the keyring, or %NULL for the default keyring.
- * @ids: The location to store a %GList of item ids (ie: unsigned integers).
+ * @keyring: (allow-none): The name of the keyring, or %NULL for the default
+ *           keyring.
+ * @ids: (out) (element-type guint): The location to store a %GList of item ids
+ *       (ie: unsigned integers).
  *
  * Get a list of all the ids for items in @keyring.
  *
@@ -2429,11 +2472,12 @@ find_items_start (GnomeKeyringItemType type, GnomeKeyringAttributeList *attribut
 }
 
 /**
- * gnome_keyring_find_items:
+ * gnome_keyring_find_items: (skip)
  * @type: The type of items to find.
  * @attributes: A list of attributes to search for. This cannot be an empty list.
  * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @data: (allow-none): A pointer to arbitrary data that will be passed to the
+ *        @callback.
  * @destroy_data: A function to free @data when it's no longer needed.
  *
  * Searches through all keyrings for items that match the @attributes. The matches
@@ -2447,7 +2491,8 @@ find_items_start (GnomeKeyringItemType type, GnomeKeyringAttributeList *attribut
  *
  * For a synchronous version of this function see gnome_keyring_find_items_sync().
  *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ * Return value: (transfer none): The asynchronous request, which can be passed
+ * to gnome_keyring_cancel_request().
  **/
 gpointer
 gnome_keyring_find_items  (GnomeKeyringItemType                  type,
@@ -2497,12 +2542,13 @@ make_attribute_list_va (va_list args)
 }
 
 /**
- * gnome_keyring_find_itemsv:
+ * gnome_keyring_find_itemsv: (skip)
  * @type: The type of items to find.
  * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @data: (allow-none): A pointer to arbitrary data that will be passed to the
+ *        @callback.
  * @destroy_data: A function to free @data when it's no longer needed.
- * @...: Attribute name, followed by the attribute type, and string or 32-bit unsigned int value. Terminated with NULL.
+ * @...: Attribute name, followed by the attribute type, and string or 32-bit unsigned int value. Terminated with %NULL.
  *
  * Searches through all keyrings for items that match the specified attributes.
  * The matches are for exact equality.
@@ -2521,7 +2567,8 @@ make_attribute_list_va (va_list args)
  *
  * For a synchronous version of this function see gnome_keyring_find_itemsv_sync().
  *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ * Return value: (transfer none): The asynchronous request, which can be passed
+ * to gnome_keyring_cancel_request().
  **/
 gpointer
 gnome_keyring_find_itemsv (GnomeKeyringItemType                  type,
@@ -2549,7 +2596,8 @@ gnome_keyring_find_itemsv (GnomeKeyringItemType                  type,
  * gnome_keyring_find_items_sync:
  * @type: The type of items to find.
  * @attributes: A list of attributes to search for. This cannot be an empty list.
- * @found: The location to return a list of #GnomeKeyringFound pointers.
+ * @found: (out) (element-type GnomeKeyringFound): The location to return a
+ *         list of #GnomeKeyringFound pointers.
  *
  * Searches through all keyrings for items that match the @attributes and @type.
  * The matches are for exact equality.
@@ -2580,10 +2628,11 @@ gnome_keyring_find_items_sync (GnomeKeyringItemType        type,
 }
 
 /**
- * gnome_keyring_find_itemsv_sync:
+ * gnome_keyring_find_itemsv_sync: (skip)
  * @type: The type of items to find.
- * @found: The location to return a list of #GnomeKeyringFound pointers.
- * @...: Attribute name, followed by the attribute type, and string or 32-bit unsigned int value. Terminated with NULL.
+ * @found: (out) (element-type GnomeKeyringFound): The location to return a
+ *         list of #GnomeKeyringFound pointers.
+ * @...: Attribute name, followed by the attribute type, and string or 32-bit unsigned int value. Terminated with %NULL.
  *
  * Searches through all keyrings for items that match the @attributes and @type.
  * The matches are for exact equality.
@@ -2592,7 +2641,7 @@ gnome_keyring_find_items_sync (GnomeKeyringItemType        type,
  * terminated string, followed by b) The attribute type, either
  * %GNOME_KEYRING_ATTRIBUTE_TYPE_STRING or %GNOME_KEYRING_ATTRIBUTE_TYPE_UINT32
  * and then the c) attribute value, either a character string, or 32-bit
- * unsigned int. The list should be terminated with a NULL.
+ * unsigned int. The list should be terminated with a %NULL.
  *
  * A %GList of GnomeKeyringFound structures is returned in @found. The list may
  * have zero items if nothing matched the criteria. The list should be freed
@@ -2984,8 +3033,9 @@ item_create_start (const char *keyring, GnomeKeyringItemType type, const char *d
 }
 
 /**
- * gnome_keyring_item_create:
- * @keyring: The name of the keyring in which to create the item, or NULL for the default keyring.
+ * gnome_keyring_item_create: (skip)
+ * @keyring: (allow-none): The name of the keyring in which to create the item,
+ *           or %NULL for the default keyring.
  * @type: The item type.
  * @display_name: The name of the item. This will be displayed to the user where necessary.
  * @attributes: A (possibly empty) list of attributes to store with the item.
@@ -2993,7 +3043,8 @@ item_create_start (const char *keyring, GnomeKeyringItemType type, const char *d
  * @update_if_exists: If true, then another item matching the type, and attributes
  *  will be updated instead of creating a new item.
  * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @data: (allow-none): A pointer to arbitrary data that will be passed to the
+ *        @callback.
  * @destroy_data: A function to free @data when it's no longer needed.
  *
  * Create a new item in a keyring.
@@ -3013,7 +3064,8 @@ item_create_start (const char *keyring, GnomeKeyringItemType type, const char *d
  *
  * For a synchronous version of this function see gnome_keyring_item_create_sync().
  *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ * Return value: (transfer none): The asynchronous request, which can be passed
+ * to gnome_keyring_cancel_request().
  **/
 gpointer
 gnome_keyring_item_create (const char                          *keyring,
@@ -3037,14 +3089,15 @@ gnome_keyring_item_create (const char                          *keyring,
 
 /**
  * gnome_keyring_item_create_sync:
- * @keyring: The name of the keyring in which to create the item, or NULL for the default keyring.
+ * @keyring: (allow-none): The name of the keyring in which to create the item,
+ *           or %NULL for the default keyring.
  * @type: The item type.
  * @display_name: The name of the item. This will be displayed to the user where necessary.
  * @attributes: A (possibly empty) list of attributes to store with the item.
  * @secret: The password or secret of the item.
  * @update_if_exists: If true, then another item matching the type, and attributes
  *  will be updated instead of creating a new item.
- * @item_id: return location for the id of the created/updated keyring item.
+ * @item_id: (out): return location for the id of the created/updated keyring item.
  *
  * Create a new item in a keyring.
  *
@@ -3101,11 +3154,12 @@ item_delete_start (const char *keyring, guint32 id, GnomeKeyringOperationDoneCal
 }
 
 /**
- * gnome_keyring_item_delete:
- * @keyring: The name of the keyring from which to delete the item, or NULL for the default keyring.
+ * gnome_keyring_item_delete: (skip)
+ * @keyring: (allow-none): The name of the keyring from which to delete the
+ *           item, or %NULL for the default keyring.
  * @id: The id of the item
  * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @data: (allow-none): A pointer to arbitrary data that will be passed to the @callback.
  * @destroy_data: A function to free @data when it's no longer needed.
  *
  * Delete an item in a keyring.
@@ -3115,7 +3169,8 @@ item_delete_start (const char *keyring, guint32 id, GnomeKeyringOperationDoneCal
  *
  * For an asynchronous version of this function see gnome_keyring_delete().
  *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ * Return value: (transfer none): The asynchronous request, which can be passed
+ * to gnome_keyring_cancel_request().
  **/
 gpointer
 gnome_keyring_item_delete (const char                                 *keyring,
@@ -3134,7 +3189,8 @@ gnome_keyring_item_delete (const char                                 *keyring,
 
 /**
  * gnome_keyring_item_delete_sync:
- * @keyring: The name of the keyring from which to delete the item, or NULL for the default keyring.
+ * @keyring: (allow-none): The name of the keyring from which to delete the
+ *           item, or %NULL for the default keyring.
  * @id: The id of the item
  *
  * Delete an item in a keyring.
@@ -3160,11 +3216,12 @@ gnome_keyring_item_delete_sync (const char *keyring,
 }
 
 /**
- * gnome_keyring_item_get_info:
- * @keyring: The name of the keyring in which the item exists, or NULL for the default keyring.
+ * gnome_keyring_item_get_info: (skip)
+ * @keyring: (allow-none): The name of the keyring in which the item exists, or
+ *           %NULL for the default keyring.
  * @id: The id of the item
  * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @data: (allow-none): A pointer to arbitrary data that will be passed to the @callback.
  * @destroy_data: A function to free @data when it's no longer needed.
  *
  * Get information about an item and its secret.
@@ -3177,7 +3234,8 @@ gnome_keyring_item_delete_sync (const char *keyring,
  *
  * For a synchronous version of this function see gnome_keyring_item_get_info_sync().
  *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ * Return value: (transfer none): The asynchronous request, which can be passed
+ * to gnome_keyring_cancel_request().
  **/
 gpointer
 gnome_keyring_item_get_info (const char                                 *keyring,
@@ -3194,9 +3252,10 @@ gnome_keyring_item_get_info (const char                                 *keyring
 
 /**
  * gnome_keyring_item_get_info_sync:
- * @keyring: The name of the keyring in which the item exists, or NULL for the default keyring.
+ * @keyring: (allow-none): The name of the keyring in which the item exists, or
+ *           %NULL for the default keyring.
  * @id: The id of the item
- * @info: The location to return a #GnomeKeyringItemInfo pointer.
+ * @info: (out): The location to return a #GnomeKeyringItemInfo pointer.
  *
  * Get information about an item and its secret.
  *
@@ -3398,12 +3457,14 @@ item_get_info_start (const char *keyring, guint32 id, guint32 flags,
 }
 
 /**
- * gnome_keyring_item_get_info_full:
- * @keyring: The name of the keyring in which the item exists, or NULL for the default keyring.
+ * gnome_keyring_item_get_info_full: (skip)
+ * @keyring: (allow-none): The name of the keyring in which the item exists, or
+ *           %NULL for the default keyring.
  * @id: The id of the item
  * @flags: The parts of the item to retrieve.
  * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @data: (allow-none): A pointer to arbitrary data that will be passed to the
+ *        @callback.
  * @destroy_data: A function to free @data when it's no longer needed.
  *
  * Get information about an item, optionally retrieving its secret.
@@ -3413,12 +3474,13 @@ item_get_info_start (const char *keyring, guint32 id, guint32 flags,
  * the item with its secret.
  *
  * A #GnomeKeyringItemInfo pointer will be passed to the @callback. Certain fields
- * of this structure may be NULL or zero if they were not specified in @flags. This
+ * of this structure may be %NULL or zero if they were not specified in @flags. This
  * structure will be freed after @callback returns.
  *
  * For a synchronous version of this function see gnome_keyring_item_get_info_full_sync().
  *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ * Return value: (transfer none): The asynchronous request, which can be passed
+ * to gnome_keyring_cancel_request().
  **/
 gpointer
 gnome_keyring_item_get_info_full (const char                                 *keyring,
@@ -3438,10 +3500,11 @@ gnome_keyring_item_get_info_full (const char                                 *ke
 
 /**
  * gnome_keyring_item_get_info_full_sync:
- * @keyring: The name of the keyring in which the item exists, or NULL for the default keyring.
+ * @keyring: (allow-none): The name of the keyring in which the item exists, or
+ *           %NULL for the default keyring.
  * @id: The id of the item
  * @flags: The parts of the item to retrieve.
- * @info: The location to return a #GnomeKeyringItemInfo pointer.
+ * @info: (out): The location to return a #GnomeKeyringItemInfo pointer.
  *
  * Get information about an item, optionally retrieving its secret.
  *
@@ -3450,7 +3513,7 @@ gnome_keyring_item_get_info_full (const char                                 *ke
  * the item with its secret.
  *
  * A #GnomeKeyringItemInfo structure will be returned in @info. Certain fields
- * of this structure may be NULL or zero if they were not specified in @flags.
+ * of this structure may be %NULL or zero if they were not specified in @flags.
  * This must be freed using gnome_keyring_item_info_free().
  *
  * For an asynchronous version of this function see gnome_keyring_item_get_info_full().
@@ -3604,12 +3667,14 @@ item_set_info_start (const char *keyring, guint32 id, GnomeKeyringItemInfo *info
 }
 
 /**
- * gnome_keyring_item_set_info:
- * @keyring: The name of the keyring in which the item exists, or NULL for the default keyring.
+ * gnome_keyring_item_set_info: (skip)
+ * @keyring: (allow-none): The name of the keyring in which the item exists, or
+ *           %NULL for the default keyring.
  * @id: The id of the item
  * @info: The item info to save into the item.
  * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @data: (allow-none): A pointer to arbitrary data that will be passed to the
+ *        @callback.
  * @destroy_data: A function to free @data when it's no longer needed.
  *
  * Set information on an item, like its display name, secret etc...
@@ -3619,7 +3684,8 @@ item_set_info_start (const char *keyring, guint32 id, GnomeKeyringItemInfo *info
  *
  * For a synchronous version of this function see gnome_keyring_item_set_info_sync().
  *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ * Return value: (transfer none): The asynchronous request, which can be passed
+ * to gnome_keyring_cancel_request().
  **/
 gpointer
 gnome_keyring_item_set_info (const char                                 *keyring,
@@ -3639,7 +3705,8 @@ gnome_keyring_item_set_info (const char                                 *keyring
 
 /**
  * gnome_keyring_item_set_info_sync:
- * @keyring: The name of the keyring in which the item exists, or NULL for the default keyring.
+ * @keyring: (allow-none): The name of the keyring in which the item exists, or
+ *           %NULL for the default keyring.
  * @id: The id of the item
  * @info: The item info to save into the item.
  *
@@ -3719,11 +3786,13 @@ item_get_attributes_start (const char *keyring, guint32 id,
 }
 
 /**
- * gnome_keyring_item_get_attributes:
- * @keyring: The name of the keyring in which the item exists, or NULL for the default keyring.
+ * gnome_keyring_item_get_attributes: (skip)
+ * @keyring: (allow-none): The name of the keyring in which the item exists, or
+ *           %NULL for the default keyring.
  * @id: The id of the item
  * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @data: (allow-none): A pointer to arbitrary data that will be passed to the
+ *        @callback.
  * @destroy_data: A function to free @data when it's no longer needed.
  *
  * Get all the attributes for an item.
@@ -3733,7 +3802,8 @@ item_get_attributes_start (const char *keyring, guint32 id,
  *
  * For a synchronous version of this function see gnome_keyring_item_get_attributes_sync().
  *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ * Return value: (transfer none): The asynchronous request, which can be passed
+ * to gnome_keyring_cancel_request().
  **/
 gpointer
 gnome_keyring_item_get_attributes (const char                                 *keyring,
@@ -3750,9 +3820,12 @@ gnome_keyring_item_get_attributes (const char                                 *k
 	return gkr_operation_pending_and_unref (op);
 }
 
+/*FIXME: @attributes is (out), but GI scanner crashes on this */
+
 /**
  * gnome_keyring_item_get_attributes_sync:
- * @keyring: The name of the keyring in which the item exists, or NULL for the default keyring.
+ * @keyring: (allow-none): The name of the keyring in which the item exists, or
+ *           %NULL for the default keyring.
  * @id: The id of the item
  * @attributes: The location to return a pointer to the attribute list.
  *
@@ -3825,12 +3898,14 @@ item_set_attributes_start (const char *keyring, guint32 id, GnomeKeyringAttribut
 }
 
 /**
- * gnome_keyring_item_set_attributes:
- * @keyring: The name of the keyring in which the item exists, or NULL for the default keyring.
+ * gnome_keyring_item_set_attributes: (skip)
+ * @keyring: (allow-none): The name of the keyring in which the item exists, or
+ *           %NULL for the default keyring.
  * @id: The id of the item
  * @attributes: The full list of attributes to set on the item.
  * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @data: (allow-none): A pointer to arbitrary data that will be passed to the
+ *        @callback.
  * @destroy_data: A function to free @data when it's no longer needed.
  *
  * Set all the attributes for an item. This will replace any previous attributes
@@ -3838,7 +3913,8 @@ item_set_attributes_start (const char *keyring, guint32 id, GnomeKeyringAttribut
  *
  * For a synchronous version of this function see gnome_keyring_item_set_attributes_sync().
  *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ * Return value: (transfer none): The asynchronous request, which can be passed
+ * to gnome_keyring_cancel_request().
  **/
 gpointer
 gnome_keyring_item_set_attributes (const char                                 *keyring,
@@ -3858,7 +3934,8 @@ gnome_keyring_item_set_attributes (const char                                 *k
 
 /**
  * gnome_keyring_item_set_attributes_sync:
- * @keyring: The name of the keyring in which the item exists, or NULL for the default keyring.
+ * @keyring: (allow-none): The name of the keyring in which the item exists, or
+ *           %NULL for the default keyring.
  * @id: The id of the item
  * @attributes: The full list of attributes to set on the item.
  *
@@ -3891,14 +3968,17 @@ item_get_acl_reply (GnomeKeyringResult res, gpointer user_data)
 }
 
 /**
- * gnome_keyring_item_get_acl:
- * @keyring: The name of the keyring in which the item exists, or NULL for the default keyring.
+ * gnome_keyring_item_get_acl: (skip)
+ * @keyring: (allow-none): The name of the keyring in which the item exists, or
+ *           %NULL for the default keyring.
  * @id: The id of the item
  * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @data: (allow-none): A pointer to arbitrary data that will be passed to the
+ *        @callback.
  * @destroy_data: A function to free @data when it's no longer needed.
  *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ * Return value: (transfer none): The asynchronous request, which can be passed
+ * to gnome_keyring_cancel_request().
  *
  * Deprecated: Never returns any ACL values.
  */
@@ -3922,9 +4002,11 @@ gnome_keyring_item_get_acl (const char                                 *keyring,
 
 /**
  * gnome_keyring_item_get_acl_sync:
- * @keyring: The name of the keyring in which the item exists, or NULL for the default keyring.
+ * @keyring: (allow-none): The name of the keyring in which the item exists, or
+ *           %NULL for the default keyring.
  * @id: The id of the item
- * @acl: The location to return a pointer to the access control list.
+ * @acl: (out) (element-type GnomeKeyringAccessControl): The location to return
+ * a pointer to the access control list.
  *
  * Return value: Always %GNOME_KEYRING_RESULT_OK.
  *
@@ -3941,15 +4023,19 @@ gnome_keyring_item_get_acl_sync (const char  *keyring,
 }
 
 /**
- * gnome_keyring_item_set_acl:
- * @keyring: The name of the keyring in which the item exists, or NULL for the default keyring.
+ * gnome_keyring_item_set_acl: (skip)
+ * @keyring: (allow-none): The name of the keyring in which the item exists, or
+ *           %NULL for the default keyring.
  * @id: The id of the item
- * @acl: The access control list to set on the item.
+ * @acl: (element-type GnomeKeyringAccessControl): The access control list to
+ *       set on the item.
  * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @data: (allow-none): A pointer to arbitrary data that will be passed to the
+ *        @callback.
  * @destroy_data: A function to free @data when it's no longer needed.
  *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ * Return value: (transfer none): The asynchronous request, which can be passed
+ * to gnome_keyring_cancel_request().
  *
  * Deprecated: This function no longer has any effect.
  **/
@@ -3972,9 +4058,11 @@ gnome_keyring_item_set_acl (const char                                 *keyring,
 
 /**
  * gnome_keyring_item_set_acl_sync:
- * @keyring: The name of the keyring in which the item exists, or NULL for the default keyring.
+ * @keyring: (allow-none): The name of the keyring in which the item exists, or
+ *           %NULL for the default keyring.
  * @id: The id of the item
- * @acl: The access control list to set on the item.
+ * @acl: (element-type GnomeKeyringAccessControl): The access control list to
+ *       set on the item.
  *
  * Return value: %GNOME_KEYRING_RESULT_OK if the operation was succcessful or
  * an error result otherwise.
@@ -3990,17 +4078,19 @@ gnome_keyring_item_set_acl_sync (const char *keyring,
 }
 
 /**
- * gnome_keyring_item_grant_access_rights:
- * @keyring: The keyring name, or NULL for the default keyring.
+ * gnome_keyring_item_grant_access_rights: (skip)
+ * @keyring: (allow-none): The keyring name, or %NULL for the default keyring.
  * @display_name: The display name for the application, as returned by g_get_application_name().
  * @full_path: The full filepath to the application.
  * @id: The id of the item to grant access to.
  * @rights: The type of rights to grant.
  * @callback: Callback which is called when the operation completes
- * @data: Data to be passed to callback
+ * @data: (allow-none): Data to be passed to callback
  * @destroy_data: Function to be called when data is no longer needed.
  *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ * Return value: (transfer none): The asynchronous request, which can be passed
+ * to gnome_keyring_cancel_request().
+ *
  * Since: 2.20
  *
  * Deprecated: This function no longer has any effect.
@@ -4026,7 +4116,7 @@ gnome_keyring_item_grant_access_rights (const gchar *keyring,
 
 /**
  * gnome_keyring_item_grant_access_rights_sync:
- * @keyring: The keyring name, or NULL for the default keyring.
+ * @keyring: (allow-none): The keyring name, or %NULL for the default keyring.
  * @display_name: The display name for the application, as returned by g_get_application_name().
  * @full_path: The full filepath to the application.
  * @id: The id of the item to grant access to.
@@ -4065,7 +4155,7 @@ gnome_keyring_item_grant_access_rights_sync (const char                   *keyri
 
 /**
  * gnome_keyring_network_password_free:
- * @data: A #GnomeKeyringNetworkPasswordData pointer.
+ * @data: (allow-none): A #GnomeKeyringNetworkPasswordData pointer.
  *
  * Free a network password data pointer. If %NULL is passed in,
  * nothing happens.
@@ -4090,7 +4180,8 @@ gnome_keyring_network_password_free (GnomeKeyringNetworkPasswordData *data)
 
 /**
  * gnome_keyring_network_password_list_free:
- * @list: A list of #GnomeKeyringNetworkPasswordData pointers.
+ * @list: (element-type GnomeKeyringNetworkPasswordData): A list of
+ *        #GnomeKeyringNetworkPasswordData pointers.
  *
  * Free a list of network password data.
  **/
@@ -4220,16 +4311,16 @@ find_network_password_start (const char *user, const char *domain, const char *s
 }
 
 /**
- * gnome_keyring_find_network_password:
- * @user: The user name or %NULL for any user.
- * @domain: The domain name %NULL for any domain.
- * @server: The server or %NULL for any server.
- * @object: The remote object or %NULL for any object.
- * @protocol: The network protorol or %NULL for any protocol.
- * @authtype: The authentication type or %NULL for any type.
+ * gnome_keyring_find_network_password: (skip)
+ * @user: (allow-none): The user name or %NULL for any user.
+ * @domain: (allow-none): The domain name or %NULL for any domain.
+ * @server: (allow-none): The server or %NULL for any server.
+ * @object: (allow-none): The remote object or %NULL for any object.
+ * @protocol: (allow-none): The network protocol or %NULL for any protocol.
+ * @authtype: (allow-none): The authentication type or %NULL for any type.
  * @port: The network port or zero for any port.
  * @callback: Callback which is called when the operation completes
- * @data: Data to be passed to callback
+ * @data: (allow-none): Data to be passed to callback
  * @destroy_data: Function to be called when data is no longer needed.
  *
  * Find a previously stored network password. Searches all keyrings.
@@ -4242,7 +4333,8 @@ find_network_password_start (const char *user, const char *domain, const char *s
  *
  * Network passwords are items with the item type %GNOME_KEYRING_ITEM_NETWORK_PASSWORD
  *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ * Return value: (transfer none): The asynchronous request, which can be passed
+ * to gnome_keyring_cancel_request().
  **/
 gpointer
 gnome_keyring_find_network_password      (const char                            *user,
@@ -4267,14 +4359,15 @@ gnome_keyring_find_network_password      (const char                            
 
 /**
  * gnome_keyring_find_network_password_sync:
- * @user: The user name or %NULL.
- * @domain: The domain name %NULL.
- * @server: The server or %NULL.
- * @object: The remote object or %NULL.
- * @protocol: The network protorol or %NULL.
- * @authtype: The authentication type or %NULL.
+ * @user: (allow-none): The user name or %NULL.
+ * @domain: (allow-none): The domain name or %NULL.
+ * @server: (allow-none): The server or %NULL.
+ * @object: (allow-none): The remote object or %NULL.
+ * @protocol: (allow-none): The network protocol or %NULL.
+ * @authtype: (allow-none): The authentication type or %NULL.
  * @port: The network port or zero.
- * @results: A location to return a %GList of #GnomeKeyringNetworkPasswordData pointers.
+ * @results: (out) (element-type GnomeKeyringNetworkPasswordData): A location
+ *           to return a %GList of #GnomeKeyringNetworkPasswordData pointers.
  *
  * Find a previously stored network password. Searches all keyrings.
  *
@@ -4367,18 +4460,19 @@ set_network_password_start (const char *keyring, const char *user, const char *d
 }
 
 /**
- * gnome_keyring_set_network_password:
- * @keyring: The keyring to store the password in, or %NULL for the default keyring.
- * @user: The user name or %NULL.
- * @domain: The domain name %NULL.
- * @server: The server or %NULL.
- * @object: The remote object or %NULL.
- * @protocol: The network protorol or %NULL.
- * @authtype: The authentication type or %NULL.
+ * gnome_keyring_set_network_password: (skip)
+ * @keyring: (allow-none): The keyring to store the password in, or %NULL for
+ *           the default keyring.
+ * @user: (allow-none): The user name or %NULL.
+ * @domain: (allow-none): The domain name or %NULL.
+ * @server: (allow-none): The server or %NULL.
+ * @object: (allow-none): The remote object or %NULL.
+ * @protocol: (allow-none): The network protocol or %NULL.
+ * @authtype: (allow-none): The authentication type or %NULL.
  * @port: The network port or zero.
  * @password: The password to store, must not be %NULL.
  * @callback: Callback which is called when the operation completes
- * @data: Data to be passed to callback
+ * @data: (allow-none): Data to be passed to callback
  * @destroy_data: Function to be called when data is no longer needed.
  *
  * Store a network password.
@@ -4391,7 +4485,8 @@ set_network_password_start (const char *keyring, const char *user, const char *d
  *
  * Network passwords are items with the item type %GNOME_KEYRING_ITEM_NETWORK_PASSWORD
  *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ * Return value: (transfer none): The asynchronous request, which can be passed
+ * to gnome_keyring_cancel_request().
  **/
 gpointer
 gnome_keyring_set_network_password      (const char                            *keyring,
@@ -4418,16 +4513,17 @@ gnome_keyring_set_network_password      (const char                            *
 
 /**
  * gnome_keyring_set_network_password_sync:
- * @keyring: The keyring to store the password in, or %NULL for the default keyring.
- * @user: The user name or %NULL.
- * @domain: The domain name %NULL.
- * @server: The server or %NULL.
- * @object: The remote object or %NULL.
- * @protocol: The network protorol or %NULL.
- * @authtype: The authentication type or %NULL.
+ * @keyring: (allow-none): The keyring to store the password in, or %NULL for
+ *           the default keyring.
+ * @user: (allow-none): The user name or %NULL.
+ * @domain: (allow-none): The domain name or %NULL.
+ * @server: (allow-none): The server or %NULL.
+ * @object: (allow-none): The remote object or %NULL.
+ * @protocol: (allow-none): The network protocol or %NULL.
+ * @authtype: (allow-none): The authentication type or %NULL.
  * @port: The network port or zero.
  * @password: The password to store, must not be %NULL.
- * @item_id: A location to store the resulting item's id.
+ * @item_id: (out): A location to store the resulting item's id.
  *
  * Store a network password.
  *
@@ -4625,14 +4721,16 @@ store_password_filter (GnomeKeyringResult res, guint32 item_id, gpointer user_da
 }
 
 /**
- * gnome_keyring_store_password:
+ * gnome_keyring_store_password: (skip)
  * @schema: The password schema.
- * @keyring: The keyring to store the password in. Specify %NULL for the default keyring.
- *           Use %GNOME_KEYRING_SESSION to store the password in memory only.
+ * @keyring: (allow-none): The keyring to store the password in. Specify %NULL
+ *           for the default keyring. Use %GNOME_KEYRING_SESSION to store the
+ *           password in memory only.
  * @display_name: A human readable description of what the password is for.
  * @password: The password to store.
  * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @data: (allow-none): A pointer to arbitrary data that will be passed to the
+ *        @callback.
  * @destroy_data: A function to free @data when it's no longer needed.
  * @...: The variable argument list should contain pairs of a) The attribute name as a null
  *       terminated string, followed by b) attribute value, either a character string,
@@ -4649,7 +4747,9 @@ store_password_filter (GnomeKeyringResult res, guint32 item_id, gpointer user_da
  *
  * Another more complex way to create a keyring item is using gnome_keyring_item_create().
  *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ * Return value: (transfer none): The asynchronous request, which can be passed
+ * to gnome_keyring_cancel_request().
+ *
  * Since: 2.22
  **/
 gpointer
@@ -4678,10 +4778,11 @@ gnome_keyring_store_password (const GnomeKeyringPasswordSchema* schema, const gc
 }
 
 /**
- * gnome_keyring_store_password_sync:
+ * gnome_keyring_store_password_sync: (skip)
  * @schema: The password schema.
- * @keyring: The keyring to store the password in. Specify %NULL for the default keyring.
- *           Use %GNOME_KEYRING_SESSION to store the password in memory only.
+ * @keyring: (allow-none): The keyring to store the password in. Specify %NULL
+ *           for the default keyring. Use %GNOME_KEYRING_SESSION to store the
+ *           password in memory only.
  * @display_name: A human readable description of what the password is for.
  * @password: The password to store.
  * @...: The variable argument list should contain pairs of a) The attribute name as a null
@@ -4705,6 +4806,7 @@ gnome_keyring_store_password (const GnomeKeyringPasswordSchema* schema, const gc
  *
  * Return value: %GNOME_KEYRING_RESULT_OK if the operation was succcessful or
  * an error result otherwise.
+ *
  * Since: 2.22
  **/
 GnomeKeyringResult
@@ -4934,10 +5036,11 @@ find_password_va_start (const GnomeKeyringPasswordSchema* schema, va_list va,
 }
 
 /**
- * gnome_keyring_find_password:
+ * gnome_keyring_find_password: (skip)
  * @schema: The password schema.
  * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @data: (allow-none): A pointer to arbitrary data that will be passed to the
+ *        @callback.
  * @destroy_data: A function to free @data when it's no longer needed.
  * @...: The variable argument list should contain pairs of a) The attribute name as a null
  *       terminated string, followed by b) attribute value, either a character string,
@@ -4955,7 +5058,9 @@ find_password_va_start (const GnomeKeyringPasswordSchema* schema, va_list va,
  * Another more complex way to find items in the keyrings is using
  * gnome_keyring_find_items().
  *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ * Return value: (transfer none): The asynchronous request, which can be passed
+ * to gnome_keyring_cancel_request().
+ *
  * Since: 2.22
  **/
 gpointer
@@ -4990,10 +5095,10 @@ gnome_keyring_find_password (const GnomeKeyringPasswordSchema* schema,
  */
 
 /**
- * gnome_keyring_find_password_sync:
+ * gnome_keyring_find_password_sync: (skip)
  * @schema: The password schema.
- * @password: An address to store password that was found. The password must
- *            be freed with gnome_keyring_free_password().
+ * @password: (out): An address to store password that was found. The password
+ *            must be freed with gnome_keyring_free_password().
  * @...: The variable argument list should contain pairs of a) The attribute name as a null
  *       terminated string, followed by b) attribute value, either a character string,
  *       or 32-bit unsigned int, as defined in the password @schema. The list of attribtues
@@ -5012,6 +5117,7 @@ gnome_keyring_find_password (const GnomeKeyringPasswordSchema* schema,
  *
  * Return value: %GNOME_KEYRING_RESULT_OK if the operation was succcessful or
  * an error result otherwise.
+ *
  * Since: 2.22
  **/
 GnomeKeyringResult
@@ -5075,10 +5181,11 @@ delete_password_va_start (const GnomeKeyringPasswordSchema* schema, va_list va,
 }
 
 /**
- * gnome_keyring_delete_password:
+ * gnome_keyring_delete_password: (skip)
  * @schema: The password schema.
  * @callback: A callback which will be called when the request completes or fails.
- * @data: A pointer to arbitrary data that will be passed to the @callback.
+ * @data: (allow-none): A pointer to arbitrary data that will be passed to the
+ *        @callback.
  * @destroy_data: A function to free @data when it's no longer needed.
  * @...: The variable argument list should contain pairs of a) The attribute name as a null
  *       terminated string, followed by b) attribute value, either a character string,
@@ -5093,7 +5200,9 @@ delete_password_va_start (const GnomeKeyringPasswordSchema* schema, va_list va,
  * Another more complex way to find items in the keyrings is using
  * gnome_keyring_item_delete().
  *
- * Return value: The asychronous request, which can be passed to gnome_keyring_cancel_request().
+ * Return value: (transfer none): The asynchronous request, which can be passed
+ * to gnome_keyring_cancel_request().
+ *
  * Since: 2.22
  **/
 gpointer
@@ -5117,7 +5226,7 @@ gnome_keyring_delete_password (const GnomeKeyringPasswordSchema* schema,
 }
 
 /**
- * gnome_keyring_delete_password_sync:
+ * gnome_keyring_delete_password_sync: (skip)
  * @schema: The password schema.
  * @...: The variable argument list should contain pairs of a) The attribute name as a null
  *       terminated string, followed by b) attribute value, either a character string,
@@ -5137,6 +5246,7 @@ gnome_keyring_delete_password (const GnomeKeyringPasswordSchema* schema,
  *
  * Return value: %GNOME_KEYRING_RESULT_OK if the operation was succcessful or
  * an error result otherwise.
+ *
  * Since: 2.22
  **/
 GnomeKeyringResult
