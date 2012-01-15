@@ -23,6 +23,9 @@ noinst_PROGRAMS = \
 	frob-list-modified \
 	frob-default-keyring
 
+EXTRA_DIST = \
+	test-gi.py
+
 test: $(TEST_PROGS)
 	gtester -k --verbose $(TEST_PROGS)
 
