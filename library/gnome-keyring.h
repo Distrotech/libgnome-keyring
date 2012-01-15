@@ -113,6 +113,8 @@ typedef void (*GnomeKeyringOperationGetAttributesCallback)  (GnomeKeyringResult 
                                                              gpointer             data);
 
 GType                      gnome_keyring_attribute_get_type           (void) G_GNUC_CONST;
+const gchar*               gnome_keyring_attribute_get_string         (GnomeKeyringAttribute *attribute);
+guint32                    gnome_keyring_attribute_get_uint32         (GnomeKeyringAttribute *attribute);
 
 #define GNOME_KEYRING_TYPE_ATTRIBUTE (gnome_keyring_attribute_get_type ())
 

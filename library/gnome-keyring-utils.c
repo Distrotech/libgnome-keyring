@@ -279,6 +279,43 @@ gnome_keyring_found_list_free (GList *found_list)
  **/
 
 /**
+ * gnome_keyring_attribute_get_string:
+ * @attribute: a #GnomeKeyringAttribute
+ *
+ * Return the string value. It is an error to call this method if
+ * @attribute.type is not #GNOME_KEYRING_ATTRIBUTE_TYPE_STRING. This method is
+ * mostly useful for language bindings which do not provide union access. In C
+ * you should just use attribute->value.string.
+ *
+ * Returns: (transfer none): The value.string pointer of @attribute. This is
+ * not a copy, do not free.
+ **/
+const gchar*
+gnome_keyring_attribute_get_string (GnomeKeyringAttribute *attribute)
+{
+	g_return_val_if_fail (attribute->type == GNOME_KEYRING_ATTRIBUTE_TYPE_STRING, NULL);
+	return attribute->value.string;
+}
+
+/**
+ * gnome_keyring_attribute_get_uint32:
+ * @attribute: a #GnomeKeyringAttribute
+ *
+ * Return the uint32 value. It is an error to call this method if
+ * @attribute.type is not #GNOME_KEYRING_ATTRIBUTE_TYPE_UINT32. This method is
+ * mostly useful for language bindings which do not provide union access. In C
+ * you should just use attribute->value.integer.
+ *
+ * Returns: The value.integer of @attribute.
+ **/
+guint32
+gnome_keyring_attribute_get_uint32 (GnomeKeyringAttribute *attribute)
+{
+	g_return_val_if_fail (attribute->type == GNOME_KEYRING_ATTRIBUTE_TYPE_UINT32, 0);
+	return attribute->value.integer;
+}
+
+/**
  * gnome_keyring_attribute_free:
  * @attribute: a #GnomeKeyringAttribute.
  *
