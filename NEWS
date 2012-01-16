@@ -1,3 +1,7 @@
+Changes in version 3.3.4 are:
+ * Fix gnome_keyring_item_info_copy()
+ * Build fixes
+
 Changes in version 3.3.3 are:
  * Add tool to play with default keyring setting
 
