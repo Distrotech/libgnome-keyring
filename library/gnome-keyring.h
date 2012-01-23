@@ -342,6 +342,18 @@ time_t                gnome_keyring_item_info_get_ctime        (GnomeKeyringItem
  * A Simpler API
  */
 
+/*
+ * This structure exists to help languages which have difficulty with
+ * anonymous structures and is the same as the anonymous struct which
+ * is defined in GnomeKeyringPasswordSchema, but it cannot be used
+ * directly in GnomeKeyringPasswordSchema for API compatibility
+ * reasons.
+ */
+typedef struct {
+	const gchar* name;
+	GnomeKeyringAttributeType type;
+} GnomeKeyringPasswordSchemaAttribute;
+
 typedef struct {
 	GnomeKeyringItemType item_type;
 	struct {

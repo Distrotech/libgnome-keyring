@@ -4659,6 +4659,7 @@ gnome_keyring_set_network_password_sync (const char                            *
 /**
  * GnomeKeyringPasswordSchema:
  * @item_type: The item type for this schema.
+ * @attributes: (type GnomeKeyringPasswordSchemaAttribute) (array fixed-size=32): list of attributes
  *
  * Describes a password schema. Often you'll want to use a predefined schema such
  * as %GNOME_KEYRING_NETWORK_PASSWORD.
