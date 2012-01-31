@@ -37,10 +37,33 @@
 	            G_STRFUNC, #a "[" #na"] " #cmp " " #b "[" #nb "]", \
                     __p1, __n1, #cmp, __p2, __n2); } while (0)
 
+#define egg_assert_not_object(p) \
+	(egg_assertion_not_object (G_LOG_DOMAIN, __FILE__, __LINE__, G_STRFUNC, #p, (p)))
+
+void       egg_assertion_not_object          (const char *domain,
+                                              const char *file,
+                                              int         line,
+                                              const char *func,
+                                              const char *expr,
+                                              gpointer was_object);
+
 void       egg_assertion_message_cmpmem        (const char *domain, const char *file,
                                                 int line, const char *func,
                                                 const char *expr, gconstpointer arg1,
                                                 gsize n_arg1, const char *cmp,
                                                 gconstpointer arg2, gsize n_arg2);
+
+gchar *    egg_test_escape_data                (const guchar *data,
+                                                gsize size);
+
+void       egg_test_wait_stop                  (void);
+
+#define    egg_test_wait()                     g_assert (egg_test_wait_until (20000) != FALSE)
+
+gboolean   egg_test_wait_until                 (int timeout);
+
+void       egg_test_wait_idle                  (void);
+
+gint       egg_tests_run_with_loop             (void);
 
 #endif /* EGG_DH_H_ */

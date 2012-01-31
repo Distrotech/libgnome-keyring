@@ -28,6 +28,8 @@
 
 #include "mock-service.h"
 
+#include "egg/egg-testing.h"
+
 #include <glib.h>
 
 #include <stdlib.h>
@@ -44,27 +46,6 @@ static gchar *default_name = NULL;
 #define INVALID_KEYRING_NAME "invalid-keyring-name"
 #define DISPLAY_NAME "Item Display Name"
 #define SECRET "item-secret"
-
-static GMainLoop *mainloop = NULL;
-
-static gboolean
-quit_loop (gpointer data)
-{
-	g_main_loop_quit (data);
-	return TRUE;
-}
-
-static void
-mainloop_run (int timeout)
-{
-	guint id = 0;
-
-	if (timeout)
-		id = g_timeout_add (timeout, quit_loop, mainloop);
-	g_main_loop_run (mainloop);
-	if (timeout)
-		g_source_remove (id);
-}
 
 static void
 test_remove_incomplete (void)
@@ -410,7 +391,7 @@ static void
 done_grant_access (GnomeKeyringResult res, gpointer data)
 {
 	grant_access_result = res;
-	g_main_loop_quit (mainloop);
+	egg_test_wait_stop ();
 }
 
 static void
@@ -437,7 +418,7 @@ test_keyring_grant_access (void)
 	/* "callback already called" */
 	g_assert_cmpint (grant_access_result, ==, GNOME_KEYRING_RESULT_CANCELLED);
 
-	mainloop_run (2000);
+	egg_test_wait ();
 
 	g_assert_cmpint (GNOME_KEYRING_RESULT_OK, ==, grant_access_result);
 
@@ -465,7 +446,7 @@ static void
 done_store_password (GnomeKeyringResult res, gpointer data)
 {
 	*((GnomeKeyringResult*)data) = res;
-	g_main_loop_quit (mainloop);
+	egg_test_wait_stop ();
 }
 
 static void
@@ -501,7 +482,7 @@ test_store_password (void)
 	/* "callback already called" */
 	g_assert_cmpint (res, ==, GNOME_KEYRING_RESULT_CANCELLED);
 
-	mainloop_run (2000);
+	egg_test_wait ();
 
 	g_assert_cmpint (GNOME_KEYRING_RESULT_OK, ==, res);
 }
@@ -520,7 +501,7 @@ done_find_password (GnomeKeyringResult res, const gchar* password, gpointer unus
 		g_assert_cmpstr (password, ==, "password");
 	}
 
-	g_main_loop_quit (mainloop);
+	egg_test_wait_stop ();
 }
 
 static void
@@ -558,7 +539,7 @@ test_find_password (void)
 	/* "callback already called" */
 	g_assert (find_password_result == GNOME_KEYRING_RESULT_CANCELLED);
 
-	mainloop_run (2000);
+	egg_test_wait ();
 
 	g_assert_cmpint (GNOME_KEYRING_RESULT_OK, ==, find_password_result);
 }
@@ -570,7 +551,7 @@ done_find_no_password (GnomeKeyringResult res, const gchar* password, gpointer u
 {
 	find_no_password_result = res;
 	g_assert (password == NULL);
-	g_main_loop_quit (mainloop);
+	egg_test_wait_stop ();
 }
 
 static void
@@ -598,7 +579,7 @@ test_find_no_password (void)
 	g_assert (op != NULL);
 	g_assert (find_no_password_result == GNOME_KEYRING_RESULT_CANCELLED);
 
-	mainloop_run (2000);
+	egg_test_wait ();
 
 	g_assert_cmpint (GNOME_KEYRING_RESULT_NO_MATCH, ==, find_no_password_result);
 }
@@ -607,7 +588,7 @@ static void
 done_delete_password (GnomeKeyringResult res, gpointer data)
 {
 	*((GnomeKeyringResult*)data) = res;
-	g_main_loop_quit (mainloop);
+	egg_test_wait_stop ();
 }
 
 static void
@@ -638,7 +619,7 @@ test_delete_password (void)
 	/* "callback already called" */
 	g_assert (res == GNOME_KEYRING_RESULT_CANCELLED);
 
-	mainloop_run (2000);
+	egg_test_wait ();
 
 	/* Should have already been deleted by the second call above */
 	g_assert_cmpint (GNOME_KEYRING_RESULT_OK, ==, res);
@@ -694,8 +675,6 @@ main (int argc, char **argv)
 	if (service && service[0])
 		service = NULL;
 
-	mainloop = g_main_loop_new (NULL, FALSE);
-
 	g_test_add_func ("/keyrings/remove-incomplete", test_remove_incomplete);
 	g_test_add_func ("/keyrings/create-keyring", test_create_keyring);
 	g_test_add_func ("/keyrings/create-keyring-already-exists", test_create_keyring_already_exists);
@@ -729,7 +708,7 @@ main (int argc, char **argv)
 
 	}
 
-	ret = g_test_run ();
+	ret = egg_tests_run_with_loop ();
 	mock_service_stop ();
 
 	return ret;

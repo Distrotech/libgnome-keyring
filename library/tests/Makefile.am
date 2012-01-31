@@ -27,6 +27,7 @@ LDADD =  \
 TEST_PROGS = \
 	test-memory \
 	test-keyrings \
+	test-cancel \
 	test-other
 
 check_PROGRAMS = \

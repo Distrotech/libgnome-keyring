@@ -488,18 +488,18 @@ class SecretService(dbus.service.Object):
 
 	def add_standard_objects(self):
 		collection = SecretCollection(self, "english", label="Collection One", locked=False)
-		SecretItem(collection, "item_one", label="Item One",
+		SecretItem(collection, "1", label="Item One",
 		           attributes={ "number": "1", "string": "one", "even": "false" },
 		           secret="111", type="org.mock.type.Store")
-		SecretItem(collection, "item_two", attributes={ "number": "2", "string": "two", "even": "true" }, secret="222")
-		SecretItem(collection, "item_three", attributes={ "number": "3", "string": "three", "even": "false" }, secret="3333")
+		SecretItem(collection, "2", attributes={ "number": "2", "string": "two", "even": "true" }, secret="222")
+		SecretItem(collection, "3", attributes={ "number": "3", "string": "three", "even": "false" }, secret="3333")
 
 		self.set_alias('default', collection)
 
 		collection = SecretCollection(self, "spanish", locked=True)
-		SecretItem(collection, "item_one", attributes={ "number": "1", "string": "uno", "even": "false" }, secret="111")
-		SecretItem(collection, "item_two", attributes={ "number": "2", "string": "dos", "even": "true" }, secret="222")
-		SecretItem(collection, "item_three", attributes={ "number": "3", "string": "tres", "even": "false" }, secret="3333")
+		SecretItem(collection, "10", attributes={ "number": "1", "string": "uno", "even": "false" }, secret="111")
+		SecretItem(collection, "20", attributes={ "number": "2", "string": "dos", "even": "true" }, secret="222")
+		SecretItem(collection, "30", attributes={ "number": "3", "string": "tres", "even": "false" }, secret="3333")
 
 		collection = SecretCollection(self, "empty", locked=False)
 		collection = SecretCollection(self, "session", label="Session Keyring", locked=False)

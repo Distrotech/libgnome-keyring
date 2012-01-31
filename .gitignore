@@ -15,6 +15,7 @@ run-auto-test.h
 *.tmp
 *.prj
 *.pws
+*.pyc
 *.anjuta
 *.tar.gz
 .*project
@@ -119,6 +120,7 @@ run-auto-test.h
 /library/tests/frob-default-keyring
 /library/tests/frob-unlock-keyring
 /library/tests/test-any-daemon
+/library/tests/test-cancel
 /library/tests/test-prompting
 /library/tests/test-keyrings
 /library/tests/test-memory
