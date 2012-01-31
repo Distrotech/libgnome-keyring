@@ -24,6 +24,10 @@
 #include "config.h"
 
 #include "gnome-keyring.h"
+#include "gkr-misc.h"
+
+#include "mock-service.h"
+
 #include <glib.h>
 
 #include <stdlib.h>
@@ -668,92 +672,27 @@ test_setup_environment (void)
 	g_assert_cmpint (GNOME_KEYRING_RESULT_OK, ==, res);
 }
 
-static pid_t daemon_pid = 0;
-
-static gboolean
-daemon_start (void)
-{
-	GError *err = NULL;
-	gchar *args[5];
-	const gchar *path, *service, *address;
-	gchar *output = NULL;
-	gint exit_status = 1;
-	GError *error = NULL;
-
-	/* Need to have DBUS running */
-	address = g_getenv ("DBUS_SESSION_BUS_ADDRESS");
-	if (!address || !address[0]) {
-		g_printerr ("\nNo DBUS session available, skipping tests!\n\n");
-		return FALSE;
-	}
-
-	/* Check if gnome-keyring-daemon has testing enabled */
-	if (!g_spawn_command_line_sync (GNOME_KEYRING_DAEMON_PATH " --version",
-	                                &output, NULL, &exit_status, &error)) {
-		g_printerr ("Couldn't launch '%s': %s", GNOME_KEYRING_DAEMON_PATH,
-		            error->message);
-		return FALSE;
-	}
-
-	/* For some reason --version failed */
-	if (exit_status != 0 || strstr (output, "testing: enabled") == NULL) {
-		g_printerr ("Skipping tests since no testing enabled gnome-keyring-daemin is available\n");
-		g_free (output);
-		return FALSE;
-	}
-
-	g_free (output);
-
-	path = g_getenv ("GNOME_KEYRING_TEST_PATH");
-	if (path && !path[0])
-		path = NULL;
-
-	service = g_getenv ("GNOME_KEYRING_TEST_SERVICE");
-	if (service && !service[0])
-		service = NULL;
-
-	if (!path && !service) {
-		g_mkdir_with_parents ("/tmp/keyring-test/data", 0700);
-		g_setenv ("GNOME_KEYRING_TEST_PATH", "/tmp/keyring-test/data", TRUE);
-		g_setenv ("GNOME_KEYRING_TEST_SERVICE", "org.gnome.keyring.Test", TRUE);
-
-		g_printerr ("Starting gnome-keyring-daemon...\n");
-
-		args[0] = GNOME_KEYRING_DAEMON_PATH;
-		args[1] = "--foreground";
-		args[2] = "--control-directory";
-		args[3] = "/tmp/keyring-test";
-		args[4] = NULL;
-
-		if (!g_spawn_async (NULL, args, NULL, G_SPAWN_LEAVE_DESCRIPTORS_OPEN | G_SPAWN_DO_NOT_REAP_CHILD,
-							NULL, NULL, &daemon_pid, &err)) {
-			g_error ("couldn't start gnome-keyring-daemon for testing: %s",
-					 err && err->message ? err->message : "");
-			g_assert_not_reached ();
-		}
-
-		/* Let it startup properly */
-		sleep (2);
-	}
-
-	return TRUE;
-}
-
-static void
-daemon_stop (void)
-{
-	if (daemon_pid)
-		kill (daemon_pid, SIGTERM);
-	daemon_pid = 0;
-}
-
 int
 main (int argc, char **argv)
 {
+	const gchar *address;
+	GError *error = NULL;
+	const gchar *service;
 	int ret = 0;
 
 	g_test_init (&argc, &argv, NULL);
 	g_set_prgname ("test-keyrings");
+
+	/* Need to have DBUS running */
+	address = g_getenv ("DBUS_SESSION_BUS_ADDRESS");
+	if (!address || !address[0]) {
+		g_printerr ("\nNo DBUS session available, skipping tests.\n\n");
+		return 0;
+	}
+
+	service = g_getenv ("GNOME_KEYRING_TEST_SERVICE");
+	if (service && service[0])
+		service = NULL;
 
 	mainloop = g_main_loop_new (NULL, FALSE);
 
@@ -780,16 +719,18 @@ main (int argc, char **argv)
 	g_test_add_func ("/keyrings/set-display", test_set_display);
 	g_test_add_func ("/keyrings/setup-environment", test_setup_environment);
 
-	if (daemon_start ()) {
-		ret = g_test_run ();
+	if (service) {
+		g_printerr ("running tests against secret service: %s", service);
+		gkr_service_name = service;
 
-		if (default_name) {
-			gnome_keyring_set_default_keyring_sync (default_name);
-			g_free (default_name);
-		}
+	} else if (!mock_service_start ("mock-service-normal.py", &error)) {
+		g_printerr ("\nCouldn't start mock secret service: %s\n\n", error->message);
+		return 1;
 
-		daemon_stop ();
 	}
+
+	ret = g_test_run ();
+	mock_service_stop ();
 
 	return ret;
 }

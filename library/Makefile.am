@@ -41,6 +41,13 @@ libgnome_keyring_la_LDFLAGS = \
 	-version-info $(LIB_GNOME_KEYRING_LT_VERSION) \
 	-no-undefined -export-symbols-regex 'gnome_keyring_|GNOME_KEYRING_'
 
+noinst_LTLIBRARIES = libgnome-keyring-testable.la
+libgnome_keyring_testable_la_SOURCES =
+libgnome_keyring_testable_la_LIBADD = \
+	$(libgnome_keyring_la_OBJECTS) \
+	$(libgnome_keyring_la_LIBADD)
+libgnome_keyring_testable_la_DEPENDENCIES = $(libgnome_keyring_la_OBJECTS)
+
 pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = gnome-keyring-1.pc
 
@@ -75,11 +82,4 @@ typelib_DATA = $(INTROSPECTION_GIRS:.gir=.typelib)
 CLEANFILES += $(gir_DATA) $(typelib_DATA)
 endif
 
-if WITH_TESTS
-TESTS_DIR = tests
-else
-TESTS_DIR =
-endif
-
-SUBDIRS = . \
-	$(TESTS_DIR)
+SUBDIRS = . tests

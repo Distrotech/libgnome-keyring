@@ -25,7 +25,9 @@
 
 #include "config.h"
 
+#define DEBUG_FLAG GKR_DEBUG_OPERATION
 #include "gkr-callback.h"
+#include "gkr-debug.h"
 #include "gkr-misc.h"
 #include "gkr-operation.h"
 #include "gkr-session.h"
@@ -72,7 +74,7 @@ prepare_property_get (const gchar *path, const gchar *interface, const gchar *na
 	if (!interface)
 		interface = "";
 
-	req = dbus_message_new_method_call (gkr_service_name (), path,
+	req = dbus_message_new_method_call (gkr_service_name, path,
 	                                    DBUS_INTERFACE_PROPERTIES, "Get");
 	dbus_message_append_args (req, DBUS_TYPE_STRING, &interface,
 	                          DBUS_TYPE_STRING, &name, DBUS_TYPE_INVALID);
@@ -90,7 +92,7 @@ prepare_property_getall (const gchar *path, const gchar *interface)
 	if (!interface)
 		interface = "";
 
-	req = dbus_message_new_method_call (gkr_service_name (), path,
+	req = dbus_message_new_method_call (gkr_service_name, path,
 	                                    DBUS_INTERFACE_PROPERTIES, "GetAll");
 	dbus_message_append_args (req, DBUS_TYPE_STRING, &interface, DBUS_TYPE_INVALID);
 
@@ -106,7 +108,7 @@ prepare_get_secret (GkrSession *session, const char *path)
 	g_assert (session);
 	g_assert (path);
 
-	req = dbus_message_new_method_call (gkr_service_name (), path,
+	req = dbus_message_new_method_call (gkr_service_name, path,
 	                                    ITEM_INTERFACE, "GetSecret");
 
 	spath = gkr_session_get_path (session);
@@ -123,7 +125,7 @@ prepare_get_secrets (GkrSession *session, char **paths, int n_paths)
 
 	g_assert (session);
 
-	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
+	req = dbus_message_new_method_call (gkr_service_name, SERVICE_PATH,
 	                                    SERVICE_INTERFACE, "GetSecrets");
 
 	spath = gkr_session_get_path (session);
@@ -138,7 +140,7 @@ prepare_xlock (const char *action, char **objects, int n_objects)
 {
 	DBusMessage *req;
 
-	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
+	req = dbus_message_new_method_call (gkr_service_name, SERVICE_PATH,
 	                                    SERVICE_INTERFACE, action);
 
 	dbus_message_append_args (req, DBUS_TYPE_ARRAY, DBUS_TYPE_OBJECT_PATH, &objects, n_objects,
@@ -492,7 +494,7 @@ gnome_keyring_is_available (void)
 
 	gkr_init ();
 
-	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
+	req = dbus_message_new_method_call (gkr_service_name, SERVICE_PATH,
 	                                    DBUS_INTERFACE_PEER, "Ping");
 
 	op = gkr_operation_new (gkr_callback_empty, GKR_CALLBACK_RES, NULL, NULL);
@@ -550,7 +552,7 @@ set_default_keyring_start (const gchar *keyring, GnomeKeyringOperationDoneCallba
 	g_return_val_if_fail (callback, NULL);
 
 	path = gkr_encode_keyring_name (keyring);
-	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
+	req = dbus_message_new_method_call (gkr_service_name, SERVICE_PATH,
 	                                    SERVICE_INTERFACE, "SetAlias");
 
 	string = "default";
@@ -668,7 +670,7 @@ get_default_keyring_start (GnomeKeyringOperationGetStringCallback callback,
 
 	g_return_val_if_fail (callback, NULL);
 
-	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
+	req = dbus_message_new_method_call (gkr_service_name, SERVICE_PATH,
 	                                    SERVICE_INTERFACE, "ReadAlias");
 
 	string = "default";
@@ -872,7 +874,7 @@ lock_all_start (GnomeKeyringOperationDoneCallback callback,
 
 	g_return_val_if_fail (callback, NULL);
 
-	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
+	req = dbus_message_new_method_call (gkr_service_name, SERVICE_PATH,
 	                                    SERVICE_INTERFACE, "LockService");
 
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
@@ -969,7 +971,7 @@ create_keyring_password_reply (GkrOperation *op, GkrSession *session, gpointer u
 	DBusMessageIter iter;
 	DBusMessage *req;
 
-	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
+	req = dbus_message_new_method_call (gkr_service_name, SERVICE_PATH,
 	                                    "org.gnome.keyring.InternalUnsupportedGuiltRiddenInterface",
 	                                    "CreateWithMasterPassword");
 
@@ -1021,7 +1023,8 @@ create_keyring_check_reply (GkrOperation *op, DBusMessage *reply, gpointer user_
 	const gchar *alias = "";
 
 	/* If no such object, then no such keyring exists and we're good to go. */
-	if (!dbus_message_is_error (reply, ERROR_NO_SUCH_OBJECT)) {
+	if (!dbus_message_is_error (reply, ERROR_NO_SUCH_OBJECT) &&
+	    !dbus_message_is_error (reply, DBUS_ERROR_UNKNOWN_METHOD)) {
 		/* Success means 'already exists' */
 		if (!gkr_operation_handle_errors (op, reply))
 			gkr_operation_complete (op, GNOME_KEYRING_RESULT_ALREADY_EXISTS);
@@ -1035,7 +1038,7 @@ create_keyring_check_reply (GkrOperation *op, DBusMessage *reply, gpointer user_
 
 	/* Otherwiswe just create the collection */
 	} else {
-		req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
+		req = dbus_message_new_method_call (gkr_service_name, SERVICE_PATH,
 		                                    SERVICE_INTERFACE, "CreateCollection");
 		dbus_message_iter_init_append (req, &iter);
 		create_keyring_encode_properties (&iter, args->keyring_name);
@@ -1173,10 +1176,13 @@ xlock_2_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data)
 		return;
 	}
 
-	if (dismissed || !args.matched)
+	if (dismissed || !args.matched) {
+		gkr_debug ("xlock prompt dismissed");
 		gkr_operation_complete (op, GNOME_KEYRING_RESULT_DENIED);
-	else
+	} else {
+		gkr_debug ("xlock prompt completed");
 		gkr_operation_complete (op, GNOME_KEYRING_RESULT_OK);
+	}
 }
 
 static void
@@ -1189,22 +1195,26 @@ xlock_1_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data)
 		return;
 
 	if (!decode_xlock_reply (reply, &prompt, xlock_check_path, &args)) {
+		gkr_debug ("invalid response to xlock");
 		gkr_operation_complete (op, decode_invalid_response (reply));
 		return;
 	}
 
 	if (args.matched) {
+		gkr_debug ("xlocked without prompt");
 		gkr_callback_invoke_res (gkr_operation_pop (op), GNOME_KEYRING_RESULT_OK);
 		return;
 	}
 
 	/* Is there a prompt needed? */
 	if (!g_str_equal (prompt, "/")) {
+		gkr_debug ("prompting for xlock");
 		gkr_operation_push (op, xlock_2_reply, GKR_CALLBACK_OP_MSG, user_data, NULL);
 		gkr_operation_prompt (op, prompt);
 
 	/* No prompt, and no opportunity to */
 	} else {
+		gkr_debug ("couldn't unlock the keyring, and no prompt");
 		gkr_callback_invoke_res (gkr_operation_pop (op), GNOME_KEYRING_RESULT_NO_SUCH_KEYRING);
 	}
 }
@@ -1219,6 +1229,8 @@ xlock_async (const gchar *method, const gchar *keyring,
 	gchar *path;
 
 	path = gkr_encode_keyring_name (keyring);
+
+	gkr_debug ("xlock operation without password, probable prompt %s", path);
 	req = prepare_xlock (method, &path, 1);
 
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
@@ -1251,7 +1263,9 @@ unlock_password_reply (GkrOperation *op, GkrSession *session, gpointer user_data
 	DBusMessage *req;
 	gchar *path;
 
-	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
+	gkr_debug ("have session, unlocking with password");
+
+	req = dbus_message_new_method_call (gkr_service_name, SERVICE_PATH,
 	                                    "org.gnome.keyring.InternalUnsupportedGuiltRiddenInterface",
 	                                    "UnlockWithMasterPassword");
 
@@ -1284,6 +1298,7 @@ unlock_keyring_start (const char *keyring, const char *password,
 		return xlock_async ("Unlock", keyring, callback, data, destroy_data);
 
 	g_return_val_if_fail (callback, NULL);
+	gkr_debug ("unlocking with password");
 
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
 
@@ -1447,7 +1462,7 @@ delete_keyring_start (const char *keyring, GnomeKeyringOperationDoneCallback cal
 	g_return_val_if_fail (callback, NULL);
 
 	path = gkr_encode_keyring_name (keyring);
-	req = dbus_message_new_method_call (gkr_service_name (), path,
+	req = dbus_message_new_method_call (gkr_service_name, path,
 	                                    COLLECTION_INTERFACE, "Delete");
 
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
@@ -1535,7 +1550,7 @@ change_password_reply (GkrOperation *op, GkrSession *session, gpointer user_data
 	DBusMessage *req;
 	gchar *path;
 
-	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
+	req = dbus_message_new_method_call (gkr_service_name, SERVICE_PATH,
 	                                    "org.gnome.keyring.InternalUnsupportedGuiltRiddenInterface",
 	                                    "ChangeWithMasterPassword");
 
@@ -1629,7 +1644,7 @@ change_password_start (const char *keyring, const char *original, const char *pa
 		gkr_session_negotiate (op);
 
 	} else {
-		req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
+		req = dbus_message_new_method_call (gkr_service_name, SERVICE_PATH,
 		                                    SERVICE_INTERFACE, "ChangeLock");
 		path = gkr_encode_keyring_name (keyring);
 		dbus_message_append_args (req, DBUS_TYPE_OBJECT_PATH, &path, DBUS_TYPE_INVALID);
@@ -1709,11 +1724,30 @@ gnome_keyring_change_password_sync (const char *keyring_name,
 }
 
 static gboolean
+decode_time_from_iter (DBusMessageIter *iter,
+                       time_t *tval)
+{
+	dbus_int64_t i64val;
+	dbus_uint64_t ui64val;
+
+	if (dbus_message_iter_get_arg_type (iter) == DBUS_TYPE_INT64) {
+		dbus_message_iter_get_basic (iter, &i64val);
+		*tval = (time_t)i64val;
+	} else if (dbus_message_iter_get_arg_type (iter) == DBUS_TYPE_UINT64) {
+		dbus_message_iter_get_basic (iter, &ui64val);
+		*tval = (time_t)ui64val;
+	} else {
+		return FALSE;
+	}
+
+	return TRUE;
+}
+
+static gboolean
 get_keyring_info_foreach (const gchar *property, DBusMessageIter *iter, gpointer user_data)
 {
 	GnomeKeyringInfo *info = user_data;
 	dbus_bool_t bval;
-	dbus_int64_t i64val;
 
 	if (g_str_equal (property, "Locked")) {
 		if (dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_BOOLEAN)
@@ -1722,16 +1756,18 @@ get_keyring_info_foreach (const gchar *property, DBusMessageIter *iter, gpointer
 		info->is_locked = (bval == TRUE);
 
 	} else if (g_str_equal (property, "Created")) {
-		if (dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_INT64)
+		if (!decode_time_from_iter (iter, &info->ctime)) {
+			gkr_debug ("invalid Created property type: %s",
+			           dbus_message_iter_get_signature (iter));
 			return FALSE;
-		dbus_message_iter_get_basic (iter, &i64val);
-		info->ctime = (time_t)i64val;
+		}
 
 	} else if (g_str_equal (property, "Modified")) {
-		if (dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_INT64)
+		if (!decode_time_from_iter (iter, &info->mtime)) {
+			gkr_debug ("invalid Modified property type: %s",
+			           dbus_message_iter_get_signature (iter));
 			return FALSE;
-		dbus_message_iter_get_basic (iter, &i64val);
-		info->ctime = (time_t)i64val;
+		}
 	}
 
 	return TRUE;
@@ -1779,6 +1815,8 @@ get_keyring_info_start (const char *keyring, GnomeKeyringOperationGetKeyringInfo
 	g_return_val_if_fail (callback, NULL);
 
 	path = gkr_encode_keyring_name (keyring);
+
+	gkr_debug ("getting info for keyring: %s", path);
 	req = prepare_property_getall (path, COLLECTION_INTERFACE);
 
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES_KEYRING_INFO, data, destroy_data);
@@ -2452,7 +2490,7 @@ find_items_start (GnomeKeyringItemType type, GnomeKeyringAttributeList *attribut
 	g_return_val_if_fail (attributes, NULL);
 	g_return_val_if_fail (callback, NULL);
 
-	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
+	req = dbus_message_new_method_call (gkr_service_name, SERVICE_PATH,
 	                                    SERVICE_INTERFACE, "SearchItems");
 
 	/* Encode the attribute list */
@@ -2750,7 +2788,7 @@ item_create_prepare (const gchar *path, GnomeKeyringItemType type, const gchar *
 	const char *string;
 	const gchar *type_string;
 
-	req = dbus_message_new_method_call (gkr_service_name (), path,
+	req = dbus_message_new_method_call (gkr_service_name, path,
 	                                    COLLECTION_INTERFACE, "CreateItem");
 
 	dbus_message_iter_init_append (req, iter);
@@ -2807,10 +2845,12 @@ item_create_3_created_reply (GkrOperation *op, DBusMessage *reply, gpointer data
 	}
 
 	if (!gkr_decode_item_id (path, &id)) {
+		gkr_debug ("couldn't decode item item path %s", path);
 		gkr_operation_complete (op, GNOME_KEYRING_RESULT_IO_ERROR);
 		return;
 	}
 
+	gkr_debug ("new item id %u for path %s", (guint)id, path);
 	gkr_callback_invoke_ok_uint (gkr_operation_pop (op), id);
 }
 
@@ -2822,6 +2862,8 @@ item_create_2_session_reply (GkrOperation *op, GkrSession *session, gpointer dat
 	item_create_args *args = data;
 	dbus_bool_t replace;
 
+	gkr_debug ("have session, encoding secret");
+
 	if (!gkr_session_encode_secret (session, &args->iter, args->secret)) {
 		gkr_operation_complete (op, BROKEN);
 		g_return_if_reached ();
@@ -2829,6 +2871,8 @@ item_create_2_session_reply (GkrOperation *op, GkrSession *session, gpointer dat
 
 	replace = args->update_if_exists;
 	dbus_message_iter_append_basic (&args->iter, DBUS_TYPE_BOOLEAN, &replace);
+
+	gkr_debug ("creating item");
 
 	gkr_operation_push (op, item_create_3_created_reply, GKR_CALLBACK_OP_MSG, NULL, NULL);
 	gkr_operation_set_keyring_hint (op);
@@ -2839,6 +2883,8 @@ static void
 item_create_2_session_request (GkrOperation *op, gpointer data)
 {
 	/* Called to get us a valid session */
+
+	gkr_debug ("requesting session");
 
 	gkr_operation_push (op, item_create_2_session_reply, GKR_CALLBACK_OP_SESSION, data, NULL);
 	gkr_session_negotiate (op);
@@ -2881,6 +2927,8 @@ item_create_1_create_prompt_reply (GkrOperation *op, DBusMessage *reply, gpointe
 	g_return_if_fail (dbus_message_iter_get_arg_type (&variant) == DBUS_TYPE_OBJECT_PATH);
 	dbus_message_iter_get_basic (&variant, &path);
 
+	gkr_debug ("created default keyring: %s", path);
+
 	/* Start the session */
 	item_create_2_session_request (op, data);
 }
@@ -2907,10 +2955,12 @@ item_create_1_collection_reply (GkrOperation *op, DBusMessage *reply, gpointer d
 	/* No prompt, set keyring as default */
 	g_return_if_fail (prompt);
 	if (g_str_equal (prompt, "/")) {
+		gkr_debug ("created default keyring: %s", collection);
 		item_create_2_session_request (op, data);
 
 	/* A prompt, display it get the response */
 	} else {
+		gkr_debug ("prompting to create default keyring: %s", prompt);
 		gkr_operation_push (op, item_create_1_create_prompt_reply, GKR_CALLBACK_OP_MSG, data, NULL);
 		gkr_operation_prompt (op, prompt);
 	}
@@ -2937,9 +2987,12 @@ item_create_1_unlock_prompt_reply (GkrOperation *op, DBusMessage *reply, gpointe
 	}
 
 	if (dismissed || !unlocked) {
+		gkr_debug ("unlock prompt dismissed or not unlocked");
 		gkr_operation_complete (op, GNOME_KEYRING_RESULT_DENIED);
 		return;
 	}
+
+	gkr_debug ("keyring unlocked");
 
 	/* Now that its unlocked, we need a session to transfer the secret */
 	item_create_2_session_request (op, data);
@@ -2967,6 +3020,7 @@ item_create_1_unlock_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
 
 	/* Prompt to unlock the collection */
 	if (!g_str_equal (prompt, "/")) {
+		gkr_debug ("prompting to unlock the keyring: %s", prompt);
 		gkr_operation_push (op, item_create_1_unlock_prompt_reply, GKR_CALLBACK_OP_MSG, args, NULL);
 		gkr_operation_prompt (op, prompt);
 
@@ -2975,7 +3029,8 @@ item_create_1_unlock_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
 
 		/* Caller asked for default keyring, and there is no such keyring. Create */
 		if (args->is_default) {
-			req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
+			gkr_debug ("no such default keyring, creating");
+			req = dbus_message_new_method_call (gkr_service_name, SERVICE_PATH,
 							    SERVICE_INTERFACE, "CreateCollection");
 			dbus_message_iter_init_append (req, &iter);
 			/* TRANSLATORS: This is the name of an automatically created default keyring. */
@@ -2987,11 +3042,13 @@ item_create_1_unlock_reply (GkrOperation *op, DBusMessage *reply, gpointer data)
 
 		/* No such keyring, error */
 		} else {
+			gkr_debug ("no such keyring");
 			gkr_operation_complete (op, GNOME_KEYRING_RESULT_NO_SUCH_KEYRING);
 		}
 
 	/* Successfully unlocked, or not locked. We need a session to transfer the secret */
 	} else {
+		gkr_debug ("unlocked keyring");
 		item_create_2_session_request (op, args);
 	}
 }
@@ -3007,8 +3064,10 @@ item_create_start (const char *keyring, GnomeKeyringItemType type, const char *d
 	GkrOperation *op;
 	gchar *path;
 
-	if (!display_name)
+	if (!display_name) {
+		gkr_debug ("creating item with blank label");
 		display_name = "";
+	}
 
 	args = g_slice_new0 (item_create_args);
 	args->update_if_exists = update_if_exists;
@@ -3020,6 +3079,7 @@ item_create_start (const char *keyring, GnomeKeyringItemType type, const char *d
 	g_return_val_if_fail (args->request, NULL);
 
 	/* First unlock the keyring */
+	gkr_debug ("unlocking the keyring: %s", path);
 	req = prepare_xlock ("Unlock", &path, 1);
 	g_free (path);
 
@@ -3143,7 +3203,7 @@ item_delete_start (const char *keyring, guint32 id, GnomeKeyringOperationDoneCal
 	gchar *path;
 
 	path = gkr_encode_keyring_item_id (keyring, id);
-	req = dbus_message_new_method_call (gkr_service_name (), path,
+	req = dbus_message_new_method_call (gkr_service_name, path,
 	                                    ITEM_INTERFACE, "Delete");
 
 	op = gkr_operation_new (callback, GKR_CALLBACK_RES, data, destroy_data);
@@ -3285,7 +3345,6 @@ item_get_info_foreach (const gchar *property, DBusMessageIter *iter, gpointer us
 {
 	GnomeKeyringItemInfo *info = user_data;
 	const char *sval;
-	dbus_int64_t i64val;
 
 	if (g_str_equal (property, "Label")) {
 		if (dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_STRING)
@@ -3294,17 +3353,17 @@ item_get_info_foreach (const gchar *property, DBusMessageIter *iter, gpointer us
 		info->display_name = g_strdup (sval);
 
 	} else if (g_str_equal (property, "Created")) {
-		if (dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_INT64)
+		if (!decode_time_from_iter (iter, &info->ctime)) {
+			gkr_debug ("invalid Created property type: %s",
+			           dbus_message_iter_get_signature (iter));
 			return FALSE;
-		dbus_message_iter_get_basic (iter, &i64val);
-		info->ctime = (time_t)i64val;
-
+		}
 	} else if (g_str_equal (property, "Modified")) {
-		if (dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_INT64)
+		if (!decode_time_from_iter (iter, &info->mtime)) {
+			gkr_debug ("invalid Modified property type: %s",
+			           dbus_message_iter_get_signature (iter));
 			return FALSE;
-		dbus_message_iter_get_basic (iter, &i64val);
-		info->mtime = (time_t)i64val;
-
+		}
 	} else if (g_str_equal (property, "Type")) {
 		if (dbus_message_iter_get_arg_type (iter) != DBUS_TYPE_STRING)
 			return FALSE;
@@ -3392,7 +3451,7 @@ item_get_info_2_reply (GkrOperation *op, GkrSession *session, gpointer data)
 	g_assert (!args->session);
 	args->session = gkr_session_ref (session);
 
-	req = dbus_message_new_method_call (gkr_service_name (), args->path, ITEM_INTERFACE, "GetSecret");
+	req = dbus_message_new_method_call (gkr_service_name, args->path, ITEM_INTERFACE, "GetSecret");
 	path = gkr_session_get_path (session);
 	dbus_message_append_args (req, DBUS_TYPE_OBJECT_PATH, &path, DBUS_TYPE_INVALID);
 
@@ -3565,7 +3624,7 @@ item_set_info_3_reply (GkrOperation *op, GkrSession *session, gpointer user_data
 	g_assert (args->info->secret);
 
 	/* Sending a secret */
-	req = dbus_message_new_method_call (gkr_service_name (), args->path,
+	req = dbus_message_new_method_call (gkr_service_name, args->path,
 	                                    ITEM_INTERFACE, "SetSecret");
 
 	dbus_message_iter_init_append (req, &iter);
@@ -3611,7 +3670,7 @@ item_set_info_1_reply (GkrOperation *op, DBusMessage *reply, gpointer user_data)
 		return;
 
 	/* Next set the type */
-	req = dbus_message_new_method_call (gkr_service_name (), args->path,
+	req = dbus_message_new_method_call (gkr_service_name, args->path,
 	                                    DBUS_INTERFACE_PROPERTIES, "Set");
 
 	dbus_message_iter_init_append (req, &iter);
@@ -3645,7 +3704,7 @@ item_set_info_start (const char *keyring, guint32 id, GnomeKeyringItemInfo *info
 	args->path = gkr_encode_keyring_item_id (keyring, id);
 
 	/* First set the label */
-	req = dbus_message_new_method_call (gkr_service_name (), args->path,
+	req = dbus_message_new_method_call (gkr_service_name, args->path,
 	                                    DBUS_INTERFACE_PROPERTIES, "Set");
 
 	dbus_message_iter_init_append (req, &iter);
@@ -3859,7 +3918,7 @@ item_set_attributes_prepare (const gchar *path, GnomeKeyringAttributeList *attrs
 	DBusMessage *req;
 	const gchar *string;
 
-	req = dbus_message_new_method_call (gkr_service_name (), path,
+	req = dbus_message_new_method_call (gkr_service_name, path,
 	                                    DBUS_INTERFACE_PROPERTIES, "Set");
 
 	dbus_message_iter_init_append (req, &iter);
@@ -3881,11 +3940,18 @@ item_set_attributes_start (const char *keyring, guint32 id, GnomeKeyringAttribut
 {
 	DBusMessage *req;
 	GkrOperation *op;
+	gchar *string;
 	gchar *path;
 
 	path = gkr_encode_keyring_item_id (keyring, id);
 
-	/* First set the label */
+	if (gkr_debugging) {
+		string = gkr_attributes_print (attributes);
+		gkr_debug ("setting item %s attributes: %s", path, string);
+		g_free (string);
+	}
+
+	/* Setup the attributes */
 	req = item_set_attributes_prepare (path, attributes);
 
 	g_free (path);
@@ -4934,7 +5000,7 @@ find_unlocked (GkrOperation *op, GnomeKeyringAttributeList *attributes)
 	DBusMessageIter iter;
 	DBusMessage *req;
 
-	req = dbus_message_new_method_call (gkr_service_name (), SERVICE_PATH,
+	req = dbus_message_new_method_call (gkr_service_name, SERVICE_PATH,
 	                                    SERVICE_INTERFACE, "SearchItems");
 
 	/* Encode the attribute list */
@@ -5147,7 +5213,7 @@ delete_password_reply (GkrOperation *op, const char *path, gpointer user_data)
 	if (path == NULL) {
 		gkr_operation_complete (op, GNOME_KEYRING_RESULT_NO_MATCH);
 	} else {
-		req = dbus_message_new_method_call (gkr_service_name (), path,
+		req = dbus_message_new_method_call (gkr_service_name, path,
 		                                    ITEM_INTERFACE, "Delete");
 		gkr_operation_request (op, req);
 		dbus_message_unref (req);

@@ -38,6 +38,7 @@
 
 /* Exposed in gkr-operation.h */
 gboolean gkr_inited = FALSE;
+int gkr_timeout = -1;
 
 static DBusConnection *dbus_connection = NULL;
 G_LOCK_DEFINE_STATIC(dbus_connection);
@@ -293,7 +294,7 @@ on_connection_filter (DBusConnection *connection,
 	                           DBUS_TYPE_INVALID)) {
 
 		/* See if it's the secret service going away */
-		if (object_name && g_str_equal (gkr_service_name (), object_name) &&
+		if (object_name && g_str_equal (gkr_service_name, object_name) &&
 		    new_owner && g_str_equal ("", new_owner)) {
 
 			/* Clear any session, when the service goes away */
@@ -406,15 +407,9 @@ on_pending_call_notify (DBusPendingCall *pending, void *user_data)
 static void
 send_with_pending (GkrOperation *op)
 {
-	int timeout = -1;
-
 	g_assert (op);
 	g_assert (op->request);
 	g_assert (!op->pending);
-
-#if WITH_TESTABLE
-	timeout = INT_MAX;
-#endif
 
 	if (!op->conn)
 		op->conn = connect_to_service ();
@@ -422,7 +417,7 @@ send_with_pending (GkrOperation *op)
 	if (op->conn) {
 		gkr_debug ("%p: sending request", op);
 		if (!dbus_connection_send_with_reply (op->conn, op->request,
-		                                      &op->pending, timeout))
+		                                      &op->pending, gkr_timeout))
 			g_return_if_reached ();
 		dbus_message_unref (op->request);
 		op->request = NULL;
@@ -516,13 +511,8 @@ GnomeKeyringResult
 gkr_operation_block_and_unref (GkrOperation *op)
 {
 	DBusMessage *reply = NULL;
-	int timeout = -1;
 
 	g_return_val_if_fail (op, BROKEN);
-
-#if WITH_TESTABLE
-	timeout = INT_MAX;
-#endif
 
 	gkr_debug ("%p: processing", op);
 
@@ -540,7 +530,7 @@ gkr_operation_block_and_unref (GkrOperation *op)
 		/* A dbus request, then send and wait for reply */
 		} else if (op->request) {
 			gkr_debug ("%p: blocking request", op);
-			reply = send_with_reply_and_block (op->conn, op->request, timeout);
+			reply = send_with_reply_and_block (op->conn, op->request, gkr_timeout);
 			dbus_message_unref (op->request);
 			op->request = NULL;
 
@@ -587,6 +577,8 @@ gkr_operation_handle_errors (GkrOperation *op, DBusMessage *reply)
 	DBusError derr = DBUS_ERROR_INIT;
 	GnomeKeyringResult res;
 	gboolean was_keyring;
+	gboolean no_such_object;
+	gboolean unknown_method;
 
 	g_assert (op);
 	g_assert (reply);
@@ -595,8 +587,12 @@ gkr_operation_handle_errors (GkrOperation *op, DBusMessage *reply)
 	op->was_keyring = FALSE;
 
 	if (dbus_set_error_from_message (&derr, reply)) {
-		if (dbus_error_has_name (&derr, ERROR_NO_SUCH_OBJECT)) {
+		no_such_object = dbus_error_has_name (&derr, ERROR_NO_SUCH_OBJECT);
+		unknown_method = dbus_error_has_name (&derr, DBUS_ERROR_UNKNOWN_METHOD);
+		if (no_such_object || (was_keyring && unknown_method)) {
 			gkr_debug ("%p: no-such-object", op);
+			if (unknown_method)
+				gkr_debug ("unknown method: %s", derr.message);
 			if (was_keyring)
 				res = GNOME_KEYRING_RESULT_NO_SUCH_KEYRING;
 			else
@@ -686,7 +682,7 @@ on_prompt_signal (DBusConnection *connection, DBusMessage *message, void *user_d
 	                           DBUS_TYPE_INVALID)) {
 
 		/* See if it's the secret service going away */
-		if (object_name && g_str_equal (gkr_service_name (), object_name) &&
+		if (object_name && g_str_equal (gkr_service_name, object_name) &&
 		    new_owner && g_str_equal ("", new_owner)) {
 
 			g_message ("secret service disappeared while waiting for prompt");
@@ -746,7 +742,7 @@ gkr_operation_prompt (GkrOperation *op, const gchar *prompt)
 	dbus_connection_add_filter (op->conn, on_prompt_signal, args,
 	                            on_prompt_completed);
 
-	req = dbus_message_new_method_call (gkr_service_name (), prompt,
+	req = dbus_message_new_method_call (gkr_service_name, prompt,
 	                                    PROMPT_INTERFACE, "Prompt");
 
 	window_id = "";

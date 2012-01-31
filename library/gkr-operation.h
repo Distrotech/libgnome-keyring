@@ -81,6 +81,8 @@ void                gkr_operation_prompt            (GkrOperation *op,
 
 extern gboolean     gkr_inited;
 
+extern int          gkr_timeout;
+
 #define             gkr_init()                      do { if (!gkr_inited) gkr_operation_init (); } while (0)
 
 void                gkr_operation_init              (void);

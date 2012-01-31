@@ -29,6 +29,7 @@ G_BEGIN_DECLS
 /* Please keep this enum in sync with #keys in gkr-debug.c */
 typedef enum {
 	GKR_DEBUG_OPERATION = 1 << 1,
+	GKR_DEBUG_METHODS = 1 << 2,
 } GkrDebugFlags;
 
 gboolean           gkr_debug_flag_is_set               (GkrDebugFlags flag);

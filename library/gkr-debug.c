@@ -41,6 +41,7 @@ static GkrDebugFlags current_flags = 0;
 
 static GDebugKey keys[] = {
 	{ "operation", GKR_DEBUG_OPERATION },
+	{ "methods", GKR_DEBUG_METHODS },
 	{ 0, }
 };
 

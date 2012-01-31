@@ -134,25 +134,28 @@ AC_SUBST([LIBGCRYPT_LIBS])
 # Debug mode
 #
 
+AC_MSG_CHECKING([for debug mode])
 AC_ARG_ENABLE(debug,
-              AC_HELP_STRING([--enable-debug=no/yes/full],
+              AC_HELP_STRING([--enable-debug=no/default/yes],
               [Turn on or off debugging]))
 
 if test "$enable_debug" != "no"; then
 	AC_DEFINE_UNQUOTED(WITH_DEBUG, 1, [Print debug output])
+	AC_DEFINE_UNQUOTED(_DEBUG, 1, [In debug mode])
+	CFLAGS="$CFLAGS -g"
 fi
 
-if test "$enable_debug" = "full"; then
-	debug_status="full"
-	CFLAGS="$CFLAGS -g -O0 -Werror"
-	CFLAGS="$CFLAGS -DG_DISABLE_DEPRECATED -DGDK_PIXBUF_DISABLE_DEPRECATED"
-	CFLAGS="$CFLAGS -DGDK_DISABLE_DEPRECATED -DGTK_DISABLE_DEPRECATED"
+if test "$enable_debug" = "yes"; then
+	debug_status="yes (-g, -O0, debug output, testable)"
+	CFLAGS="$CFLAGS -O0"
 elif test "$enable_debug" = "no"; then
-	debug_status="no"
+	debug_status="no (no debug output, not testable, G_DISABLE_ASSERT)"
 	AC_DEFINE_UNQUOTED(G_DISABLE_ASSERT, 1, [Disable glib assertions])
 else
-	debug_status="yes"
+	debug_status="default (-g, debug output, testable)"
 fi
+
+AC_MSG_RESULT($debug_status)
 
 AC_MSG_CHECKING(for more warnings)
 if test "$enale_debug" != "no" -a "$GCC" = "yes"; then
@@ -183,33 +186,32 @@ else
 	AC_MSG_RESULT(no)
 fi
 
-# --------------------------------------------------------------------
-# Tests and Unit Tests
+AC_ARG_ENABLE(strict, [
+               AS_HELP_STRING([--enable-strict], [Strict code compilation])
+             ])
 
-AC_ARG_ENABLE(tests,
-        AC_HELP_STRING([--enable-tests=yes/no/full],
-        [Build tests and testing tools. default: yes]))
+AC_MSG_CHECKING([build strict])
 
-AC_MSG_CHECKING([build test tools, unit tests, and -Werror])
-
-if test "$enable_tests" = "full"; then
-	tests_status="full"
-	CFLAGS="$CFLAGS -Werror"
+if test "$enable_strict" = "yes"; then
+	CFLAGS="$CFLAGS -Werror \
+		-DGTK_DISABLE_DEPRECATED \
+		-DGDK_DISABLE_DEPRECATED \
+		-DG_DISABLE_DEPRECATED \
+		-DGDK_PIXBUF_DISABLE_DEPRECATED"
 	TEST_MODE="thorough"
-	AC_DEFINE_UNQUOTED(WITH_TESTABLE, 1, [Build extra hooks for more testable code])
-elif test "$enable_tests" = "no"; then
-	tests_status="no"
+	INTROSPECTION_FLAGS="--warn-error"
+	AC_DEFINE_UNQUOTED(WITH_STRICT, 1, [More strict checks])
+	strict_status="yes (-Werror, thorough tests, fatals, no deprecations)"
 else
 	TEST_MODE="quick"
-	tests_status="yes"
+	INTROSPECTION_FLAGS=""
+	strict_status="no (quick tests, non-fatal warnings)"
 fi
 
-AC_MSG_RESULT($tests_status)
-AC_SUBST(TEST_MODE)
-AM_CONDITIONAL(WITH_TESTS, test "$enable_tests" != "no")
+AC_MSG_RESULT($strict_status)
 
-AC_PATH_PROG(GNOME_KEYRING_DAEMON_PATH, gnome-keyring-daemon, "gnome-keyring-daemon")
-AC_DEFINE_UNQUOTED(GNOME_KEYRING_DAEMON_PATH, "$GNOME_KEYRING_DAEMON_PATH", [Path to gnome-keyring-daemon])
+AC_SUBST(INTROSPECTION_FLAGS)
+AC_SUBST(TEST_MODE)
 
 # ----------------------------------------------------------------------
 # Status
@@ -241,5 +243,5 @@ echo
 echo "OPTIONS:"
 echo "  Introspection:        $found_introspection"
 echo "  Debug Build:          $debug_status"
-echo "  Tests:                $tests_status"
+echo "  Strict Build:         $strict_status"
 echo

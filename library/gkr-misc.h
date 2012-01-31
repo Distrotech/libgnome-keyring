@@ -24,9 +24,11 @@
 #ifndef GKR_MISC_H
 #define GKR_MISC_H
 
+#include "gnome-keyring.h"
+
 #include <glib.h>
 
-const gchar*            gkr_service_name                     (void);
+extern const gchar *    gkr_service_name;
 
 gchar*                  gkr_encode_keyring_name              (const gchar *keyring);
 
@@ -42,5 +44,7 @@ gchar*                  gkr_decode_keyring_item_id           (const char *path,
                                                               guint32* id);
 
 gboolean                gkr_decode_is_keyring                (const char *path);
+
+gchar *                 gkr_attributes_print                 (GnomeKeyringAttributeList *attrs);
 
 #endif /* GKR_MISC_H */

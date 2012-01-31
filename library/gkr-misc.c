@@ -45,16 +45,8 @@
  * The type of item info to retrieve with gnome_keyring_item_get_info_full().
  */
 
-const gchar*
-gkr_service_name (void)
-{
-#ifdef WITH_TESTABLE
-	const gchar *service = g_getenv ("GNOME_KEYRING_TEST_SERVICE");
-	if (service && service[0])
-		return service;
-#endif
-	return SECRETS_SERVICE;
-}
+/* Exposed via gkr-misc.h */
+const gchar *gkr_service_name = SECRETS_SERVICE;
 
 static void
 encode_object_identifier (GString *string, const gchar* name, gssize length)
@@ -234,4 +226,45 @@ gkr_decode_keyring_item_id (const char *path, guint32* id)
 	}
 
 	return result;
+}
+
+gchar *
+gkr_attributes_print (GnomeKeyringAttributeList *attrs)
+{
+	GnomeKeyringAttribute *attr;
+	GString *string;
+	guint i;
+
+	if (attrs == NULL)
+		return g_strdup ("(null)");
+
+	string = g_string_new ("{ ");
+
+	for (i = 0; attrs && i < attrs->len; ++i) {
+		if (i > 0)
+			g_string_append (string, ", ");
+
+		attr = &gnome_keyring_attribute_list_index (attrs, i);
+
+		/* Add in the attribute type */
+		g_string_append (string, attr->name ? attr->name : "(null)");
+		g_string_append (string, ": ");
+
+		/* String values */
+		if (attr->type == GNOME_KEYRING_ATTRIBUTE_TYPE_STRING) {
+			g_string_append_c (string, '"');
+			g_string_append (string, attr->value.string ? attr->value.string : "");
+			g_string_append_c (string, '"');
+
+		/* Integer values */
+		} else if (attr->type == GNOME_KEYRING_ATTRIBUTE_TYPE_UINT32) {
+			g_string_append_printf (string, "%u", (guint)attr->value.integer);
+
+		} else {
+			g_string_append (string, "???");
+		}
+	}
+
+	g_string_append (string, " }");
+	return g_string_free (string, FALSE);
 }
