@@ -96,15 +96,26 @@ gkr_callback_invoke_op_string (GkrCallback *cb, const gchar *value)
 }
 
 void
-gkr_callback_invoke_res (GkrCallback *cb, GnomeKeyringResult res)
+gkr_callback_invoke_res (GkrCallback *cb,
+                         GnomeKeyringResult res)
 {
-	gint type;
-
-	g_assert (cb);
-	g_assert (cb->callback);
+	g_assert (cb != NULL);
+	g_assert (cb->callback != NULL);
 
 	if (cb->operation && !gkr_operation_set_result (cb->operation, res))
 		return;
+
+	gkr_callback_invoke_bare (cb, res);
+}
+
+void
+gkr_callback_invoke_bare (GkrCallback *cb,
+                          GnomeKeyringResult res)
+{
+	gint type;
+
+	g_assert (cb != NULL);
+	g_assert (cb->callback != NULL);
 
 	/* When successful can only call one kind of callback */
 	if (res == GNOME_KEYRING_RESULT_OK) {

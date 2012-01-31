@@ -74,6 +74,9 @@ void         gkr_callback_invoke_op_session       (GkrCallback *cb,
 void         gkr_callback_invoke_op_string        (GkrCallback *cb,
                                                    const gchar *value);
 
+void         gkr_callback_invoke_bare             (GkrCallback *cb,
+                                                   GnomeKeyringResult res);
+
 void         gkr_callback_invoke_res              (GkrCallback *cb,
                                                    GnomeKeyringResult res);
 

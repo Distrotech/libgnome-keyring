@@ -218,8 +218,7 @@ gkr_operation_set_result (GkrOperation *op, GnomeKeyringResult res)
 {
 	g_assert (op);
 	g_assert ((int) res != INCOMPLETE);
-	g_atomic_int_compare_and_exchange (&op->result, INCOMPLETE, res);
-	return g_atomic_int_get (&op->result) == res; /* Success when already set to res */
+	return g_atomic_int_compare_and_exchange (&op->result, INCOMPLETE, res);
 }
 
 static void
@@ -237,7 +236,7 @@ on_complete (GkrOperation *op)
 	/* Free all the other callbacks */
 	operation_clear_callbacks (op);
 
-	gkr_callback_invoke_res (cb, gkr_operation_get_result (op));
+	gkr_callback_invoke_bare (cb, gkr_operation_get_result (op));
 	gkr_callback_free (cb);
 }
 
@@ -366,8 +365,8 @@ callback_with_message (GkrOperation *op, DBusMessage *message)
 {
 	GkrCallback *cb;
 
-	g_assert (op);
-	g_assert (message);
+	g_assert (op != NULL);
+	g_assert (message != NULL);
 
 	cb = g_queue_peek_head (&op->callbacks);
 	g_assert (cb);
@@ -389,6 +388,9 @@ on_pending_call_notify (DBusPendingCall *pending, void *user_data)
 
 	gkr_debug ("%p: notified: %p", op, pending);
 	g_assert (pending == op->pending);
+
+	if ((int) gkr_operation_get_result (op) != INCOMPLETE)
+		return;
 
 	reply = dbus_pending_call_steal_reply (pending);
 	g_return_if_fail (reply);
