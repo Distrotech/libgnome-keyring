@@ -96,8 +96,21 @@ gkr_operation_init (void)
 GkrOperation*
 gkr_operation_ref (GkrOperation *op)
 {
+	gint old;
+
 	g_assert (op);
-	g_atomic_int_inc (&op->refs);
+
+#if GLIB_CHECK_VERSION (2,30,0)
+	old = g_atomic_int_add (&op->refs, 1);
+#else
+	old = g_atomic_int_exchange_and_add (&op->refs, 1);
+#endif
+
+	if (old <= 0) {
+		g_warning ("invalid or unreferenced gnome-keyring operation in use");
+		return NULL;
+	}
+
 	return op;
 }
 
