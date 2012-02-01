@@ -12,7 +12,8 @@ EXTRA_DIST = \
 	intltool-update.in \
 	HACKING \
 	COPYING.GPL \
-	m4/introspection.m4
+	build/m4 \
+	build/valgrind
 
 DISTCHECK_CONFIGURE_FLAGS = \
 	--enable-gtk-doc \

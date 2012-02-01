@@ -4,6 +4,7 @@ noinst_LTLIBRARIES = \
 
 INCLUDES = \
 	-I$(top_srcdir) \
+	-I$(top_srcdir)/build \
 	-I$(top_builddir)
 
 libegg_la_CFLAGS = \
