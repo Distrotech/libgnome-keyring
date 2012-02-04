@@ -1,3 +1,12 @@
+Changes in version 3.3.5 are:
+ * GObject introspection for synchronous functions
+ * Fix issue where an operation could be completed twice, with
+   undefined results.
+ * Test against mock Secret Service rather than gnome-keyring-daemon
+ * More testing fixes
+ * Updated translations
+ * Build fixes
+
 Changes in version 3.3.4 are:
  * Fix gnome_keyring_item_info_copy()
  * Build fixes
