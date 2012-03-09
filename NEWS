@@ -1,3 +1,7 @@
+Changes in version 3.3.91 are:
+ * GObject introspection fixes
+ * Build fixes
+
 Changes in version 3.3.5 are:
  * GObject introspection for synchronous functions
  * Fix issue where an operation could be completed twice, with
