@@ -1,0 +1,54 @@
+# translation of libgnome-keyring.master.po to Khmer
+# Copyright (C) YEAR THE PACKAGE'S COPYRIGHT HOLDER
+# This file is distributed under the same license as the PACKAGE package.
+#
+# Khoem Sokhem <khoemsokhem@khmeros.info>, 2012.
+msgid ""
+msgstr ""
+"Project-Id-Version: libgnome-keyring.master\n"
+"Report-Msgid-Bugs-To: http://bugzilla.gnome.org/enter_bug.cgi?product=gnome-keyring&keywords=I18N+L10N&component=libgnome-keyring\n"
+"POT-Creation-Date: 2011-12-26 16:29+0000\n"
+"PO-Revision-Date: 2012-02-06 15:30+0700\n"
+"Last-Translator: Khoem Sokhem <khoemsokhem@khmeros.info>\n"
+"Language-Team: Khmer\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"X-Generator: KBabel 1.11.4\n"
+
+#: ../library/gnome-keyring-utils.c:180
+msgid "Access Denied"
+msgstr "ការ​ចូល​ដំណើរការ​ត្រូវ​បាន​បដិសេធ"
+
+#: ../library/gnome-keyring-utils.c:182
+msgid "The gnome-keyring-daemon application is not running."
+msgstr "កម្មវិធី​ដេមិន gnome-keyring មិន​កំពុង​ដំណើរ​ការ​ទេ ។"
+
+#: ../library/gnome-keyring-utils.c:184
+msgid "Error communicating with gnome-keyring-daemon"
+msgstr "កំហុស​ក្នុង​ការ​ប្រាស្រយ​ទាក់ទង​ជា​មួយ​ដេមិន gnome-keyring"
+
+#: ../library/gnome-keyring-utils.c:186
+msgid "A keyring with that name already exists"
+msgstr "មាន​ឈ្មោះ​ដែល keyring មាន​រួច​ហើយ"
+
+#: ../library/gnome-keyring-utils.c:188
+msgid "Programmer error: The application sent invalid data."
+msgstr "កំហុស​របស់​អ្នក​សរសេរ​កម្មវិធី ៖ កម្មវិធី​បាន​ផ្ញើ​ទិន្នន័យ​មិន​ត្រឹមត្រូវ ។"
+
+#: ../library/gnome-keyring-utils.c:190
+msgid "No matching results"
+msgstr "គ្មាន​លទ្ធផល​ដែល​ត្រូវ​គ្នា"
+
+#: ../library/gnome-keyring-utils.c:192
+msgid "A keyring with that name does not exist."
+msgstr "មិន​ទាន់​មាន​ keyring ដែល​មាន​ឈ្មោះ​នេះ​ទេ ។"
+
+#: ../library/gnome-keyring-utils.c:199
+msgid "The keyring has already been unlocked."
+msgstr "keyring ត្រូវ​បាន​ដោះ​សោ​រួច​ហើយ ។"
+
+#. TRANSLATORS: This is the name of an automatically created default keyring.
+#: ../library/gnome-keyring.c:2933
+msgid "Default"
+msgstr "លំនាំដើម"
