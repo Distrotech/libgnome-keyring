@@ -1,3 +1,6 @@
+Changes in version 3.3.92 are:
+ * Updated translations
+
 Changes in version 3.3.91 are:
  * GObject introspection fixes
  * Build fixes
