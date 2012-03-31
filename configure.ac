@@ -159,7 +159,7 @@ fi
 AC_MSG_RESULT($debug_status)
 
 AC_MSG_CHECKING(for more warnings)
-if test "$enale_debug" != "no" -a "$GCC" = "yes"; then
+if test "$enable_debug" != "no" -a "$GCC" = "yes"; then
 	AC_MSG_RESULT(yes)
 	CFLAGS="\
 	-Wall \
