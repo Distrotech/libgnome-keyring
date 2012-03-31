@@ -64,7 +64,8 @@ IGNORE_HFILES= \
 	gkr-debug.h \
 	gkr-misc.h \
 	gkr-operation.h \
-	gkr-session.h
+	gkr-session.h \
+	mock-service.h
 
 # Images to copy into HTML directory.
 # e.g. HTML_IMAGES=$(top_srcdir)/gtk/stock-icons/stock_about_24.png

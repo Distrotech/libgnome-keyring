@@ -4680,6 +4680,14 @@ gnome_keyring_set_network_password_sync (const char                            *
  * </para>
  **/
 
+/**
+ * GnomeKeyringPasswordSchemaAttribute:
+ * @name: the attribute name
+ * @type: the attribute data type
+ *
+ * One attribute of a #GnomeKeyringPasswordSchema.
+ */
+
 static const GnomeKeyringPasswordSchema network_password_schema = {
 	GNOME_KEYRING_ITEM_NETWORK_PASSWORD,
 	{

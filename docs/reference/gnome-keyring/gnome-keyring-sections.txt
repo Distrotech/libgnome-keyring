@@ -1,6 +1,7 @@
 <SECTION>
 <FILE>gnome-keyring-password</FILE>
 GnomeKeyringPasswordSchema
+GnomeKeyringPasswordSchemaAttribute
 GNOME_KEYRING_NETWORK_PASSWORD
 GNOME_KEYRING_DEFAULT
 GNOME_KEYRING_SESSION
