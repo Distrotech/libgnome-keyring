@@ -29,13 +29,6 @@
 G_BEGIN_DECLS
 
 /**
- * gnome-keyring-memory:Short_Description:
- *
- * Gnome Keyring uses memory that is locked in physical RAM for secrets and
- * passwords.
- **/
-
-/**
  * gnome_keyring_memory_new:
  * @type: The C type of the objects to allocate
  * @n_objects: The number of objects to allocate.
