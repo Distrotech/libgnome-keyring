@@ -1,0 +1,54 @@
+# Aragonese translation for libgnome-keyring.
+# Copyright (C) 2012 libgnome-keyring's COPYRIGHT HOLDER
+# This file is distributed under the same license as the libgnome-keyring package.
+# Daniel Martinez Cucalon <entaltoaragon@gmail.com>, 2012.
+#
+msgid ""
+msgstr ""
+"Project-Id-Version: libgnome-keyring master\n"
+"Report-Msgid-Bugs-To: http://bugzilla.gnome.org/enter_bug.cgi?product=gnome-"
+"keyring&keywords=I18N+L10N&component=libgnome-keyring\n"
+"POT-Creation-Date: 2012-04-05 17:05+0000\n"
+"PO-Revision-Date: 2012-04-05 17:05+0000\n"
+"Last-Translator: Daniel Martinez Cucalon <entaltoaragon@gmail.com>\n"
+"Language-Team: Aragonese <softaragones@googlegroups.com>\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+
+#: ../library/gnome-keyring-utils.c:180
+msgid "Access Denied"
+msgstr "Acceso denegau"
+
+#: ../library/gnome-keyring-utils.c:182
+msgid "The gnome-keyring-daemon application is not running."
+msgstr "L'aplicación gnome-keyring-daemon no se ye executando."
+
+#: ../library/gnome-keyring-utils.c:184
+msgid "Error communicating with gnome-keyring-daemon"
+msgstr "Error en comunicar con gnome-keyring-daemon"
+
+#: ../library/gnome-keyring-utils.c:186
+msgid "A keyring with that name already exists"
+msgstr "Ya existe un depósito de claus con ixe nombre"
+
+#: ../library/gnome-keyring-utils.c:188
+msgid "Programmer error: The application sent invalid data."
+msgstr "Error de programación: L'aplicación ninvió datos no validos."
+
+#: ../library/gnome-keyring-utils.c:190
+msgid "No matching results"
+msgstr "No se trobó garra resultau coincident"
+
+#: ../library/gnome-keyring-utils.c:192
+msgid "A keyring with that name does not exist."
+msgstr "No existe un depósito de claus con ixe nombre."
+
+#: ../library/gnome-keyring-utils.c:199
+msgid "The keyring has already been unlocked."
+msgstr "O depósito de claus ya s'ha desbloquiau."
+
+#. TRANSLATORS: This is the name of an automatically created default keyring.
+#: ../library/gnome-keyring.c:3037
+msgid "Default"
+msgstr "Predeterminau"
