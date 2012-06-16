@@ -71,6 +71,7 @@ GnomeKeyring_1_0_gir_INCLUDES = GObject-2.0
 GnomeKeyring_1_0_gir_CFLAGS = $(INCLUDES)
 GnomeKeyring_1_0_gir_LIBS = $(lib_LTLIBRARIES)
 GnomeKeyring_1_0_gir_FILES = $(introspection_sources)
+GnomeKeyring_1_0_gir_SCANNERFLAGS = --c-include "gnome-keyring.h"
 INTROSPECTION_GIRS += GnomeKeyring-1.0.gir
 
 girdir = $(datadir)/gir-1.0

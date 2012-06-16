@@ -92,25 +92,32 @@ typedef struct {
 void gnome_keyring_string_list_free (GList *strings);
 
 typedef void (*GnomeKeyringOperationDoneCallback)           (GnomeKeyringResult result,
-                                                             gpointer           data);
+                                                             gpointer           user_data);
+/**
+ * GnomeKeyringOperationGetStringCallback:
+ * @result: result of the operation
+ * @string: (allow-none): the string, or %NULL
+ * @user_data: user data
+ */
 typedef void (*GnomeKeyringOperationGetStringCallback)      (GnomeKeyringResult result,
                                                              const char        *string,
-                                                             gpointer           data);
+                                                             gpointer           user_data);
 typedef void (*GnomeKeyringOperationGetIntCallback)         (GnomeKeyringResult result,
                                                              guint32            val,
-                                                             gpointer           data);
+                                                             gpointer           user_data);
 typedef void (*GnomeKeyringOperationGetListCallback)        (GnomeKeyringResult result,
                                                              GList             *list,
-                                                             gpointer           data);
+                                                             gpointer           user_data);
 typedef void (*GnomeKeyringOperationGetKeyringInfoCallback) (GnomeKeyringResult result,
                                                              GnomeKeyringInfo  *info,
-                                                             gpointer           data);
+                                                             gpointer           user_data);
 typedef void (*GnomeKeyringOperationGetItemInfoCallback)    (GnomeKeyringResult   result,
                                                              GnomeKeyringItemInfo*info,
-                                                             gpointer             data);
+                                                             gpointer             user_data);
 typedef void (*GnomeKeyringOperationGetAttributesCallback)  (GnomeKeyringResult   result,
                                                              GnomeKeyringAttributeList *attributes,
-                                                             gpointer             data);
+                                                             gpointer             user_data);
+
 
 GType                      gnome_keyring_attribute_get_type           (void) G_GNUC_CONST;
 const gchar*               gnome_keyring_attribute_get_string         (GnomeKeyringAttribute *attribute);
