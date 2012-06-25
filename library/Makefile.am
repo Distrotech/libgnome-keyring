@@ -13,19 +13,22 @@ INCLUDES= \
 	$(LIBRARY_CFLAGS) \
 	$(LIBGCRYPT_CFLAGS)
 
+PUBLIC_SOURCES = \
+	gnome-keyring.c \
+	gnome-keyring.h \
+	gnome-keyring-memory.h \
+	gnome-keyring-memory.c \
+	gnome-keyring-result.h \
+	gnome-keyring-utils.c
+
 libgnome_keyring_la_SOURCES = \
 	gkr-callback.c gkr-callback.h \
 	gkr-debug.c gkr-debug.h \
 	gkr-misc.c gkr-misc.h \
 	gkr-operation.c gkr-operation.h \
 	gkr-session.c gkr-session.h \
-	gnome-keyring.c \
-	gnome-keyring.h \
-	gnome-keyring-memory.h \
-	gnome-keyring-memory.c \
 	gnome-keyring-private.h \
-	gnome-keyring-result.h \
-	gnome-keyring-utils.c
+	$(PUBLIC_SOURCES)
 
 libgnomekeyringinclude_HEADERS = \
 	gnome-keyring.h \
@@ -64,13 +67,11 @@ INTROSPECTION_COMPILER_ARGS = --includedir=$(srcdir)
 
 if HAVE_INTROSPECTION
 # the gkr-* files are not part of the public API
-introspection_sources = $(filter-out gkr-% %-private.h,$(libgnome_keyring_la_SOURCES))
-
 GnomeKeyring-1.0.gir: $(lib_LTLIBRARIES)
 GnomeKeyring_1_0_gir_INCLUDES = GObject-2.0
 GnomeKeyring_1_0_gir_CFLAGS = $(INCLUDES)
 GnomeKeyring_1_0_gir_LIBS = $(lib_LTLIBRARIES)
-GnomeKeyring_1_0_gir_FILES = $(introspection_sources)
+GnomeKeyring_1_0_gir_FILES = $(PUBLIC_SOURCES)
 GnomeKeyring_1_0_gir_SCANNERFLAGS = --c-include "gnome-keyring.h"
 INTROSPECTION_GIRS += GnomeKeyring-1.0.gir
 
