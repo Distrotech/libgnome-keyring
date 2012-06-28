@@ -53,6 +53,9 @@ AM_GLIB_GNU_GETTEXT
 # Introspection
 GOBJECT_INTROSPECTION_CHECK([1.30.0])
 
+# Vala bindings
+VAPIGEN_CHECK([0.16])
+
 # --------------------------------------------------------------------
 # Check for various credentials.
 #
@@ -243,6 +246,7 @@ echo "CFLAGS: $CFLAGS"
 echo
 echo "OPTIONS:"
 echo "  Introspection:        $found_introspection"
+echo "  Vala:                 $enable_vala"
 echo "  Debug Build:          $debug_status"
 echo "  Strict Build:         $strict_status"
 echo

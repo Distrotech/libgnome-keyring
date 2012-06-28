@@ -1,0 +1,63 @@
+// Metadata file for Vala API generation.
+// See https://live.gnome.org/Vala/UpstreamGuide for more information
+
+Attribute struct=false
+Info
+  .get_ctime type="time_t"
+  .get_mtime type="time_t"
+ItemInfo
+  .get_ctime type="time_t"
+  .get_mtime type="time_t"
+NetworkPasswordData struct=false
+  .keyring unowned=false
+  .protocol unowned=false
+  .server unowned=false
+  .object unowned=false
+  .authtype unowned=false
+  .user unowned=false
+  .domain unowned=false
+  .password unowned=false
+PasswordSchema struct=false
+
+change_password skip=false
+create skip=false
+@delete skip=false
+delete_password skip=false
+delete_password_sync skip=false
+find_items skip=false
+find_itemsv skip=false
+find_itemsv_sync skip=false
+find_network_password skip=false
+find_password skip=false
+find_password_sync skip=false
+get_default_keyring skip=false
+get_info skip=false
+item_create skip=false
+item_delete skip=false
+item_get_acl skip=false
+item_get_attributes skip=false
+item_get_attributes_sync skip=false
+item_get_info skip=false
+item_get_info_full skip=false
+item_get_info_full_sync skip=false
+item_get_info_sync skip=false
+item_grant_access_rights skip=false
+item_set_acl skip=false
+item_set_attributes skip=false
+item_set_info skip=false
+list_item_ids skip=false
+list_keyring_names skip=false
+@lock skip=false
+lock_all skip=false
+memory_* skip=false
+set_info skip=false
+set_network_password skip=false
+store_password skip=false
+store_password_sync skip=false
+unlock skip=false
+
+find_items*.callback type_arguments="GnomeKeyring.Found"
+find_network_password*.callback type_arguments="GnomeKeyring.NetworkPasswordData"
+item_get_acl*.callback type_arguments="GnomeKeyring.AccessControl"
+list_item_ids*.callback type_arguments="uint"
+list_keyring_names*.callback type_arguments="string"

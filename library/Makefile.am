@@ -55,7 +55,9 @@ pkgconfigdir = $(libdir)/pkgconfig
 pkgconfig_DATA = gnome-keyring-1.pc
 
 EXTRA_DIST = \
-	gnome-keyring-1-uninstalled.pc.in
+	gnome-keyring-1-uninstalled.pc.in \
+	GnomeKeyring-1.0.metadata \
+	GnomeKeyring-1.0-custom.vala
 
 CLEANFILES=
 
@@ -82,6 +84,21 @@ typelibdir = $(libdir)/girepository-1.0
 typelib_DATA = $(INTROSPECTION_GIRS:.gir=.typelib)
 
 CLEANFILES += $(gir_DATA) $(typelib_DATA)
+
+if ENABLE_VAPIGEN
+-include $(VAPIGEN_MAKEFILE)
+
+gnome-keyring-1.vapi: GnomeKeyring-1.0.gir GnomeKeyring-1.0.metadata GnomeKeyring-1.0-custom.vala
+
+VAPIGEN_VAPIS = gnome-keyring-1.vapi
+CLEANFILES += $(VAPIGEN_VAPIS)
+
+gnome_keyring_1_vapi_METADATADIRS = $(srcdir)
+gnome_keyring_1_vapi_FILES = GnomeKeyring-1.0.gir $(srcdir)/GnomeKeyring-1.0-custom.vala
+
+vapidir = $(VAPIGEN_VAPIDIR)
+vapi_DATA = $(VAPIGEN_VAPIS)
+endif
 endif
 
 SUBDIRS = . tests

@@ -121,6 +121,7 @@ run-auto-test.h
 /library/Makefile.in
 /library/*.gir
 /library/*.typelib
+/library/*.vapi
 
 # /library/tests
 /library/tests/Makefile
