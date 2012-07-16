@@ -1,3 +1,6 @@
+Changes in version 3.5.4 are:
+ * Vala bindings
+
 Changes in version 3.5.3 are:
  * Fix debugging for G_MESSAGES_DEBUG
  * Some minor fixes to avoid vala regressions
