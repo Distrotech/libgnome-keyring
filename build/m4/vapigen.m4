@@ -74,9 +74,9 @@ AC_DEFUN([VAPIGEN_CHECK],
       VAPIGEN=`$PKG_CONFIG --variable=vapigen vapigen`
       VAPIGEN_MAKEFILE=`$PKG_CONFIG --variable=datadir vapigen`/vala/Makefile.vapigen
       AS_IF([test "x$2" = "x"], [
-          VAPIGEN_VAPIDIR=`$PKG_CONFIG --variable=vapidir vapigen`
+          VAPIGEN_VAPIDIR='$(prefix)'/share/vala/vapi
         ], [
-          VAPIGEN_VAPIDIR=`$PKG_CONFIG --variable=vapidir_versioned vapigen`
+          VAPIGEN_VAPIDIR='$(prefix)'/share/vala/vapi-$2
         ])
     ])
 
