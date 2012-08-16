@@ -1,0 +1,58 @@
+# Marathi translation for libgnome-keyring.
+# Copyright (C) 2012 libgnome-keyring's COPYRIGHT HOLDER
+# This file is distributed under the same license as the libgnome-keyring package.
+#
+# Sandeep Shedmake <sshedmak@redhat.com>, 2012.
+msgid ""
+msgstr ""
+"Project-Id-Version: libgnome-keyring master\n"
+"Report-Msgid-Bugs-To: http://bugzilla.gnome.org/enter_bug.cgi?product=gnome-"
+"keyring&keywords=I18N+L10N&component=libgnome-keyring\n"
+"POT-Creation-Date: 2012-08-14 10:24+0000\n"
+"PO-Revision-Date: 2012-08-16 14:21+0530\n"
+"Last-Translator: Sandeep Shedmake <sshedmak@redhat.com>\n"
+"Language-Team: Marathi <mr@li.org>\n"
+"Language: mr\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=2; plural=n != 1;\n"
+"X-Generator: Lokalize 1.4\n"
+
+#: ../library/gnome-keyring-utils.c:180
+msgid "Access Denied"
+msgstr "ॲक्सेस नकारले"
+
+#: ../library/gnome-keyring-utils.c:182
+msgid "The gnome-keyring-daemon application is not running."
+msgstr "gnome-keyring-daemon ॲप्लिकेशन सुरू नाही."
+
+#: ../library/gnome-keyring-utils.c:184
+msgid "Error communicating with gnome-keyring-daemon"
+msgstr "gnome-keyring-daemon सह संपर्क साधतेवेळी त्रुटी"
+
+#: ../library/gnome-keyring-utils.c:186
+msgid "A keyring with that name already exists"
+msgstr "त्यानावासह किरिंग आधिपासूनच अस्तित्वात आहे"
+
+#: ../library/gnome-keyring-utils.c:188
+msgid "Programmer error: The application sent invalid data."
+msgstr "प्रोग्रामर त्रुटी: ॲप्लिकेशनने अवैध डाटा पाठवले."
+
+#: ../library/gnome-keyring-utils.c:190
+msgid "No matching results"
+msgstr "जुळण्याजोगी परिणाम आढळले नाही"
+
+#: ../library/gnome-keyring-utils.c:192
+msgid "A keyring with that name does not exist."
+msgstr "त्या नावाचे किरिंग अस्तित्वात नाही."
+
+#: ../library/gnome-keyring-utils.c:199
+msgid "The keyring has already been unlocked."
+msgstr "किरिंग आधिपासूनच कुलूपबंद अशक्य केले आहे."
+
+#. TRANSLATORS: This is the name of an automatically created default keyring.
+#: ../library/gnome-keyring.c:3037
+msgid "Default"
+msgstr "पूर्वनिर्धारित"
+
