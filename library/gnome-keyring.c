@@ -2732,6 +2732,9 @@ gnome_keyring_find_itemsv_sync  (GnomeKeyringItemType        type,
  * Attributes allow various other pieces of information to be associated with an item.
  * These can also be used to search for relevant items. Attributes are accessed with
  * #GnomeKeyringAttribute structures and built into lists using #GnomeKeyringAttributeList.
+ *
+ * Attributes are not stored in a secret or encrypted manner by gnome-keyring. Do
+ * not store sensitive information in attributes.
  **/
 
 typedef struct _item_create_args {
@@ -4217,6 +4220,9 @@ gnome_keyring_item_grant_access_rights_sync (const char                   *keyri
  *
  * Networks passwords are a simple way of saving passwords associated with a
  * certain user/server/protocol and other fields.
+ *
+ * Attributes are not stored in a secret or encrypted manner by gnome-keyring. Do
+ * not store sensitive information in attributes.
  **/
 
 /**
@@ -4641,6 +4647,9 @@ gnome_keyring_set_network_password_sync (const char                            *
  * The names and types of allowed attributes for a given password are defined with a
  * schema. Certain schemas are predefined such as %GNOME_KEYRING_NETWORK_PASSWORD.
  * Additional schemas can be defined via the %GnomeKeyringPasswordSchema structure.
+ *
+ * Attributes are not stored in a secret or encrypted manner by gnome-keyring. Do
+ * not store sensitive information in attributes.
  *
  * Each function accepts a variable list of attributes names and their values.
  * Include a %NULL to terminate the list of attributes.

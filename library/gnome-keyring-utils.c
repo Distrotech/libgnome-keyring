@@ -275,6 +275,9 @@ gnome_keyring_found_list_free (GList *found_list)
  * These can also be used to search for relevant items. Use gnome_keyring_item_get_attributes()
  * or gnome_keyring_item_set_attributes().
  *
+ * Attributes are not stored in a secret or encrypted manner by gnome-keyring. Do
+ * not store sensitive information in attributes.
+ *
  * Each attribute has either a string, or unsigned integer value.
  **/
 
