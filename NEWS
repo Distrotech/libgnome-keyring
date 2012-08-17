@@ -1,3 +1,8 @@
+Changes in version 3.5.6 are:
+ * More warnings about attributes not being stored secretly
+ * Build fixes
+ * Updated translations
+
 Changes in version 3.5.4 are:
  * Vala bindings
 
