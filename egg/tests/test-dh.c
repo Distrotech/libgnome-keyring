@@ -35,7 +35,7 @@
 #include <stdio.h>
 #include <string.h>
 
-EGG_SECURE_GLIB_DEFINITIONS ();
+EGG_SECURE_DEFINE_GLIB_GLOBALS ();
 
 static void
 test_dh_perform (void)

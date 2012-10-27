@@ -51,6 +51,8 @@
 #include <sys/uio.h>
 #include <stdarg.h>
 
+EGG_SECURE_DECLARE (libgnome_keyring);
+
 typedef gboolean (*DecodeCallback) (DBusMessageIter *, gpointer);
 
 typedef gboolean (*DecodeDictCallback) (const gchar *, DBusMessageIter *, gpointer);

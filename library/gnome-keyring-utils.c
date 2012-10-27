@@ -32,6 +32,8 @@
 
 #include "egg/egg-secure-memory.h"
 
+EGG_SECURE_DECLARE (libgnome_keyring_utils);
+
 /**
  * SECTION:gnome-keyring-result
  * @title: Result Codes
