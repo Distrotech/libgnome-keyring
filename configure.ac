@@ -1,4 +1,4 @@
-AC_INIT([libgnome-keyring], [3.6.0])
+AC_INIT([libgnome-keyring], [3.7.2])
 AC_CONFIG_SRCDIR([library/gnome-keyring.h])
 AM_INIT_AUTOMAKE([tar-ustar])
 AC_CONFIG_MACRO_DIR([build/m4])
@@ -55,6 +55,17 @@ GOBJECT_INTROSPECTION_CHECK([1.30.0])
 
 # Vala bindings
 VAPIGEN_CHECK([0.16])
+
+AC_ARG_WITH(vapidir, [AC_HELP_STRING([--with-vapidir], [Directory for VAPI files]),
+            ], [], [VAPIGEN_VAPIDIR=$with_vapidir])
+
+if "$with_vapidir" = ""; then
+	VAPIDIR="$VAPIGEN_VAPIDIR"
+else
+	VAPIDIR="$with_vapidir"
+fi
+
+AC_SUBST(VAPIDIR)
 
 # --------------------------------------------------------------------
 # Check for various credentials.

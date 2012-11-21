@@ -1,3 +1,4 @@
+NULL =
 
 SUBDIRS = \
 	. \
@@ -19,7 +20,9 @@ DISTCHECK_CONFIGURE_FLAGS = \
 	--enable-gtk-doc \
 	--enable-introspection \
 	--enable-tests=yes \
-	--enable-debug=yes
+	--enable-debug=yes \
+	--with-vapidir=$(abs_srcdir)/$(top_distdir)/_inst/share/vapi \
+	$(NULL)
 
 DISTCLEANFILES = \
 	intltool-extract \

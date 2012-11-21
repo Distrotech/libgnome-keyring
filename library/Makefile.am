@@ -96,7 +96,7 @@ CLEANFILES += $(VAPIGEN_VAPIS)
 gnome_keyring_1_vapi_METADATADIRS = $(srcdir)
 gnome_keyring_1_vapi_FILES = GnomeKeyring-1.0.gir $(srcdir)/GnomeKeyring-1.0-custom.vala
 
-vapidir = $(VAPIGEN_VAPIDIR)
+vapidir = $(VAPIDIR)
 vapi_DATA = $(VAPIGEN_VAPIS)
 endif
 endif
