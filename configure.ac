@@ -59,7 +59,7 @@ VAPIGEN_CHECK([0.16])
 AC_ARG_WITH(vapidir, [AC_HELP_STRING([--with-vapidir], [Directory for VAPI files]),
             ], [], [VAPIGEN_VAPIDIR=$with_vapidir])
 
-if "$with_vapidir" = ""; then
+if test "$with_vapidir" = ""; then
 	VAPIDIR="$VAPIGEN_VAPIDIR"
 else
 	VAPIDIR="$with_vapidir"
