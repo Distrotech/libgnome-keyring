@@ -1,3 +1,7 @@
+Changes in version 3.7.5 are:
+ * Updated translations
+ * Build fixes
+
 Changes in version 3.7.2 are:
  * Share the secure memory pool with libsecret and gcr
  * Other minor tweaks
