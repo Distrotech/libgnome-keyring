@@ -1,53 +1,54 @@
 # libgnome-keyring's Portuguese translation.
-# Copyright © 2010 libgnome-keyring
+# Copyright © 2010, 2013 libgnome-keyring
 # This file is distributed under the same license as the libgnome-keyring package.
-# Duarte Loreto <happyguy_pt@hotmail.com>, 2010.
-#
+# Duarte Loreto <happyguy_pt@hotmail.com>, 2010, 2013.
+# 
 msgid ""
 msgstr ""
-"Project-Id-Version: 2.30\n"
+"Project-Id-Version: 3.8\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2010-03-09 00:50+0000\n"
-"PO-Revision-Date: 2010-03-09 00:50+0000\n"
+"POT-Creation-Date: 2013-03-17 00:56+0000\n"
+"PO-Revision-Date: 2013-03-17 00:59+0000\n"
 "Last-Translator: Duarte Loreto <happyguy_pt@hotmail.com>\n"
 "Language-Team: Portuguese <gnome_pt@yahoogroups.com>\n"
+"Language: pt\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: ../library/gnome-keyring-utils.c:100
+#: ../library/gnome-keyring-utils.c:182
 msgid "Access Denied"
 msgstr "Acesso Negado"
 
-#: ../library/gnome-keyring-utils.c:102
+#: ../library/gnome-keyring-utils.c:184
 msgid "The gnome-keyring-daemon application is not running."
 msgstr "A aplicação gnome-keyring-daemon não se encontra em execução."
 
-#: ../library/gnome-keyring-utils.c:104
+#: ../library/gnome-keyring-utils.c:186
 msgid "Error communicating with gnome-keyring-daemon"
 msgstr "Erro ao comunicar com o gnome-keyring-daemon"
 
-#: ../library/gnome-keyring-utils.c:106
+#: ../library/gnome-keyring-utils.c:188
 msgid "A keyring with that name already exists"
 msgstr "Já existe um chaveiro com esse nome"
 
-#: ../library/gnome-keyring-utils.c:108
+#: ../library/gnome-keyring-utils.c:190
 msgid "Programmer error: The application sent invalid data."
 msgstr "Erro de programação: A aplicação enviou dados inválidos."
 
-#: ../library/gnome-keyring-utils.c:110
+#: ../library/gnome-keyring-utils.c:192
 msgid "No matching results"
 msgstr "Nenhum resultado coincidente"
 
-#: ../library/gnome-keyring-utils.c:112
+#: ../library/gnome-keyring-utils.c:194
 msgid "A keyring with that name does not exist."
 msgstr "Não existe um chaveiro com esse nome."
 
-#: ../library/gnome-keyring-utils.c:119
+#: ../library/gnome-keyring-utils.c:201
 msgid "The keyring has already been unlocked."
 msgstr "O chaveiro já foi destrancado."
 
 #. TRANSLATORS: This is the name of an automatically created default keyring.
-#: ../library/gnome-keyring.c:2685
+#: ../library/gnome-keyring.c:3042
 msgid "Default"
 msgstr "Omissão"
