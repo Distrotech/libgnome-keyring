@@ -15,6 +15,9 @@ TEST_PROGS = \
 
 check_PROGRAMS = $(TEST_PROGS)
 
+CLEANFILES = \
+	*.gcda *.gcno
+
 test: ${TEST_PROGS}
 	gtester -k --verbose ${TEST_PROGS}
 

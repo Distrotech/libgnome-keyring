@@ -59,7 +59,8 @@ EXTRA_DIST = \
 	GnomeKeyring-1.0.metadata \
 	GnomeKeyring-1.0-custom.vala
 
-CLEANFILES=
+CLEANFILES = \
+	*.gcda *.gcno
 
 # build introspection typelib
 -include $(INTROSPECTION_MAKEFILE)

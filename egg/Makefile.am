@@ -20,6 +20,9 @@ libegg_la_SOURCES = \
 	egg-secure-memory.c egg-secure-memory.h \
 	egg-testing.c egg-testing.h
 
+CLEANFILES = \
+	*.gcda *.gcno
+
 # -------------------------------------------------------------------
 
 SUBDIRS = . tests

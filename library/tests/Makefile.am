@@ -47,6 +47,9 @@ EXTRA_DIST = \
 	mock-service-normal.py \
 	mock-service-cancel.py
 
+CLEANFILES = \
+	*.gcda *.gcno
+
 test: $(TEST_PROGS)
 	gtester -k --verbose $(TEST_PROGS)
 

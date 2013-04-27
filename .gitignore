@@ -12,6 +12,8 @@ run-auto-test.h
 *.stamp
 *~
 *.bak
+*.gcda
+*.gcno
 *.tmp
 *.prj
 *.pws
