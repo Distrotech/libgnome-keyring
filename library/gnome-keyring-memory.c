@@ -48,7 +48,7 @@
  * sensitive information.
  */
 
-static GStaticMutex memory_mutex = G_STATIC_MUTEX_INIT;
+static GMutex memory_mutex = { 0, };
 
 #define WARNING  "couldn't allocate secure memory to keep passwords " \
                  "and or keys from being written to the disk"
@@ -65,13 +65,13 @@ static GStaticMutex memory_mutex = G_STATIC_MUTEX_INIT;
 static void
 egg_memory_lock (void)
 {
-	g_static_mutex_lock (&memory_mutex);
+	g_mutex_lock (&memory_mutex);
 }
 
 static void
 egg_memory_unlock (void)
 {
-	g_static_mutex_unlock (&memory_mutex);
+	g_mutex_unlock (&memory_mutex);
 }
 
 static void *
