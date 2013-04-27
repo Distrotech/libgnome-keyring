@@ -39,7 +39,8 @@ noinst_PROGRAMS = \
 	frob-any-daemon \
 	frob-unlock-keyring \
 	frob-list-modified \
-	frob-default-keyring
+	frob-default-keyring \
+	frob-lock-all
 
 EXTRA_DIST = \
 	test-gi.py \

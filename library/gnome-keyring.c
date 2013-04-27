@@ -876,6 +876,8 @@ lock_all_start (GnomeKeyringOperationDoneCallback callback,
 
 	g_return_val_if_fail (callback, NULL);
 
+	gkr_debug ("Calling o.f.S.Service.LockService");
+
 	req = dbus_message_new_method_call (gkr_service_name, SERVICE_PATH,
 	                                    SERVICE_INTERFACE, "LockService");
 

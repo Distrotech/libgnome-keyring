@@ -138,6 +138,7 @@ run-auto-test.h
 /library/tests/test-memory
 /library/tests/test-other
 /library/tests/frob-list-modified
+/library/tests/frob-lock-all
 
 # /po
 /po/*.gmo
