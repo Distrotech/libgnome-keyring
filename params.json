@@ -1,0 +1,1 @@
+{"name":"Libgnome-keyring","tagline":"Mirror of git://git.gnome.org/libgnome-keyring","body":"gnome-keyring is a program that keep password and other secrets for\r\nusers. The library libgnome-keyring is used by applications to integrate\r\nwith the gnome keyring system.\r\n","google":"","note":"Don't delete this file! It's used internally to help with page regeneration."}
