@@ -39,6 +39,10 @@ EGG_SECURE_DECLARE (libgnome_keyring_utils);
  * @title: Result Codes
  * @short_description: Gnome Keyring Result Codes
  *
+ * <warning>All of these APIs are deprecated. Use
+ * <ulink href="http://developer.gnome.org/libsecret/stable/">libsecret</ulink>
+ * instead.</warning>
+ *
  * <para>
  * Result codes used through out GNOME Keyring. Additional result codes may be
  * added from time to time and these should be handled gracefully.
@@ -52,6 +56,8 @@ EGG_SECURE_DECLARE (libgnome_keyring_utils);
  * Clears the memory used by password by filling with '\0' and frees the memory
  * after doing this. You should use this function instead of g_free() for
  * secret information.
+ *
+ * Deprecated: Use secret_password_free() instead.
  **/
 
 /**
@@ -71,6 +77,8 @@ EGG_SECURE_DECLARE (libgnome_keyring_utils);
  * @GNOME_KEYRING_ITEM_LAST_TYPE: Not used
  *
  * The types of items.
+ *
+ * Deprecated: Use #SecretSchema instead.
  */
 
 /**
@@ -87,6 +95,8 @@ EGG_SECURE_DECLARE (libgnome_keyring_utils);
  * @GNOME_KEYRING_RESULT_NO_MATCH: No such match found.
  *
  * Various result codes returned by functions.
+ *
+ * Deprecated: Errors are returned from libsecret functions as #GError.
  */
 
 /**
@@ -97,6 +107,8 @@ EGG_SECURE_DECLARE (libgnome_keyring_utils);
  * An item attribute. Set <code>string</code> if data type is
  * %GNOME_KEYRING_ATTRIBUTE_TYPE_STRING or <code>integer</code> if data type is
  * %GNOME_KEYRING_ATTRIBUTE_TYPE_UINT32
+ *
+ * Deprecated: libsecret only supports string attributes.
  */
 
 /**
@@ -106,6 +118,8 @@ EGG_SECURE_DECLARE (libgnome_keyring_utils);
  * @GNOME_KEYRING_ACCESS_REMOVE: Delete access
  *
  * Type of access.
+ *
+ * Deprecated: libsecret only supports string attributes.
  */
 
 /**
@@ -115,6 +129,8 @@ EGG_SECURE_DECLARE (libgnome_keyring_utils);
  * @GNOME_KEYRING_ACCESS_ALLOW: Give permission.
  *
  * Type of access restriction.
+ *
+ * Deprecated: No permission prompts are supported.
  */
 
 /**
@@ -131,6 +147,8 @@ EGG_SECURE_DECLARE (libgnome_keyring_utils);
  * @password: The password.
  *
  * Network password info.
+ *
+ * Deprecated: Use #SECRET_SCHEMA_COMPAT_NETWORK instead.
  */
 
 void
@@ -144,6 +162,8 @@ gnome_keyring_free_password (gchar *password)
  * @strings: (element-type utf8): A %GList of string pointers.
  *
  * Free a list of string pointers.
+ *
+ * Deprecated: Not needed when using libsecret.
  **/
 void
 gnome_keyring_string_list_free (GList *strings)
@@ -166,6 +186,9 @@ gnome_keyring_string_list_free (GList *strings)
  * Return value: a string suitable for display to the user for a given
  * #GnomeKeyringResult, or an empty string if the message wouldn't make
  * sense to a user.
+ *
+ * Deprecated: libsecret returns errors as #GError directly. Use the
+ *             error message field for a description.
  **/
 const gchar*
 gnome_keyring_result_to_message (GnomeKeyringResult res)
@@ -213,6 +236,8 @@ gnome_keyring_result_to_message (GnomeKeyringResult res)
  *
  * You usually want to use gnome_keyring_found_list_free() on the list of
  * results.
+ *
+ * Deprecated: Deprecated: Not needed when using libsecret.
  */
 void
 gnome_keyring_found_free (GnomeKeyringFound *found)
@@ -232,6 +257,8 @@ gnome_keyring_found_free (GnomeKeyringFound *found)
  * Copy a #GnomeKeyringFound item.
  *
  * Return value: (transfer full): The new #GnomeKeyringFound
+ *
+ * Deprecated: Not needed when using libsecret.
  */
 GnomeKeyringFound*
 gnome_keyring_found_copy (GnomeKeyringFound *found)
@@ -260,6 +287,8 @@ G_DEFINE_BOXED_TYPE (GnomeKeyringFound,
  * @found_list: (element-type GnomeKeyringFound): a #GList of #GnomeKeyringFound
  *
  * Free the memory used by the #GnomeKeyringFound items in @found_list.
+ *
+ * Deprecated: Not needed when using libsecret.
  **/
 void
 gnome_keyring_found_list_free (GList *found_list)
@@ -272,6 +301,10 @@ gnome_keyring_found_list_free (GList *found_list)
  * SECTION:gnome-keyring-attributes
  * @title: Item Attributes
  * @short_description: Attributes of individual keyring items.
+ *
+ * <warning>All of these APIs are deprecated. Use
+ * <ulink href="http://developer.gnome.org/libsecret/stable/">libsecret</ulink>
+ * instead.</warning>
  *
  * Attributes allow various other pieces of information to be associated with an item.
  * These can also be used to search for relevant items. Use gnome_keyring_item_get_attributes()
@@ -294,6 +327,8 @@ gnome_keyring_found_list_free (GList *found_list)
  *
  * Returns: (transfer none): The value.string pointer of @attribute. This is
  * not a copy, do not free.
+ *
+ * Deprecated: Not needed when using libsecret.
  **/
 const gchar*
 gnome_keyring_attribute_get_string (GnomeKeyringAttribute *attribute)
@@ -312,6 +347,8 @@ gnome_keyring_attribute_get_string (GnomeKeyringAttribute *attribute)
  * you should just use attribute->value.integer.
  *
  * Returns: The value.integer of @attribute.
+ *
+ * Deprecated: Not needed when using libsecret.
  **/
 guint32
 gnome_keyring_attribute_get_uint32 (GnomeKeyringAttribute *attribute)
@@ -325,6 +362,8 @@ gnome_keyring_attribute_get_uint32 (GnomeKeyringAttribute *attribute)
  * @attribute: a #GnomeKeyringAttribute.
  *
  * Free the memory used by the #GnomeKeyringAttribute @attribute.
+ *
+ * Deprecated: Not needed when using libsecret.
  **/
 static void
 gnome_keyring_attribute_free (GnomeKeyringAttribute *attribute)
@@ -346,6 +385,8 @@ gnome_keyring_attribute_free (GnomeKeyringAttribute *attribute)
  * Copy a #GnomeKeyringAttribute.
  *
  * Return value: (transfer full): The new #GnomeKeyringAttribute
+ *
+ * Deprecated: Not needed when using libsecret.
  **/
 static GnomeKeyringAttribute*
 gnome_keyring_attribute_copy (GnomeKeyringAttribute *attribute)
@@ -380,6 +421,9 @@ G_DEFINE_BOXED_TYPE (GnomeKeyringAttribute,
  * @value: The value to store in @attributes
  *
  * Store a key-value-pair with a string value in @attributes.
+ *
+ * Deprecated: libsecret stores attributes as a #GHashTable containing
+ *             string keys and values, use g_hash_table_replace() instead.
  **/
 void
 gnome_keyring_attribute_list_append_string (GnomeKeyringAttributeList *attributes,
@@ -404,6 +448,8 @@ gnome_keyring_attribute_list_append_string (GnomeKeyringAttributeList *attribute
  * @value: The value to store in @attributes
  *
  * Store a key-value-pair with an unsigned 32bit number value in @attributes.
+ *
+ * Deprecated: libsecret does not support number attributes.
  **/
 void
 gnome_keyring_attribute_list_append_uint32 (GnomeKeyringAttributeList *attributes,
@@ -426,6 +472,9 @@ gnome_keyring_attribute_list_append_uint32 (GnomeKeyringAttributeList *attribute
  * Create a new #GnomeKeyringAttributeList.
  *
  * Return value: (transfer full): The new #GnomeKeyringAttributeList
+ *
+ * Deprecated: libsecret stores attributes as a #GHashTable containing
+ *             string keys and values; use g_hash_table_new() instead.
  **/
 GnomeKeyringAttributeList *
 gnome_keyring_attribute_list_new (void)
@@ -440,6 +489,9 @@ gnome_keyring_attribute_list_new (void)
  * Free the memory used by @attributes.
  *
  * If a %NULL pointer is passed, it is ignored.
+ *
+ * Deprecated: libsecret stores attributes as a #GHashTable containing
+ *             string keys and values, use g_hash_table_unref() instead.
  **/
 void
 gnome_keyring_attribute_list_free (GnomeKeyringAttributeList *attributes)
@@ -468,6 +520,8 @@ gnome_keyring_attribute_list_free (GnomeKeyringAttributeList *attributes)
  * Copy a list of item attributes.
  *
  * Return value: (transfer full): The new #GnomeKeyringAttributeList
+ *
+ * Deprecated: Not needed when using libsecret.
  **/
 GnomeKeyringAttributeList *
 gnome_keyring_attribute_list_copy (GnomeKeyringAttributeList *attributes)
@@ -505,6 +559,8 @@ gnome_keyring_attribute_list_copy (GnomeKeyringAttributeList *attributes)
  * of #GnomeKeyringAttribute.
  *
  * Since: 3.4
+ *
+ * Deprecated: Not needed when using libsecret.
  **/
 GList*
 gnome_keyring_attribute_list_to_glist (GnomeKeyringAttributeList *attributes)
@@ -534,6 +590,10 @@ G_DEFINE_BOXED_TYPE (GnomeKeyringAttributeList,
  * @title: Keyring Info
  * @short_description: Keyring Information
  *
+ * <warning>All of these APIs are deprecated. Use
+ * <ulink href="http://developer.gnome.org/libsecret/stable/">libsecret</ulink>
+ * instead.</warning>
+ *
  * Use gnome_keyring_get_info() or gnome_keyring_get_info_sync() to get a #GnomeKeyringInfo
  * pointer to use with these functions.
  **/
@@ -544,6 +604,8 @@ G_DEFINE_BOXED_TYPE (GnomeKeyringAttributeList,
  *
  * Free a #GnomeKeyringInfo object. If a %NULL pointer is passed
  * nothing occurs.
+ *
+ * Deprecated: Use #SecretCollection objects instead.
  **/
 void
 gnome_keyring_info_free (GnomeKeyringInfo *keyring_info)
@@ -555,6 +617,10 @@ gnome_keyring_info_free (GnomeKeyringInfo *keyring_info)
  * SECTION:gnome-keyring-item-info
  * @title: Item Information
  * @short_description: Keyring Item Info
+ *
+ * <warning>All of these APIs are deprecated. Use
+ * <ulink href="http://developer.gnome.org/libsecret/stable/">libsecret</ulink>
+ * instead.</warning>
  *
  * #GnomeKeyringItemInfo represents the basic information about a keyring item.
  * Use gnome_keyring_item_get_info() or gnome_keyring_item_set_info().
@@ -568,6 +634,8 @@ gnome_keyring_info_free (GnomeKeyringInfo *keyring_info)
  *
  * Return value: The newly allocated #GnomeKeyringInfo. This must be freed with
  * gnome_keyring_info_free()
+ *
+ * Deprecated: Use #SecretCollection objects instead.
  **/
 GnomeKeyringInfo *
 gnome_keyring_info_copy (GnomeKeyringInfo *keyring_info)
@@ -595,6 +663,8 @@ G_DEFINE_BOXED_TYPE (GnomeKeyringInfo,
  * Free the #GnomeKeyringItemInfo object.
  *
  * A %NULL pointer may be passed, in which case it will be ignored.
+ *
+ * Deprecated: Use #SecretItem objects instead.
  **/
 void
 gnome_keyring_item_info_free (GnomeKeyringItemInfo *item_info)
@@ -613,6 +683,8 @@ gnome_keyring_item_info_free (GnomeKeyringItemInfo *item_info)
  * Free the #GnomeKeyringItemInfo object.
  *
  * Return value: A keyring item info pointer.
+ *
+ * Deprecated: Use #SecretItem objects instead.
  **/
 GnomeKeyringItemInfo *
 gnome_keyring_item_info_new (void)
@@ -633,6 +705,8 @@ gnome_keyring_item_info_new (void)
  * Copy a #GnomeKeyringItemInfo object.
  *
  * Return value: A keyring item info pointer.
+ *
+ * Deprecated: Use #SecretItem objects instead.
  **/
 GnomeKeyringItemInfo *
 gnome_keyring_item_info_copy (GnomeKeyringItemInfo *item_info)
@@ -675,6 +749,8 @@ gnome_keyring_item_info_get_gtype (void)
  * Create a new application reference.
  *
  * Return value: A new #GnomeKeyringApplicationRef pointer.
+ *
+ * Deprecated: Not needed when using libsecret.
  **/
 GnomeKeyringApplicationRef *
 gnome_keyring_application_ref_new (void)
@@ -691,6 +767,8 @@ gnome_keyring_application_ref_new (void)
  * @app: A #GnomeKeyringApplicationRef pointer
  *
  * Free an application reference.
+ *
+ * Deprecated: Not needed when using libsecret.
  **/
 void
 gnome_keyring_application_ref_free (GnomeKeyringApplicationRef *app)
@@ -709,6 +787,8 @@ gnome_keyring_application_ref_free (GnomeKeyringApplicationRef *app)
  * Copy an application reference.
  *
  * Return value: A new #GnomeKeyringApplicationRef pointer.
+ *
+ * Deprecated: Not needed when using libsecret.
  **/
 GnomeKeyringApplicationRef *
 gnome_keyring_application_ref_copy (const GnomeKeyringApplicationRef *app)
@@ -740,6 +820,8 @@ G_DEFINE_BOXED_TYPE (GnomeKeyringApplicationRef,
  *
  * Return value: The new #GnomeKeyringAccessControl pointer. Use
  * gnome_keyring_access_control_free() to free the memory.
+ *
+ * Deprecated: Not needed when using libsecret.
  **/
 GnomeKeyringAccessControl *
 gnome_keyring_access_control_new (const GnomeKeyringApplicationRef *application,
@@ -759,6 +841,8 @@ gnome_keyring_access_control_new (const GnomeKeyringApplicationRef *application,
  * @ac: A #GnomeKeyringAccessControl pointer
  *
  * Free an access control for an item.
+ *
+ * Deprecated: Not needed when using libsecret.
  **/
 void
 gnome_keyring_access_control_free (GnomeKeyringAccessControl *ac)
@@ -777,6 +861,8 @@ gnome_keyring_access_control_free (GnomeKeyringAccessControl *ac)
  *
  * Return value: The new #GnomeKeyringAccessControl pointer. Use
  * gnome_keyring_access_control_free() to free the memory.
+ *
+ * Deprecated: Not needed when using libsecret.
  **/
 GnomeKeyringAccessControl *
 gnome_keyring_access_control_copy (GnomeKeyringAccessControl *ac)
@@ -806,6 +892,8 @@ G_DEFINE_BOXED_TYPE (GnomeKeyringAccessControl,
  * Return value: (transfer full) (element-type GnomeKeyringAccessControl):
  * A new list of #GnomeKeyringAccessControl items. Use gnome_keyring_acl_free()
  * to free the memory.
+ *
+ * Deprecated: Not needed when using libsecret.
  **/
 GList *
 gnome_keyring_acl_copy (GList *list)
@@ -826,6 +914,8 @@ gnome_keyring_acl_copy (GList *list)
  *       #GnomeKeyringAccessControl pointers.
  *
  * Free an access control list.
+ *
+ * Deprecated: Not needed when using libsecret.
  **/
 void
 gnome_keyring_acl_free (GList *acl)
@@ -842,6 +932,8 @@ gnome_keyring_acl_free (GList *acl)
  * Set whether or not to lock a keyring after a certain amount of idle time.
  *
  * See also gnome_keyring_info_set_lock_timeout().
+ *
+ * Deprecated: Not supported when using libsecret.
  **/
 void
 gnome_keyring_info_set_lock_on_idle (GnomeKeyringInfo *keyring_info,
@@ -860,6 +952,8 @@ gnome_keyring_info_set_lock_on_idle (GnomeKeyringInfo *keyring_info,
  * See also gnome_keyring_info_get_lock_timeout().
  *
  * Return value: Whether to lock or not.
+ *
+ * Deprecated: Not supported when using libsecret.
  **/
 gboolean
 gnome_keyring_info_get_lock_on_idle (GnomeKeyringInfo *keyring_info)
@@ -876,6 +970,8 @@ gnome_keyring_info_get_lock_on_idle (GnomeKeyringInfo *keyring_info)
  * Set the idle timeout, in seconds, after which to lock the keyring.
  *
  * See also gnome_keyring_info_set_lock_on_idle().
+ *
+ * Deprecated: Not supported when using libsecret.
  **/
 void
 gnome_keyring_info_set_lock_timeout (GnomeKeyringInfo *keyring_info,
@@ -894,6 +990,8 @@ gnome_keyring_info_set_lock_timeout (GnomeKeyringInfo *keyring_info,
  * See also gnome_keyring_info_get_lock_on_idle().
  *
  * Return value: The idle timeout, in seconds.
+ *
+ * Deprecated: Not supported when using libsecret.
  **/
 guint32
 gnome_keyring_info_get_lock_timeout (GnomeKeyringInfo *keyring_info)
@@ -909,6 +1007,8 @@ gnome_keyring_info_get_lock_timeout (GnomeKeyringInfo *keyring_info)
  * Get the time at which the keyring was last modified.
  *
  * Return value: The last modified time.
+ *
+ * Deprecated: Use secret_collection_get_modified() instead.
  **/
 time_t
 gnome_keyring_info_get_mtime (GnomeKeyringInfo *keyring_info)
@@ -924,6 +1024,8 @@ gnome_keyring_info_get_mtime (GnomeKeyringInfo *keyring_info)
  * Get the time at which the keyring was created.
  *
  * Return value: The created time.
+ *
+ * Deprecated: Use secret_collection_get_created() instead.
  **/
 time_t
 gnome_keyring_info_get_ctime (GnomeKeyringInfo *keyring_info)
@@ -939,6 +1041,8 @@ gnome_keyring_info_get_ctime (GnomeKeyringInfo *keyring_info)
  * Get whether the keyring is locked or not.
  *
  * Return value: Whether the keyring is locked or not.
+ *
+ * Deprecated: Use secret_collection_get_locked() instead.
  **/
 gboolean
 gnome_keyring_info_get_is_locked (GnomeKeyringInfo *keyring_info)
@@ -954,6 +1058,8 @@ gnome_keyring_info_get_is_locked (GnomeKeyringInfo *keyring_info)
  * Get the item type.
  *
  * Return value: The item type
+ *
+ * Deprecated: Use secret_item_get_schema_name() instead.
  **/
 GnomeKeyringItemType
 gnome_keyring_item_info_get_type (GnomeKeyringItemInfo *item_info)
@@ -968,6 +1074,8 @@ gnome_keyring_item_info_get_type (GnomeKeyringItemInfo *item_info)
  * @type: The new item type
  *
  * Set the type on an item info.
+ *
+ * Deprecated: Use secret_item_set_attributes() instead.
  **/
 void
 gnome_keyring_item_info_set_type (GnomeKeyringItemInfo *item_info,
@@ -984,6 +1092,8 @@ gnome_keyring_item_info_set_type (GnomeKeyringItemInfo *item_info,
  * Get the item secret.
  *
  * Return value: The newly allocated string containing the item secret.
+ *
+ * Deprecated: Use secret_item_get_secret() instead.
  **/
 char *
 gnome_keyring_item_info_get_secret (GnomeKeyringItemInfo *item_info)
@@ -999,6 +1109,8 @@ gnome_keyring_item_info_get_secret (GnomeKeyringItemInfo *item_info)
  * @value: The new item secret
  *
  * Set the secret on an item info.
+ *
+ * Deprecated: Use secret_item_set_secret() instead.
  **/
 void
 gnome_keyring_item_info_set_secret (GnomeKeyringItemInfo *item_info,
@@ -1016,6 +1128,8 @@ gnome_keyring_item_info_set_secret (GnomeKeyringItemInfo *item_info,
  * Get the item display name.
  *
  * Return value: The newly allocated string containing the item display name.
+ *
+ * Deprecated: Use secret_item_get_label() instead.
  **/
 char *
 gnome_keyring_item_info_get_display_name (GnomeKeyringItemInfo *item_info)
@@ -1030,6 +1144,8 @@ gnome_keyring_item_info_get_display_name (GnomeKeyringItemInfo *item_info)
  * @value: The new display name.
  *
  * Set the display name on an item info.
+ *
+ * Deprecated: Use secret_item_set_label() instead.
  **/
 void
 gnome_keyring_item_info_set_display_name (GnomeKeyringItemInfo *item_info,
@@ -1047,6 +1163,8 @@ gnome_keyring_item_info_set_display_name (GnomeKeyringItemInfo *item_info,
  * Get the item last modified time.
  *
  * Return value: The item last modified time.
+ *
+ * Deprecated: Use secret_item_get_modified() instead.
  **/
 time_t
 gnome_keyring_item_info_get_mtime (GnomeKeyringItemInfo *item_info)
@@ -1062,6 +1180,8 @@ gnome_keyring_item_info_get_mtime (GnomeKeyringItemInfo *item_info)
  * Get the item created time.
  *
  * Return value: The item created time.
+ *
+ * Deprecated: Use secret_item_get_created() instead.
  **/
 time_t
 gnome_keyring_item_info_get_ctime (GnomeKeyringItemInfo *item_info)
@@ -1074,6 +1194,10 @@ gnome_keyring_item_info_get_ctime (GnomeKeyringItemInfo *item_info)
  * SECTION:gnome-keyring-acl
  * @title: Item ACLs
  * @short_description: Access control lists for keyring items.
+ *
+ * <warning>All of these APIs are deprecated. Use
+ * <ulink href="http://developer.gnome.org/libsecret/stable/">libsecret</ulink>
+ * instead.</warning>
  *
  * Each item has an access control list, which specifies the applications that
  * can read, write or delete an item. The read access applies only to reading the secret.
@@ -1088,6 +1212,8 @@ gnome_keyring_item_info_get_ctime (GnomeKeyringItemInfo *item_info)
  * Get the access control application's display name.
  *
  * Return value: A newly allocated string containing the display name.
+ *
+ * Deprecated: Not supported when using libsecret.
  **/
 char *
 gnome_keyring_item_ac_get_display_name (GnomeKeyringAccessControl *ac)
@@ -1102,6 +1228,8 @@ gnome_keyring_item_ac_get_display_name (GnomeKeyringAccessControl *ac)
  * @value: The new application display name.
  *
  * Set the access control application's display name.
+ *
+ * Deprecated: Not supported when using libsecret.
  **/
 void
 gnome_keyring_item_ac_set_display_name (GnomeKeyringAccessControl *ac,
@@ -1119,6 +1247,8 @@ gnome_keyring_item_ac_set_display_name (GnomeKeyringAccessControl *ac,
  * Get the access control application's full path name.
  *
  * Return value: A newly allocated string containing the display name.
+ *
+ * Deprecated: Not supported when using libsecret.
  **/
 char *
 gnome_keyring_item_ac_get_path_name (GnomeKeyringAccessControl *ac)
@@ -1133,6 +1263,8 @@ gnome_keyring_item_ac_get_path_name (GnomeKeyringAccessControl *ac)
  * @value: The new application full path.
  *
  * Set the access control application's full path name.
+ *
+ * Deprecated: Not supported when using libsecret.
  **/
 void
 gnome_keyring_item_ac_set_path_name (GnomeKeyringAccessControl *ac,
@@ -1150,6 +1282,8 @@ gnome_keyring_item_ac_set_path_name (GnomeKeyringAccessControl *ac,
  * Get the application access rights for the access control.
  *
  * Return value: The access rights.
+ *
+ * Deprecated: Not supported when using libsecret.
  **/
 GnomeKeyringAccessType
 gnome_keyring_item_ac_get_access_type (GnomeKeyringAccessControl *ac)
@@ -1164,6 +1298,8 @@ gnome_keyring_item_ac_get_access_type (GnomeKeyringAccessControl *ac)
  * @value: The new access rights.
  *
  * Set the application access rights for the access control.
+ *
+ * Deprecated: Not supported when using libsecret.
  **/
 void
 gnome_keyring_item_ac_set_access_type (GnomeKeyringAccessControl *ac,

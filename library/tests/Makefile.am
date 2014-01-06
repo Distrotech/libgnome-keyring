@@ -3,7 +3,8 @@ INCLUDES = \
 	-I$(top_srcdir) \
 	-I$(top_srcdir)/library \
 	-DSRCDIR="\"@abs_srcdir@\"" \
-	$(LIBRARY_CFLAGS)
+	$(LIBRARY_CFLAGS) \
+	-DGNOME_KEYRING_COMPILATION
 
 noinst_LTLIBRARIES = libmock-service.la
 

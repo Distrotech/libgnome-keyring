@@ -11,7 +11,8 @@ INCLUDES= \
 	-I$(top_srcdir) \
 	-I$(top_builddir) \
 	$(LIBRARY_CFLAGS) \
-	$(LIBGCRYPT_CFLAGS)
+	$(LIBGCRYPT_CFLAGS) \
+	-DGNOME_KEYRING_COMPILATION
 
 PUBLIC_SOURCES = \
 	gnome-keyring.c \

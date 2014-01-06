@@ -188,6 +188,8 @@ gnome_keyring_set_network_password_sync
 gnome_keyring_is_available
 gnome_keyring_cancel_request
 gnome_keyring_string_list_free
+GNOME_KEYRING_DEPRECATED
+GNOME_KEYRING_DEPRECATED_FOR
 </SECTION>
 <SECTION>
 <FILE>gnome-keyring-daemon</FILE>

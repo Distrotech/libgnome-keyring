@@ -37,6 +37,10 @@
  * @title: Non-pageable Memory
  * @short_description: Secure Non-pageable Memory
  *
+ * <warning>All of these APIs are deprecated. Use
+ * <ulink href="http://developer.gnome.org/libsecret/stable/">libsecret</ulink>
+ * instead.</warning>
+ *
  * Normal allocated memory can be paged to disk at the whim of the operating system.
  * This can be a serious problem for sensitive information like passwords, keys and secrets.
  *
@@ -126,6 +130,8 @@ EGG_SECURE_DECLARE (libgnome_keyring_memory);
  *
  * Return value: (transfer full): The new memory block which should be freed
  * with gnome_keyring_memory_free()
+ *
+ * Deprecated: Use gcr_secure_memory_alloc() instead.
  **/
 gpointer
 gnome_keyring_memory_alloc (gulong sz)
@@ -151,6 +157,8 @@ gnome_keyring_memory_alloc (gulong sz)
  *
  * Return value: (transfer full): The new block, or %NULL if memory cannot be
  * allocated. The memory block should be freed with gnome_keyring_memory_free()
+ *
+ * Deprecated: Use gcr_secure_memory_try_alloc() instead.
  */
 gpointer
 gnome_keyring_memory_try_alloc (gulong sz)
@@ -175,6 +183,8 @@ gnome_keyring_memory_try_alloc (gulong sz)
  *
  * Return value: (transfer full): The new block, or %NULL if the block was
  * freed. The memory block should be freed with gnome_keyring_memory_free()
+ *
+ * Deprecated: Use gcr_secure_memory_realloc() instead.
  */
 gpointer
 gnome_keyring_memory_realloc (gpointer p, gulong sz)
@@ -214,6 +224,8 @@ gnome_keyring_memory_realloc (gpointer p, gulong sz)
  *
  * Return value: (transfer full): The new block, or %NULL if memory cannot be
  * allocated. The memory block should be freed with gnome_keyring_memory_free()
+ *
+ * Deprecated: Use gcr_secure_memory_try_realloc() instead.
  */
 gpointer
 gnome_keyring_memory_try_realloc (gpointer p, gulong sz)
@@ -245,6 +257,8 @@ gnome_keyring_memory_try_realloc (gpointer p, gulong sz)
  *
  * Glib memory is also freed correctly when passed to this function. If called
  * with a null pointer then no action is taken.
+ *
+ * Deprecated: Use gcr_secure_memory_free() instead.
  */
 void
 gnome_keyring_memory_free (gpointer p)
@@ -261,6 +275,8 @@ gnome_keyring_memory_free (gpointer p)
  * Check if a pointer is in non-pageable memory allocated by gnome-keyring.
  *
  * Return value: Whether the memory is non-pageable or not
+ *
+ * Deprecated: Use gcr_secure_memory_is_secure() instead.
  */
 gboolean
 gnome_keyring_memory_is_secure (gpointer p)
@@ -276,6 +292,8 @@ gnome_keyring_memory_is_secure (gpointer p)
  * %NULL will be returned.
  *
  * Return value: The copied string, should be freed with gnome_keyring_memory_free()
+ *
+ * Deprecated: Use gcr_secure_memory_strdup() instead.
  */
 gchar*
 gnome_keyring_memory_strdup (const gchar* str)

@@ -26,7 +26,17 @@
 
 #include <glib.h>
 
+#if !defined(GNOME_KEYRING_COMPILATION) && defined(G_DEPRECATED)
+#define GNOME_KEYRING_DEPRECATED GNOME_KEYRING_DEPRECATED
+#define GNOME_KEYRING_DEPRECATED_FOR(x) GNOME_KEYRING_DEPRECATED(x)
+#else
+#define GNOME_KEYRING_DEPRECATED
+#define GNOME_KEYRING_DEPRECATED_FOR(x)
+#endif
+
 G_BEGIN_DECLS
+
+#ifndef GNOME_KEYRING_DISABLE_DEPRECATED
 
 /**
  * gnome_keyring_memory_new:
@@ -36,23 +46,34 @@ G_BEGIN_DECLS
  * Allocate objects in non-pageable gnome-keyring memory.
  *
  * Return value: The new block of memory.
+ *
+ * Deprecated: Use gcr_secure_memory_alloc() instead.
  **/
 #define gnome_keyring_memory_new(type, n_objects) \
 	((type*)(gnome_keyring_memory_alloc (sizeof (type) * (n_objects))))
 
+GNOME_KEYRING_DEPRECATED_FOR(gcr_secure_memory_alloc)
 gpointer  gnome_keyring_memory_alloc          (gulong sz);
 
+GNOME_KEYRING_DEPRECATED_FOR(gcr_secure_memory_try_alloc)
 gpointer  gnome_keyring_memory_try_alloc      (gulong sz);
 
+GNOME_KEYRING_DEPRECATED_FOR(gcr_secure_memory_realloc)
 gpointer  gnome_keyring_memory_realloc        (gpointer p, gulong sz);
 
+GNOME_KEYRING_DEPRECATED_FOR(gcr_secure_memory_try_realloc)
 gpointer  gnome_keyring_memory_try_realloc    (gpointer p, gulong sz);
 
+GNOME_KEYRING_DEPRECATED_FOR(gcr_secure_memory_free)
 void      gnome_keyring_memory_free           (gpointer p);
 
+GNOME_KEYRING_DEPRECATED_FOR(gcr_secure_memory_is_secure)
 gboolean  gnome_keyring_memory_is_secure      (gpointer p);
 
+GNOME_KEYRING_DEPRECATED_FOR(gcr_secure_memory_strdup)
 gchar*    gnome_keyring_memory_strdup         (const gchar* str);
+
+#endif /* GNOME_KEYRING_DISABLE_DEPRECATED */
 
 G_END_DECLS
 
