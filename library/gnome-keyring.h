@@ -28,12 +28,14 @@
 #include <glib-object.h>
 #include <time.h>
 
+#if !defined(GNOME_KEYRING_DEPRECATED)
 #if !defined(GNOME_KEYRING_COMPILATION) && defined(G_DEPRECATED)
 #define GNOME_KEYRING_DEPRECATED G_DEPRECATED
 #define GNOME_KEYRING_DEPRECATED_FOR(x) G_DEPRECATED_FOR(x)
 #else
 #define GNOME_KEYRING_DEPRECATED
 #define GNOME_KEYRING_DEPRECATED_FOR(x)
+#endif
 #endif
 
 #include "gnome-keyring-result.h"
