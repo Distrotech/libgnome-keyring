@@ -1,0 +1,466 @@
+# Gaelic; Scottish translation for gnome-keyring
+# Copyright (c) 2011 Rosetta Contributors and Canonical Ltd 2011
+# This file is distributed under the same license as the gnome-keyring package.
+# FIRST AUTHOR <EMAIL@ADDRESS>, 2011.
+# GunChleoc <fios@foramnagaidhlig.net>, 2014.
+msgid ""
+msgstr ""
+"Project-Id-Version: gnome-keyring\n"
+"Report-Msgid-Bugs-To: http://bugzilla.gnome.org/enter_bug.cgi?product=gnome-"
+"keyring&keywords=I18N+L10N&component=libgnome-keyring\n"
+"POT-Creation-Date: 2014-03-19 22:24+0000\n"
+"PO-Revision-Date: 2014-03-20 09:34+0200\n"
+"Last-Translator: GunChleoc <fios@foramnagaidhlig.net>\n"
+"Language-Team: Fòram na Gàidhlig http://www.foramnagaidhlig.net\n"
+"Language: gd\n"
+"MIME-Version: 1.0\n"
+"Content-Type: text/plain; charset=UTF-8\n"
+"Content-Transfer-Encoding: 8bit\n"
+"Plural-Forms: nplurals=4; plural=(n==1 || n==11) ? 0 : (n==2 || n==12) ? 1 : "
+"(n > 2 && n < 20) ? 2 : 3;\n"
+"X-Generator: Virtaal 0.7.1\n"
+"X-Launchpad-Export-Date: 2013-09-19 08:01+0000\n"
+"X-Project-Style: gnome\n"
+
+#: ../library/gnome-keyring-utils.c:182
+msgid "Access Denied"
+msgstr "Chaidh an t-inntrigeadh a dhiùltadh"
+
+#: ../library/gnome-keyring-utils.c:184
+msgid "The gnome-keyring-daemon application is not running."
+msgstr "Chan eil am prògram gnome-keyring-daemon a' ruith."
+
+#: ../library/gnome-keyring-utils.c:186
+msgid "Error communicating with gnome-keyring-daemon"
+msgstr "Mearachd le conaltradh ri gnome-keyring-daemon"
+
+#: ../library/gnome-keyring-utils.c:188
+msgid "A keyring with that name already exists"
+msgstr "Tha dul-iuchrach air a bheil an t-ainm seo ann mar-thà"
+
+#: ../library/gnome-keyring-utils.c:190
+msgid "Programmer error: The application sent invalid data."
+msgstr "Mearachd prògramachaidh: Chuir am prògram dàta mì-dhligheach."
+
+#: ../library/gnome-keyring-utils.c:192
+msgid "No matching results"
+msgstr "Cha deach toradh a lorg"
+
+#: ../library/gnome-keyring-utils.c:194
+msgid "A keyring with that name does not exist."
+msgstr "Chan eil dul-iuchrach air a bheil an t-ainm seo ann."
+
+#: ../library/gnome-keyring-utils.c:201
+msgid "The keyring has already been unlocked."
+msgstr "Chaidh an dul-iuchrach a neo-ghlasadh mar-thà."
+
+#. TRANSLATORS: This is the name of an automatically created default keyring.
+#: ../library/gnome-keyring.c:3044
+msgid "Default"
+msgstr "Tùsail"
+
+#~ msgid "Unnamed"
+#~ msgstr "Gun ainm"
+
+#~ msgid "Enter the old password for the '%s' keyring"
+#~ msgstr "Cuir a-steach an seann fhacal-faire airson an dul-iuchrach \"%s\""
+
+#~ msgid ""
+#~ "An application wants to change the password for the '%s' keyring. Enter "
+#~ "the old password for it."
+#~ msgstr ""
+#~ "Tha aplacaid airson am facal-faire aig an dul-iuchrach \"%s\" "
+#~ "atharrachadh. Cuir an seann fhacal-faire air a shon a-steach."
+
+#~ msgid "Continue"
+#~ msgstr "Lean air adhart"
+
+#~ msgid "Choose a new password for the '%s' keyring"
+#~ msgstr "Tagh facal-faire ùr airson an dul-iuchrach \"%s\""
+
+#~ msgid ""
+#~ "An application wants to change the password for the '%s' keyring. Choose "
+#~ "the new password you want to use for it."
+#~ msgstr ""
+#~ "Tha aplacaid airson am facal-faire aig an dul-iuchrach \"%s\" "
+#~ "atharrachadh. Tagh am facal-faire ùr air a shon."
+
+#~ msgid "Store passwords unencrypted?"
+#~ msgstr "A bheil thu airson nam faclan-faire a stòradh gun chrioptachadh?"
+
+#~ msgid ""
+#~ "By choosing to use a blank password, your stored passwords will not be "
+#~ "safely encrypted. They will be accessible by anyone with access to your "
+#~ "files."
+#~ msgstr ""
+#~ "Ma thaghas tu facal-faire bàn, cha dèid na faclan-faire agad a "
+#~ "chrioptachadh is chan e stòras sàbhailte a tha sin. 'S urrainn do dhuine "
+#~ "sam bith inntrigeadh a dhèanamh dhaibh aig a bheil cothrom air na "
+#~ "faidhlichean agad."
+
+#~ msgid "The original password was incorrect"
+#~ msgstr "Cha robh am facal-faire tùsail ceart"
+
+#~ msgid "Change Keyring Password"
+#~ msgstr "Atharraich facal-faire an dul-iuchrach"
+
+#~ msgid ""
+#~ "An application wants to create a new keyring called '%s'. Choose the "
+#~ "password you want to use for it."
+#~ msgstr ""
+#~ "Tha aplacaid ag iarraidh dul-iuchrach ùr a chruthachadh air am bi \"%s\". "
+#~ "Tagh am facal-faire a bu mhath leat cleachdadh air a shon."
+
+#~ msgid "Choose password for new keyring"
+#~ msgstr "Tagh facal-faire ùr airson an dul-iuchrach ùir"
+
+#~ msgid "New Keyring Password"
+#~ msgstr "Facal-faire an dul-iuchrach ùir"
+
+#~ msgid "GPG Password Agent"
+#~ msgstr "Àidseant facal-faire GPG"
+
+#~ msgid "GNOME Keyring: GPG Agent"
+#~ msgstr "Dul-iuchrach GNOME: Àidseant GPG"
+
+#~ msgid "Certificate and Key Storage"
+#~ msgstr "Teisteanas agus stòras na h-iuchrach"
+
+#~ msgid "GNOME Keyring: PKCS#11 Component"
+#~ msgstr "Dul-iuchrach GNOME: Co-phàirt PKCS#11"
+
+#~ msgid "Secret Storage Service"
+#~ msgstr "Seirbheis stòrais dhìomhair"
+
+#~ msgid "GNOME Keyring: Secret Service"
+#~ msgstr "Dul-iuchrach GNOME: Seirbheis dhìomhair"
+
+#~ msgid "SSH Key Agent"
+#~ msgstr "Àidseant iuchair SSH"
+
+#~ msgid "GNOME Keyring: SSH Agent"
+#~ msgstr "Dul-iuchrach: Àidseant SSH"
+
+#~ msgid "Unknown"
+#~ msgstr "Chan eil fhios"
+
+#~ msgid "PGP Key: %s"
+#~ msgstr "Iuchair PGP: %s"
+
+#~ msgid "Enter Passphrase"
+#~ msgstr "Cuir an abairt-fhaire a-steach"
+
+#~ msgid "Unlock"
+#~ msgstr "Thoir a' ghlas dheth"
+
+#~ msgid "Automatically unlock this key, whenever I'm logged in"
+#~ msgstr ""
+#~ "Thoir a' ghlas far na h-iuchrach seo gu fèin-obrachail gach turas a "
+#~ "chlàraicheas mi a-steach"
+
+#~ msgid "Login"
+#~ msgstr "Clàraich a-steach"
+
+#~ msgid "failed to create temporary file `%s': %s\n"
+#~ msgstr "dh'fhàillig cruthachadh an fhaidhle shealaich \"%s\": %s\n"
+
+#~ msgid "error writing to `%s': %s\n"
+#~ msgstr "mearachd a' sgrìobhadh ann an \"%s\": %s\n"
+
+#~ msgid "can't create `%s': %s\n"
+#~ msgstr "cha ghabh \"%s\" a chruthachadh: %s\n"
+
+#~ msgid "removing stale lockfile (created by %d)\n"
+#~ msgstr "a' toirt air falbh an stale lockfile (air a chruthachadh le %d)\n"
+
+#~ msgid "waiting for lock (held by %d%s) %s...\n"
+#~ msgstr "a' feitheamh ris a' ghlas ('ga chumail le %d%s) %s...\n"
+
+#~ msgid "(deadlock?) "
+#~ msgstr "(ana-gèill?) "
+
+#~ msgid "lock `%s' not made: %s\n"
+#~ msgstr "cha deach a' ghlas \"%s\"a dhèanamh: %s\n"
+
+#~ msgid "waiting for lock %s...\n"
+#~ msgstr "a' feitheamh ris a' ghlas %s...\n"
+
+#~ msgid "Domain Component"
+#~ msgstr "Co-phàirt àrainne-lìn"
+
+#~ msgid "User ID"
+#~ msgstr "ID a' chleachdaiche"
+
+#~ msgid "Email Address"
+#~ msgstr "Seòladh puist-d"
+
+#~ msgid "Date of Birth"
+#~ msgstr "Latha-breith"
+
+#~ msgid "Place of Birth"
+#~ msgstr "Àite-breith"
+
+#~ msgid "Gender"
+#~ msgstr "Gnè"
+
+#~ msgid "Country of Citizenship"
+#~ msgstr "Dùthaich na saoranachd"
+
+#~ msgid "Country of Residence"
+#~ msgstr "Dùthaich na còmhnaidhe"
+
+#~ msgid "Common Name"
+#~ msgstr "Ainm coitcheann"
+
+#~ msgid "Surname"
+#~ msgstr "Sloinneadh"
+
+#~ msgid "Serial Number"
+#~ msgstr "An àireamh shreathach"
+
+#~ msgid "Country"
+#~ msgstr "Dùthaich"
+
+#~ msgid "Locality"
+#~ msgstr "Ionad"
+
+#~ msgid "State"
+#~ msgstr "Siorrachd/Còigeamh/Stàit"
+
+#~ msgid "Street"
+#~ msgstr "Sràid"
+
+#~ msgid "Organization"
+#~ msgstr "Buidheann"
+
+#~ msgid "Organizational Unit"
+#~ msgstr "Aonad a' bhuidhinn"
+
+#~ msgid "Title"
+#~ msgstr "Tiotal"
+
+#~ msgid "Telephone Number"
+#~ msgstr "Àireamh fòn"
+
+#~ msgid "Given Name"
+#~ msgstr "Ainm"
+
+#~ msgid "Initials"
+#~ msgstr "Tùs-litrichean"
+
+#~ msgid "Generation Qualifier"
+#~ msgstr "Comharra a' ghinealaich"
+
+#~ msgid "DN Qualifier"
+#~ msgstr "DN Qualifier"
+
+#~ msgid "Pseudonym"
+#~ msgstr "Ainm-brèige"
+
+#~ msgid "RSA"
+#~ msgstr "RSA"
+
+#~ msgid "MD2 with RSA"
+#~ msgstr "MD2 le RSA"
+
+#~ msgid "MD5 with RSA"
+#~ msgstr "MD5 le RSA"
+
+#~ msgid "SHA1 with RSA"
+#~ msgstr "SHA1 le RSA"
+
+#~ msgid "DSA"
+#~ msgstr "DSA"
+
+#~ msgid "SHA1 with DSA"
+#~ msgstr "SHA1 le DSA"
+
+#~ msgid "Server Authentication"
+#~ msgstr "Dearbhadh an fhrithealaiche"
+
+#~ msgid "Client Authentication"
+#~ msgstr "Dearbhadh a' chliaint"
+
+#~ msgid "Code Signing"
+#~ msgstr "Soidhneadh a' chòd"
+
+#~ msgid "Email Protection"
+#~ msgstr "Dìon puist-d"
+
+#~ msgid "Time Stamping"
+#~ msgstr "Stampadh ama"
+
+#~ msgid "Unexpected error in select() reading data from a child process (%s)"
+#~ msgstr ""
+#~ "Mearachd ris nach robh dùil ann an select() a' leughadh dàta o phròiseas "
+#~ "a' phàiste (%s)"
+
+#~ msgid "Unexpected error in waitpid() (%s)"
+#~ msgstr "Mearachd ris nach robh dùil ann an waitpid() (%s)"
+
+#~ msgid "Unnamed Certificate"
+#~ msgstr "Teisteanas gun ainm"
+
+#~ msgid "Couldn't parse public SSH key"
+#~ msgstr "Cha b' urrainn dhuinn an iuchair SSH phoblach a pharsadh"
+
+#~ msgid "Unlock password for: %s"
+#~ msgstr "Thoir a' ghlas far an fhacail-fhaire airson: %s"
+
+#~ msgid "Unlock Login Keyring"
+#~ msgstr "Thoir a' ghlas o dhul-iuchrach a' chlàraidh a-steach"
+
+#~ msgid "Enter password to unlock your login keyring"
+#~ msgstr ""
+#~ "Cuir a-steach am facal-faire gus a' ghlas a thoirt far dul-iuchrach a' "
+#~ "chlàraidh a-steach"
+
+#~ msgid ""
+#~ "The password you use to log in to your computer no longer matches that of "
+#~ "your login keyring."
+#~ msgstr ""
+#~ "Chan eil am facal-faire a chleachdas tu gus clàradh a-steach air a' "
+#~ "choimpiutair agad co-ionnan ri dul-iuchrach a' chlàraidh a-steach "
+#~ "tuilleadh."
+
+#~ msgid ""
+#~ "The login keyring did not get unlocked when you logged into your computer."
+#~ msgstr ""
+#~ "Cha deach a' ghlas a thoirt far dul-iuchrach a' chlàraidh a-steach nuair "
+#~ "a chlàraich thu a-steach air a' choimpiutair agad."
+
+#~ msgid "Unlock Keyring"
+#~ msgstr "Thoir a' ghlas far an dul-iuchrach"
+
+#~ msgid "Enter password for keyring '%s' to unlock"
+#~ msgstr ""
+#~ "Cuir a-steach am facal-faire airson an dul-iuchrach \"%s\" gus a' ghlas a "
+#~ "thoirt dheth"
+
+#~ msgid "An application wants access to the keyring '%s', but it is locked"
+#~ msgstr ""
+#~ "Tha aplacaid airson cothrom fhaighinn air an dul-iuchrach \"%s\" ach tha "
+#~ "e glaiste"
+
+#~ msgid "Automatically unlock this keyring whenever I'm logged in"
+#~ msgstr ""
+#~ "Thoir a' ghlas far an dul-iuchrach seo gu fèin-obrachail uair sam bith a "
+#~ "bhios mi clàraichte a-staigh"
+
+#~ msgid "Unlock private key"
+#~ msgstr "Thoir a' ghlas far na h-iuchrach phrìobhaideach"
+
+#~ msgid "Unlock certificate"
+#~ msgstr "Thoir a' ghlas far an teisteanais"
+
+#~ msgid "Unlock public key"
+#~ msgstr "Thoir a' ghlas far na h-iuchrach phoblach"
+
+#~ msgid "Enter password to unlock the private key"
+#~ msgstr ""
+#~ "Cuir a-steach am facal-faire gus a' ghlas a thoirt far na h-iuchrach "
+#~ "phrìobhaideach"
+
+#~ msgid "Enter password to unlock the certificate"
+#~ msgstr ""
+#~ "Cuir a-steach am facal-faire gus a' ghlas a thoirt far an teisteanais"
+
+#~ msgid "Enter password to unlock the public key"
+#~ msgstr ""
+#~ "Cuir a-steach am facal-faire gus a' ghlas a thoirt far na h-iuchrach "
+#~ "phoblach"
+
+#~ msgid "Enter password to unlock"
+#~ msgstr "Cuir a-steach am facal-faire gus a' ghlas a thoirt dheth"
+
+#~ msgid "Automatically unlock this key whenever I'm logged in"
+#~ msgstr ""
+#~ "Thoir a' ghlas far na h-iuchrach seo gu fèin-obrachail uair sam bith a "
+#~ "bhios mi clàraichte a-staigh"
+
+#~ msgid "Automatically unlock this certificate whenever I'm logged in"
+#~ msgstr ""
+#~ "Thoir a' ghlas far an teisteanais seo gu fèin-obrachail uair sam bith a "
+#~ "bhios mi clàraichte a-staigh"
+
+#~ msgid "Automatically unlock whenever I'm logged in"
+#~ msgstr ""
+#~ "Thoir a' ghlas dheth gu fèin-obrachail uair sam bith a bhios mi "
+#~ "clàraichte a-staigh"
+
+#~ msgid ""
+#~ "An application wants access to the private key '%s', but it is locked"
+#~ msgstr ""
+#~ "Tha aplacaid airson cothrom fhaighinn air an iuchair phrìobhaideach \"%s"
+#~ "\" ach tha e glaiste"
+
+#~ msgid ""
+#~ "An application wants access to the certificate '%s', but it is locked"
+#~ msgstr ""
+#~ "Tha aplacaid airson cothrom fhaighinn air an teisteanas \"%s\" ach tha e "
+#~ "glaiste"
+
+#~ msgid "An application wants access to the public key '%s', but it is locked"
+#~ msgstr ""
+#~ "Tha aplacaid airson cothrom fhaighinn air an iuchair phoblach \"%s\" ach "
+#~ "tha e glaiste"
+
+#~ msgid "An application wants access to '%s', but it is locked"
+#~ msgstr "Tha aplacaid airson cothrom fhaighinn air \"%s\" ach tha e glaiste"
+
+#~ msgid "The unlock password was incorrect"
+#~ msgstr "Bha thu airson a' ghlas a thoirt dheth ach bha am facal-faire cearr"
+
+#~ msgid "Unlock certificate/key storage"
+#~ msgstr "Thoir a' ghlas far stòras nan teisteanasan/iuchraichean"
+
+#~ msgid "Enter password to unlock the certificate/key storage"
+#~ msgstr ""
+#~ "Cuir am facal-faire a-steach gus a' ghlas a thoirt far stòras nan "
+#~ "teisteanasan/iuchraichean"
+
+#~ msgid ""
+#~ "An application wants access to the certificate/key storage '%s', but it "
+#~ "is locked"
+#~ msgstr ""
+#~ "Tha aplacaid airson cothrom fhaighinn air stòras nan teisteanasan/"
+#~ "iuchraichean \"%s\" ach tha e glaiste"
+
+#~ msgid "New Password Required"
+#~ msgstr "Tha feum air facal-faire ùr"
+
+#~ msgid "New password required for secure storage"
+#~ msgstr "Tha feum air facal-faire ùr gus a stòradh gu tèarainte"
+
+#~ msgid ""
+#~ "In order to prepare '%s' for storage of certificates or keys, a password "
+#~ "is required"
+#~ msgstr ""
+#~ "Mar ullachadh a chum stòradh theisteanasan no iuchraichean, feumaidh \"%s"
+#~ "\" facal-faire"
+
+#~ msgid "Change Password"
+#~ msgstr "Atharraich am facal-faire"
+
+#~ msgid "Original password for secure storage"
+#~ msgstr "Am facal-faire tùsail airson an stòrais thèarainte"
+
+#~ msgid "To change the password for '%s', the original password is required"
+#~ msgstr ""
+#~ "Gus am facal-faire airson \"%s\" atharrachadh, feumaidh tu am facal-faire "
+#~ "tùsail a chur a-steach"
+
+#~ msgid "Change password for secure storage"
+#~ msgstr "Atharraich am facal-faire airson an stòrais thrèarainte"
+
+#~ msgid "Type a new password for '%s'"
+#~ msgstr "Cuir a-steach facal-faire ùr airson \"%s\""
+
+#~ msgid "usage: gnome-keyring command [options]\n"
+#~ msgstr "cleachdadh: gnome-keyring command [options]\n"
+
+#~ msgid "commands: "
+#~ msgstr "àitheantan: "
+
+#~ msgid "          "
+#~ msgstr "          "
