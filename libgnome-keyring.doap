@@ -5,12 +5,12 @@
 	xmlns="http://usefulinc.com/ns/doap#">
 
 	<name xml:lang="en">libgnome-keyring</name>
-	<shortdesc xml:lang="en">Compatibility library for accessing secrets.</shortdesc>
+	<shortdesc xml:lang="en">Compatibility library for accessing secrets</shortdesc>
 
-	<homepage rdf:resource="http://live.gnome.org/GnomeKeyring/" />
+	<homepage rdf:resource="https://wiki.gnome.org/Projects/GnomeKeyring" />
 	<mailing-list rdf:resource="http://mail.gnome.org/mailman/listinfo/gnome-keyring-list" />
-	<download-page rdf:resource="http://download.gnome.org/sources/libgnome-keyring/"/>
-	<bug-database rdf:resource="http://bugzilla.gnome.org/browse.cgi?product=gnome-keyring"/>
+	<download-page rdf:resource="http://download.gnome.org/sources/libgnome-keyring/" />
+	<bug-database rdf:resource="https://bugzilla.gnome.org/browse.cgi?product=gnome-keyring&amp;component=libgnome-keyring" />
 	<category rdf:resource="http://api.gnome.org/doap-extensions#desktop" />
 
 	<maintainer>
