@@ -6,48 +6,50 @@
 msgid ""
 msgstr ""
 "Project-Id-Version: libgnome-keyring master\n"
-"Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2010-03-09 21:28+0100\n"
+"Report-Msgid-Bugs-To: http://bugzilla.gnome.org/enter_bug.cgi?product=gnome-"
+"keyring&keywords=I18N+L10N&component=libgnome-keyring\n"
+"POT-Creation-Date: 2013-12-19 14:37+0000\n"
 "PO-Revision-Date: 2010-03-01 23:33+0100\n"
 "Last-Translator: Joan Duran <jodufi@gmail.com>\n"
 "Language-Team: Catalan <gnome-dl@llistes.softcatala.org>\n"
+"Language: ca\n"
 "MIME-Version: 1.0\n"
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 
-#: ../library/gnome-keyring-utils.c:100
+#: ../library/gnome-keyring-utils.c:182
 msgid "Access Denied"
 msgstr "Accés denegat"
 
-#: ../library/gnome-keyring-utils.c:102
+#: ../library/gnome-keyring-utils.c:184
 msgid "The gnome-keyring-daemon application is not running."
 msgstr "No s'està executant l'aplicació gnome-keyring-daemon."
 
-#: ../library/gnome-keyring-utils.c:104
+#: ../library/gnome-keyring-utils.c:186
 msgid "Error communicating with gnome-keyring-daemon"
-msgstr "S'ha produït un error en comunicar-se amb el gnome-keyring-daemon."
+msgstr "S'ha produït un error en comunicar-se amb el gnome-keyring-daemon"
 
-#: ../library/gnome-keyring-utils.c:106
+#: ../library/gnome-keyring-utils.c:188
 msgid "A keyring with that name already exists"
 msgstr "Ja existeix un anell de claus amb aquest nom"
 
-#: ../library/gnome-keyring-utils.c:108
+#: ../library/gnome-keyring-utils.c:190
 msgid "Programmer error: The application sent invalid data."
 msgstr "Error de programació: l'aplicació ha enviat dades errònies."
 
-#: ../library/gnome-keyring-utils.c:110
+#: ../library/gnome-keyring-utils.c:192
 msgid "No matching results"
 msgstr "No hi ha cap concordança"
 
-#: ../library/gnome-keyring-utils.c:112
+#: ../library/gnome-keyring-utils.c:194
 msgid "A keyring with that name does not exist."
 msgstr "No existeix cap anell de claus amb aquest nom."
 
-#: ../library/gnome-keyring-utils.c:119
+#: ../library/gnome-keyring-utils.c:201
 msgid "The keyring has already been unlocked."
 msgstr "Ja s'ha desblocat l'anell de claus."
 
 #. TRANSLATORS: This is the name of an automatically created default keyring.
-#: ../library/gnome-keyring.c:2685
+#: ../library/gnome-keyring.c:3044
 msgid "Default"
 msgstr "Predeterminat"
